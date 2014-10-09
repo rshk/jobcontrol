@@ -14,3 +14,36 @@ Library to manage definition + running of "jobs".
 - Asynchronous job execution, via Celery workers
 - Administration via CLI
 - Administration via RESTful API
+
+
+Data model
+==========
+
+**Job**
+
+- id
+- ctime
+- function
+- args
+- kwargs
+- dependencies
+
+**Job run**
+
+- id
+- job_id
+- start_time
+- end_time
+- started
+- finished
+- success
+- progress_current
+- progress_total
+- retval
+
+**Job run log**
+
+- id
+- job_id
+- job_run_id
+- ..attributes of the log messages..
