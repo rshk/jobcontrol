@@ -1,6 +1,6 @@
 ## Standard makefile for Python tests
 
-BASE_PACKAGE = mypackagename
+BASE_PACKAGE = jobcontrol
 
 .PHONY: all upload
 

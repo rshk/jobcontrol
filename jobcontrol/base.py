@@ -42,48 +42,69 @@ class JobControlBase(object):
     # ------------------------------------------------------------
     # Job definition CRUD
 
+    def job_create(self, function, args, kwargs, dependencies=None):
+        job_id = self._job_create(
+            function=function, args=args, kwargs=kwargs,
+            dependencies=dependencies)
+        return JobDefinition(self, job_id=job_id)
+
     @abc.abstractmethod
-    def define_job(self, function, args, kwargs, dependencies=None):
+    def _job_create(self, function, args, kwargs, dependencies=None):
+        pass
+
+    def job_read(self, job_id):
+        return JobDefinition(self, job_id=job_id)
+
+    @abc.abstractmethod
+    def _job_read(self, job_id):
         pass
 
     @abc.abstractmethod
-    def get_job_definition(self, job_id):
+    def _job_update(self, job_id, function=None, args=None, kwargs=None,
+                    dependencies=None):
         pass
 
     @abc.abstractmethod
-    def undefine_job(self, job_id):
+    def _job_delete(self, job_id):
         pass
 
+    def job_iter(self):
+        for job_id in self._job_iter():
+            yield JobDefinition(self, job_id=job_id)
+
     @abc.abstractmethod
-    def iter_jobs(self):
+    def _job_iter(self):
         pass
 
     # ------------------------------------------------------------
-    # Job definition CRUD
+    # Job run CRUD
 
     @abc.abstractmethod
-    def create_job_run(self, job_id):
-        """Create a record holding information for the current job run"""
+    def _job_run_create(self, job_id):
         pass
 
     @abc.abstractmethod
-    def get_job_run_info(self, job_run_id):
+    def _job_run_read(self, job_run_id):
         pass
 
     @abc.abstractmethod
-    def update_job_run(self, job_run_id, finished=None, success=None,
-                       progress_current=None, progress_total=None,
-                       retval=None):
+    def _job_run_update(self, job_run_id, finished=None, success=None,
+                        progress_current=None, progress_total=None,
+                        retval=None):
         pass
 
     @abc.abstractmethod
-    def delete_job_run(self, job_run_id):
+    def _job_run_delete(self, job_run_id):
+        pass
+
+    @abc.abstractmethod
+    def _job_run_iter(self, job_id):
         pass
 
     # ------------------------------------------------------------
     # Actual job execution wrapper method
 
-    def run_job(self, job_id):
+    def execute_job(self, job_id):
         """
         Wrapper for job execution.
 
@@ -184,24 +205,96 @@ class JobExecutionContext(object):
 
 
 class JobDefinition(object):
-    def __init__(self, app, row):
+    def __init__(self, app, job_id):
         self._app = app
-        self._row = row
+        self._job_id = job_id
+        self._updates = {}
 
-    ctime = property(
-        lambda self: self._row['ctime'])
-    function = property(
-        lambda self: self._row['function'])
-    args = cached_property(
-        lambda self: self._app.unpack(self._row['args']))
-    kwargs = cached_property(
-        lambda self: self._app.unpack(self._row['kwargs']))
+    job_id = property(lambda x: x._job_id)
 
     @cached_property
     def dependencies(self):
         for job_id in self._row['dependencies']:
-            yield self._app.get_job_definition(job_id)
+            yield JobDefinition(self._app, job_id)
+
+    @cached_property
+    def _record(self):
+        return self._app._job_read(self.job_id)
+
+    def __getitem__(self, name):
+        if name in self._updates:
+            return self._updates[name]
+        return self._record[name]
+
+    def __setitem__(self, name, value):
+        self._updates[name] = value
+
+        if name == 'finished' and value:
+            self._updates['end_date'] = datetime.now()
+
+    def __delitem(self, name):
+        self._updates.pop(name, None)
+
+    def save(self):
+        self._app._job_update(self.job_id, **self._updates)
+        self.refresh()
+
+    def refresh(self):
+        # Will get refreshed next time property is accessed
+        self._updates.clear()
+        self.__dict__.pop('_record', None)
+        self.__dict__.pop('dependencies', None)
+
+    def delete(self):
+        return self._app._job_delete(self._job_id)
+
+    def iter_runs(self):
+        return self._app._job_run_iter(self._job_id)
+
+    def run(self):
+        return self._app.execute_job(self._job_id)
+
+    def run_async(self):
+        raise NotImplementedError('run_async() is not implemented yet')
 
 
 class JobRunStatus(object):
-    pass
+    def __init__(self, app, job_run_id):
+        self._app = app
+        self._job_run_id = job_run_id
+        self._updates = {}
+
+    job_run_id = property(lambda x: x._job_run_id)
+
+    @cached_property
+    def _record(self):
+        return self._app._job_run_read(self.job_run_id)
+
+    def __getitem__(self, name):
+        if name in self._updates:
+            return self._updates[name]
+        return self._record[name]
+
+    def __setitem__(self, name, value):
+        self._updates[name] = value
+
+        if name == 'finished' and value:
+            self._updates['end_date'] = datetime.now()
+
+    def __delitem(self, name):
+        self._updates.pop(name, None)
+
+    def save(self):
+        self._app._job_run_update(self.job_run_id, **self._updates)
+        self._updates.clear()
+        self.refresh()
+
+    def refresh(self):
+        # Will get refreshed next time property is accessed
+        del self._record
+
+    def get_result(self):
+        return self._app.unpack(self._record['retval'])
+
+    def delete(self):
+        return self._app._job_delete(self._job_id)

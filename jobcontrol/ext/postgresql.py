@@ -11,17 +11,19 @@ PostgreSQL-backed Job control class.
 """
 
 from datetime import datetime, timedelta
-import json
 import logging
 
 import psycopg2
 import psycopg2.extras
 
-from jobcontrol.base import JobControlBase
+from jobcontrol.base import JobControlBase, JobDefinition
 
 
 class PostgreSQLJobControl(JobControlBase):
     table_prefix = 'jobcontrol_'
+
+    # ------------------------------------------------------------
+    # Custom methods
 
     @property
     def db_conf(self):
@@ -41,12 +43,6 @@ class PostgreSQLJobControl(JobControlBase):
         conn.cursor_factory = psycopg2.extras.DictCursor
         conn.autocommit = False
         return conn
-
-    def install(self):
-        self.create_tables()
-
-    def uninstall(self):
-        self.drop_tables()
 
     def create_tables(self):
         query = """
@@ -110,56 +106,98 @@ class PostgreSQLJobControl(JobControlBase):
 
     def drop_tables(self):
         with self.db, self.db.cursor() as cur:
-            cur.execute('DROP TABLE "{prefix}job_run_log";'
-                        .format(self.table_prefix))
-            cur.execute('DROP TABLE "{prefix}job_run";'
-                        .format(self.table_prefix))
-            cur.execute('DROP TABLE "{prefix}job";'
-                        .format(self.table_prefix))
+            table_names = [self._table_name(x)
+                           for x in ('job', 'job_run', 'job_run_log')]
+            for table in table_names:
+                cur.execute('DROP TABLE "{name}" CASCADE;'.format(name=table))
 
-    def define_job(self, function, args, kwargs):
+    # ------------------------------------------------------------
+    # Installation methods
+
+    def install(self):
+        self.create_tables()
+
+    def uninstall(self):
+        self.drop_tables()
+
+    # ------------------------------------------------------------
+    # Job definition CRUD
+
+    def _job_create(self, function, args, kwargs, dependencies=None):
         query = """
-        INSERT INTO "{prefix}job" (ctime, function, args, kwargs)
+        INSERT INTO "{table_name}" (ctime, function, args, kwargs)
         VALUES (%(ctime)s, %(function)s, %(args)s, %(kwargs)s)
         RETURNING id;
-        """
+        """.format(table_name=self._table_name('job'))
+
+        if dependencies is None:
+            dependencies = []
 
         with self.db, self.db.cursor() as cur:
-            cur.execute(query, {'ctime': datetime.now(),
-                                'function': function,
-                                'args': json.dumps(args),
-                                'kwargs': json.dumps(kwargs)})
+            cur.execute(query, {
+                'ctime': datetime.now(),
+                'function': function,
+                'args': self.pack(args),
+                'kwargs': self.pack(kwargs),
+                'dependencies': dependencies})
             return cur.fetchone()[0]
 
-    def get_job_definition(self, job_id):
-        query = """ SELECT * FROM "{prefix}job" WHERE id=%(id)s; """
+    def _job_read(self, job_id):
         with self.db, self.db.cursor() as cur:
-            cur.execute(query, {'id': job_id})
-            return cur.fetchone()
+            cur.execute("""
+            SELECT * FROM "{table}" WHERE id=%(id)s;
+            """.format(table=self._table_name('job')), {'id': job_id})
+            data = cur.fetchone()
+        data['args'] = self.unpack(data['args'])
+        data['kwargs'] = self.unpack(data['kwargs'])
+        return data
 
-    def undefine_job(self, job_id):
-        query1 = """ DELETE FROM "{prefix}job" WHERE id=%(id)s; """
-        query2 = """ DELETE FROM "{prefix}job_run" WHERE job_id=%(id)s; """
-        query3 = """ DELETE FROM "{prefix}job_run_log" WHERE job_id=%(id)s; """
+    def _job_update(self, job_id, **kwargs):
+        if len(kwargs) < 1:
+            return
+
+        updargs = ['"{0}"=%({0})s'.format(k) for k in kwargs]
+        query = """
+        UPDATE "{table_name}" SET {args} WHERE id=%(id)s;
+        """.format(
+            table_name=self._table_name('job'),
+            args=', '.join(updargs))
+        kwargs['id'] = job_id
+
+        if 'args' in kwargs:
+            kwargs['args'] = self.pack(kwargs['args'])
+        if 'kwargs' in kwargs:
+            kwargs['kwargs'] = self.pack(kwargs['kwargs'])
+
         with self.db, self.db.cursor() as cur:
-            cur.execute(query3, {'id': job_id})
-            cur.execute(query2, {'id': job_id})
-            cur.execute(query1, {'id': job_id})
+            cur.execute(query, kwargs)
 
-    def iter_jobs(self):
-        query = """ SELECT * FROM "{prefix}job" ORDER BY id ASC; """
+    def _job_delete(self, job_id):
+        with self.db, self.db.cursor() as cur:
+            cur.execute("""
+            DELETE FROM "{table}" WHERE job_id=%(id)s;
+            """.format(table=self._table_name('job_run_log')), {'id': job_id})
+
+            cur.execute("""
+            DELETE FROM "{table}" WHERE job_id=%(id)s;
+            """.format(table=self._table_name('job_run')), {'id': job_id})
+
+            cur.execute("""
+            DELETE FROM "{table}" WHERE id=%(id)s;
+            """.format(table=self._table_name('job')), {'id': job_id})
+
+    def _job_iter(self):
+        query = """ SELECT * FROM "{table}" ORDER BY id ASC; """.format(
+            table=self._table_name('job'))
         with self.db, self.db.cursor() as cur:
             cur.execute(query)
             for row in cur.fetchall():
-                yield row
+                yield row['id']
 
-    def create_log_handler(self, job_id, job_run_id):
-        handler = PostgresLogHandler(
-            self.db, self._table_name('job_run_log'),
-            extra_info={'job_id': job_id, 'job_run_id': job_run_id})
-        return handler
+    # ------------------------------------------------------------
+    # Job run CRUD
 
-    def create_job_run(self, job_id):
+    def _job_run_create(self, job_id):
         query = """
         INSERT INTO "{table_name}"
         (job_id, start_time, started, finished)
@@ -171,9 +209,17 @@ class PostgreSQLJobControl(JobControlBase):
                                 'start_time': datetime.now()})
             return cur.fetchone()[0]
 
-    def update_job_run(self, job_run_id, finished=None, success=None,
-                       progress_current=None, progress_total=None,
-                       retval=None):
+    def _job_run_read(self, job_run_id):
+        query = """ SELECT * FROM "{table}" WHERE id=%(id)s; """.format(
+            table=self._table_name('job_run'))
+        with self.db, self.db.cursor() as cur:
+            cur.execute(query, {'id': job_run_id})
+            data = cur.fetchone()
+        return data
+
+    def _job_run_update(self, job_run_id, finished=None, success=None,
+                        progress_current=None, progress_total=None,
+                        retval=None):
 
         data = {'id': job_run_id}
         if finished is not None:
@@ -181,7 +227,7 @@ class PostgreSQLJobControl(JobControlBase):
 
         if finished:
             data['end_time'] = datetime.now()
-            data['retval'] = json.dumps(retval)
+            data['retval'] = self.pack(retval)
 
         if success is not None:
             data['success'] = success
@@ -204,7 +250,7 @@ class PostgreSQLJobControl(JobControlBase):
         with self.db, self.db.cursor() as cur:
             cur.execute(query, data)
 
-    def delete_job_run(self, job_run_id):
+    def _job_run_delete(self, job_run_id):
         query1 = 'DELETE FROM "{table_name}" WHERE id=%(id)s'.format(
             table_name=self._table_name('job_run'))
         query2 = 'DELETE FROM "{table_name}" WHERE job_run_id=%(id)s'.format(
@@ -213,6 +259,18 @@ class PostgreSQLJobControl(JobControlBase):
         with self.db, self.db.cursor() as cur:
             cur.execute(query2, {'id': job_run_id})
             cur.execute(query1, {'id': job_run_id})
+
+    def _job_run_iter(self, job_id):
+        raise NotImplementedError('Not implemented yet')
+
+    # ------------------------------------------------------------
+    # Logging
+
+    def create_log_handler(self, job_id, job_run_id):
+        handler = PostgresLogHandler(
+            self.db, self._table_name('job_run_log'),
+            extra_info={'job_id': job_id, 'job_run_id': job_run_id})
+        return handler
 
 
 HOUR = 3600
@@ -252,7 +310,7 @@ class PostgresLogHandler(logging.Handler):
         import traceback
 
         record_dict = {
-            'args': json.dumps(record.args),
+            'args': self.pack(record.args),
             'created': record.created,
             'filename': record.filename,
             'funcName': record.funcName,

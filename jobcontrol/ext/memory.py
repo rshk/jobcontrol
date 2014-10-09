@@ -31,29 +31,35 @@ class MemoryJobControl(JobControlBase):
     def uninstall(self):
         self.install()  # Just flush dicts..
 
-    def define_job(self, function, args, kwargs, dependencies=None):
+    # ------------------------------------------------------------
+    # Job definition CRUD
+
+    def _job_create(self, function, args, kwargs, dependencies=None):
         _job_id = self._job_seq.next()
-        self._job[_job_id] = dict(function=function,
-                                  args=args,
-                                  kwargs=kwargs,
-                                  dependencies=dependencies or [])
+        self._job[_job_id] = dict(
+            id=_job_id,
+            function=function,
+            args=args,
+            kwargs=kwargs,
+            dependencies=dependencies or [])
         return _job_id
 
-    def get_job_definition(self, job_id):
+    def _job_read(self, job_id):
         return self._job[job_id]
 
-    def undefine_job(self, job_id):
+    def _job_update(self, job_id, **kwargs):
+        self._job[job_id].update(kwargs)
+
+    def _job_delete(self, job_id):
         self._job.pop(job_id, None)
 
-    def iter_jobs(self):
-        for jobid, jobdef in sorted(self._job.iteritems()):
-            yield JobDefinition(app=self, row=jobdef)
+    def _job_iter(self):
+        return self._job.iterkeys()
 
-    def create_log_handler(self, job_id, job_run_id):
-        handler = MemoryLogHandler(self._job_run_log[job_id][job_run_id])
-        return handler
+    # ------------------------------------------------------------
+    # Job run CRUD
 
-    def create_job_run(self, job_id):
+    def _job_run_create(self, job_id):
         _job_run_id = self._job_run_seq.next()
         self._job_run[_job_run_id] = {
             'job_id': job_id,
@@ -61,9 +67,12 @@ class MemoryJobControl(JobControlBase):
         }
         return _job_run_id
 
-    def update_job_run(self, job_run_id, finished=None, success=None,
-                       progress_current=None, progress_total=None,
-                       retval=None):
+    def _job_run_read(self, job_run_id):
+        return self._job_run[job_run_id]
+
+    def _job_run_update(self, job_run_id, finished=None, success=None,
+                        progress_current=None, progress_total=None,
+                        retval=None):
 
         data = {'id': job_run_id}
         if finished is not None:
@@ -84,10 +93,21 @@ class MemoryJobControl(JobControlBase):
 
         self._job_run[job_run_id].update(data)
 
-    def delete_job_run(self, job_run_id):
+    def _job_run_delete(self, job_run_id):
         _def = self._job_run[job_run_id]
         self._job_run.pop(job_run_id, None)
         self._job_run_log[_def['job_id']].pop(job_run_id, None)
+
+    def _job_run_iter(self, job_id):
+        for jobid, jobdef in sorted(self._job_run[job_id].iteritems()):
+            yield JobDefinition(app=self, row=jobdef)
+
+    # ------------------------------------------------------------
+    # Logging
+
+    def create_log_handler(self, job_id, job_run_id):
+        handler = MemoryLogHandler(self._job_run_log[job_id][job_run_id])
+        return handler
 
 
 HOUR = 3600
