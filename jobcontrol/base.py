@@ -2,7 +2,7 @@
 Base interface for job control main class
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 import pickle
 import logging
 
@@ -42,9 +42,9 @@ class JobControlBase(object):
     # ------------------------------------------------------------
     # Job definition CRUD
 
-    def job_create(self, function, args, kwargs, dependencies=None):
+    def job_create(self, function, args=None, kwargs={}, dependencies=None):
         job_id = self._job_create(
-            function=function, args=args, kwargs=kwargs,
+            function=function, args=args or (), kwargs=kwargs or {},
             dependencies=dependencies)
         return JobDefinition(self, job_id=job_id)
 
@@ -113,7 +113,7 @@ class JobControlBase(object):
         - Runs the task and updates status accordingly
         """
 
-        job_def = self.get_job_definition(job_id)
+        job_def = self._job_read(job_id)
 
         if job_def is None:
             raise RuntimeError("No such job: {0}".format(job_id))
@@ -122,45 +122,49 @@ class JobControlBase(object):
         context.app = self
         context.config = self.config
 
-        job_run_id = self._create_job_run()
+        job_run_id = self._job_run_create(job_id)
         context.job_id = job_id
         context.job_run_id = job_run_id
+        context.push()
 
         handler = self.create_log_handler(job_id, job_run_id)
         if handler is not None:
             root_logger = logging.getLogger('')
             root_logger.addHandler(handler)
 
+        job_run_info = {
+            'finished': True,
+            'retval': None,
+        }
+
         try:
             function = self._get_function(job_def['function'])
-            args = pickle.loads(job_def['args'])
-            kwargs = pickle.loads(job_def['kwargs'])
+            args = job_def['args']
+            kwargs = job_def['kwargs']
 
             retval = function(*args, **kwargs)
 
         except Exception:  # anything will get logged
             logger.exception('Task failed with an exception.')
-            job_run_info = {
-                'finished': True,
+            job_run_info.update({
                 'success': False,
-                'retval': None,
-            }
+            })
 
         else:
-            job_run_info = {
-                'finished': True,
+            job_run_info.update({
                 'success': True,
                 'retval': retval,
-            }
+            })
 
         finally:
             # Pop the context from the stack
             context.pop()
 
-            self.update_job_run(job_run_id, **job_run_info)
-
             if handler is not None:
                 root_logger.removeHandler(handler)
+
+        self._job_run_update(job_run_id, **job_run_info)
+        return JobRunStatus(self, job_run_id=job_run_id)
 
     # ------------------------------------------------------------
     # Utility
@@ -178,6 +182,22 @@ class JobControlBase(object):
         module_name, function_name = name.split(':')
         module = __import__(module_name, fromlist=[function_name])
         return getattr(module, function_name)
+
+    def _iter_logs(self, job_run_id):
+        # Simulate a generator..
+        for x in ():
+            yield None
+
+    # ------------------------------------------------------------
+    # To be accessed from task run context
+
+    def get_current_job(self):
+        from jobcontrol.globals import execution_context
+        return self.job_read(execution_context.job_id)
+
+    def get_current_job_run(self):
+        from jobcontrol.globals import execution_context
+        return JobRunStatus(self, job_run_id=execution_context.job_run_id)
 
 
 class JobExecutionContext(object):
@@ -266,35 +286,36 @@ class JobRunStatus(object):
 
     job_run_id = property(lambda x: x._job_run_id)
 
-    @cached_property
-    def _record(self):
+    def get_info(self):
         return self._app._job_run_read(self.job_run_id)
-
-    def __getitem__(self, name):
-        if name in self._updates:
-            return self._updates[name]
-        return self._record[name]
-
-    def __setitem__(self, name, value):
-        self._updates[name] = value
-
-        if name == 'finished' and value:
-            self._updates['end_date'] = datetime.now()
-
-    def __delitem(self, name):
-        self._updates.pop(name, None)
-
-    def save(self):
-        self._app._job_run_update(self.job_run_id, **self._updates)
-        self._updates.clear()
-        self.refresh()
-
-    def refresh(self):
-        # Will get refreshed next time property is accessed
-        del self._record
-
-    def get_result(self):
-        return self._app.unpack(self._record['retval'])
 
     def delete(self):
         return self._app._job_delete(self._job_id)
+
+    def is_started(self):
+        return self.get_info()['started']
+
+    def is_finished(self):
+        return self.get_info()['finished']
+
+    def is_successful(self):
+        return self.get_info()['success']
+
+    def get_result(self):
+        return self.get_info()['retval']
+
+    def get_progress(self):
+        info = self.get_info()
+        return info['progress_current'], info['progress_total']
+
+    def set_progress(self, current=None, total=None):
+        from jobcontrol.globals import execution_context
+        if execution_context.job_run_id != self._job_run_id:
+            raise RuntimeError("Cannot set progress for non-current task!")
+        self._app._job_run_update(
+            self._job_run_id,
+            progress_current=current,
+            progress_total=total)
+
+    def get_log_messages(self):
+        return self._app._iter_logs(self._job_run_id)

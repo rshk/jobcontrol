@@ -13,7 +13,6 @@ PostgreSQL-backed Job control class.
 from collections import defaultdict
 from datetime import datetime
 from itertools import count
-import json
 import logging
 
 from jobcontrol.base import JobControlBase, JobDefinition
@@ -45,7 +44,7 @@ class MemoryJobControl(JobControlBase):
         return _job_id
 
     def _job_read(self, job_id):
-        return self._job[job_id]
+        return self._job.get(job_id, None)
 
     def _job_update(self, job_id, **kwargs):
         self._job[job_id].update(kwargs)
@@ -64,11 +63,19 @@ class MemoryJobControl(JobControlBase):
         self._job_run[_job_run_id] = {
             'job_id': job_id,
             'start_time': datetime.now(),
+
+            'end_time': None,
+            'started': True,
+            'finished': False,
+            'success': None,
+            'progress_current': 0,
+            'progress_total': 0,
+            'retval': None,
         }
         return _job_run_id
 
     def _job_run_read(self, job_run_id):
-        return self._job_run[job_run_id]
+        return self._job_run.get(job_run_id, None)
 
     def _job_run_update(self, job_run_id, finished=None, success=None,
                         progress_current=None, progress_total=None,
@@ -80,7 +87,7 @@ class MemoryJobControl(JobControlBase):
 
         if finished:
             data['end_time'] = datetime.now()
-            data['retval'] = json.dumps(retval)
+            data['retval'] = retval
 
         if success is not None:
             data['success'] = success
@@ -109,6 +116,10 @@ class MemoryJobControl(JobControlBase):
         handler = MemoryLogHandler(self._job_run_log[job_id][job_run_id])
         return handler
 
+    def _iter_logs(self, job_run_id):
+        job_id = self._job_run[job_run_id]['job_id']
+        return iter(self._job_run_log[job_id][job_run_id])
+
 
 HOUR = 3600
 DAY = 24 * HOUR
@@ -130,7 +141,10 @@ class MemoryLogHandler(logging.Handler):
     def __init__(self, destination, extra_info=None):
         super(MemoryLogHandler, self).__init__()
         self._destination = destination
-        self.extra_info = extra_info
+
+        self.extra_info = {}
+        if extra_info is not None:
+            self.extra_info.update(extra_info)
 
     def flush(self):
         pass  # Nothing to flush!
@@ -139,7 +153,7 @@ class MemoryLogHandler(logging.Handler):
         import traceback
 
         record_dict = {
-            'args': json.dumps(record.args),
+            'args': record.args,
             'created': record.created,
             'filename': record.filename,
             'funcName': record.funcName,

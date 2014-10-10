@@ -12,11 +12,13 @@ PostgreSQL-backed Job control class.
 
 from datetime import datetime, timedelta
 import logging
+import pickle
+import traceback
 
 import psycopg2
 import psycopg2.extras
 
-from jobcontrol.base import JobControlBase, JobDefinition
+from jobcontrol.base import JobControlBase
 
 
 class PostgreSQLJobControl(JobControlBase):
@@ -73,31 +75,35 @@ class PostgreSQLJobControl(JobControlBase):
             job_id INTEGER REFERENCES "{prefix}job" (id),
             job_run_id INTEGER REFERENCES "{prefix}job_run" (id),
 
-            -- Standard arguments
-            args TEXT,
             created TIMESTAMP WITHOUT TIME ZONE,
-            filename TEXT,
-            funcName TEXT,
-            levelname TEXT,
             levelno INTEGER,
-            lineno INTEGER,
-            module TEXT,
-            msecs INTEGER,
-            message TEXT,
-            msg TEXT,
-            name TEXT,
-            pathname TEXT,
-            process INTEGER,
-            processName TEXT,
-            relativeCreated INTEGER,
-            thread INTEGER,
-            threadName TEXT,
+            log_record TEXT
+
+            -- Standard arguments
+            -- "args" TEXT,
+            -- "created" TIMESTAMP WITHOUT TIME ZONE,
+            -- "filename" TEXT,
+            -- "funcName" TEXT,
+            -- "levelname" TEXT,
+            -- "levelno" INTEGER,
+            -- "lineno" INTEGER,
+            -- "module" TEXT,
+            -- "msecs" INTEGER,
+            -- "message" TEXT,
+            -- "msg" TEXT,
+            -- "name" TEXT,
+            -- "pathname" TEXT,
+            -- "process" INTEGER,
+            -- "processName" TEXT,
+            -- "relativeCreated" INTEGER,
+            -- "thread" INTEGER,
+            -- "threadName" TEXT,
 
             -- Custom, to represent exception
-            exc_class TEXT,
-            exc_message TEXT,
-            exc_repr TEXT,
-            exc_traceback TEXT
+            -- "exc_class" TEXT,
+            -- "exc_message" TEXT,
+            -- "exc_repr" TEXT,
+            -- "exc_traceback" TEXT
         );
         """.format(prefix=self.table_prefix)
 
@@ -148,8 +154,9 @@ class PostgreSQLJobControl(JobControlBase):
             SELECT * FROM "{table}" WHERE id=%(id)s;
             """.format(table=self._table_name('job')), {'id': job_id})
             data = cur.fetchone()
-        data['args'] = self.unpack(data['args'])
-        data['kwargs'] = self.unpack(data['kwargs'])
+        if data is not None:
+            data['args'] = self.unpack(data['args'])
+            data['kwargs'] = self.unpack(data['kwargs'])
         return data
 
     def _job_update(self, job_id, **kwargs):
@@ -215,6 +222,8 @@ class PostgreSQLJobControl(JobControlBase):
         with self.db, self.db.cursor() as cur:
             cur.execute(query, {'id': job_run_id})
             data = cur.fetchone()
+        if data is not None:
+            data['retval'] = self.unpack(data['retval'])
         return data
 
     def _job_run_update(self, job_run_id, finished=None, success=None,
@@ -270,7 +279,17 @@ class PostgreSQLJobControl(JobControlBase):
         handler = PostgresLogHandler(
             self.db, self._table_name('job_run_log'),
             extra_info={'job_id': job_id, 'job_run_id': job_run_id})
+        handler.setLevel(logging.DEBUG)
         return handler
+
+    def _iter_logs(self, job_run_id):
+        query = """
+        SELECT * FROM {table_name} ORDER BY created ASC;
+        """.format(table_name=self._table_name('job_run_log'))
+        with self.db, self.db.cursor() as cur:
+            cur.execute(query)
+            for item in cur.fetchall():
+                yield pickle.loads(item['log_record'])
 
 
 HOUR = 3600
@@ -304,61 +323,82 @@ class PostgresLogHandler(logging.Handler):
     def flush(self):
         pass  # Nothing to flush!
 
-    def serialize(self, record):
-        """Prepare log record for insertion into PostgreSQL"""
+    # def serialize(self, record):
+    #     """Prepare log record for insertion into PostgreSQL"""
 
-        import traceback
+    #     import traceback
 
-        record_dict = {
-            'args': self.pack(record.args),
-            'created': record.created,
-            'filename': record.filename,
-            'funcName': record.funcName,
-            'levelname': record.levelname,
-            'levelno': record.levelno,
-            'lineno': record.lineno,
-            'module': record.module,
-            'msecs': record.msecs,
-            'msg': record.msg,
-            'name': record.name,
-            'pathname': record.pathname,
-            'process': record.process,
-            'processName': record.processName,
-            'relativeCreated': record.relativeCreated,
-            'thread': record.thread,
-            'threadName': record.threadName}
+    #     record_dict = {
+    #         'args': pickle.dumps(record.args),
+    #         'created': datetime.utcfromtimestamp(record.created),
+    #         'filename': record.filename,
+    #         'funcName': record.funcName,
+    #         'levelname': record.levelname,
+    #         'levelno': record.levelno,
+    #         'lineno': record.lineno,
+    #         'module': record.module,
+    #         'msecs': record.msecs,
+    #         'msg': record.msg,
+    #         'name': record.name,
+    #         'pathname': record.pathname,
+    #         'process': record.process,
+    #         'processName': record.processName,
+    #         'relativeCreated': record.relativeCreated,
+    #         'thread': record.thread,
+    #         'threadName': record.threadName}
+
+    #     if record.exc_info is not None:
+    #         # We cannot serialize exception information.
+    #         # The best workaround here is to simply add the
+    #         # relevant information to the message, as the
+    #         # formatter would..
+    #         exc_class = u'{0}.{1}'.format(
+    #             record.exc_info[0].__module__,
+    #             record.exc_info[0].__name__)
+    #         exc_message = str(record.exc_info[1])
+    #         exc_repr = repr(record.exc_info[1])
+    #         exc_traceback = '\n'.join(
+    #             traceback.format_exception(*record.exc_info))
+
+    #         # record_dict['_orig_msg'] = record_dict['msg']
+    #         # record_dict['msg'] += "\n\n"
+    #         # record_dict['msg'] += exc_traceback
+    #         record_dict['exc_class'] = exc_class
+    #         record_dict['exc_message'] = exc_message
+    #         record_dict['exc_repr'] = exc_repr
+    #         record_dict['exc_traceback'] = exc_traceback
+
+    #     return record_dict
+
+    def emit(self, record):
+        """Handle a received log message"""
+
+        from jobcontrol.globals import execution_context
 
         if record.exc_info is not None:
             # We cannot serialize exception information.
             # The best workaround here is to simply add the
             # relevant information to the message, as the
             # formatter would..
-            exc_class = u'{0}.{1}'.format(
-                record.exc_info[0].__module__,
-                record.exc_info[0].__name__)
-            exc_message = str(record.exc_info[1])
-            exc_repr = repr(record.exc_info[1])
+
+            exc_class, exc_msg, exc_tb = record.exc_info
             exc_traceback = '\n'.join(
                 traceback.format_exception(*record.exc_info))
 
-            # record_dict['_orig_msg'] = record_dict['msg']
-            # record_dict['msg'] += "\n\n"
-            # record_dict['msg'] += exc_traceback
-            record_dict['exc_class'] = exc_class
-            record_dict['exc_message'] = exc_message
-            record_dict['exc_repr'] = exc_repr
-            record_dict['exc_traceback'] = exc_traceback
+            record.exc_info = exc_class, exc_msg, exc_traceback
 
-        return record_dict
+        data = {
+            'job_id': execution_context.job_id,
+            'job_run_id': execution_context.job_run_id,
+            'created': datetime.utcfromtimestamp(record.created),
+            'levelno': record.levelno,
+            'log_record': pickle.dumps(record),
+        }
 
-    def emit(self, record):
-        """Handle a received log message"""
+        # data = self.serialize(record)
 
-        data = self.serialize(record)
-        data.update(self.extra_info)
-
-        fields = [', '.join('"{0}"'.format(fld) for fld in data)]
-        values = [', '.join('%({0})s'.format(fld) for fld in data)]
+        fields = ', '.join('"{0}"'.format(fld) for fld in data)
+        values = ', '.join('%({0})s'.format(fld) for fld in data)
         query = """
         INSERT INTO "{table}" ({fields}) VALUES ({values});
         """.format(table=self.table_name, fields=fields, values=values)

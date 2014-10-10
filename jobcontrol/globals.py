@@ -25,3 +25,4 @@ def _get_ctx_object(name):
 _execution_ctx_stack = LocalStack()
 execution_context = LocalProxy(_get_current_ctx)
 config = LocalProxy(partial(_get_ctx_object, 'config'))
+current_app = LocalProxy(partial(_get_ctx_object, 'app'))
