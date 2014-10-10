@@ -15,7 +15,7 @@ from datetime import datetime
 from itertools import count
 import logging
 
-from jobcontrol.base import JobControlBase, JobDefinition
+from jobcontrol.base import JobControlBase
 
 
 class MemoryJobControl(JobControlBase):
