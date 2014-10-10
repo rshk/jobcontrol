@@ -124,3 +124,5 @@ def test_job_failure(jobcontrolmgr):
     assert isinstance(job_run, JobRunStatus)
     assert job_run.is_finished()
     assert job_run.is_successful()
+
+    assert len(list(created_job.iter_runs())) == 2
