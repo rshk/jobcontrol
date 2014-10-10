@@ -30,12 +30,43 @@ def job_failing_once():
     """
     This job will fail exactly once; retry will be successful
     """
-    from jobcontrol.globals import current_app
-    job = current_app.get_current_job()
-    exec_count = len(list(job.iter_runs()))
+    from jobcontrol.globals import current_job
+    exec_count = len(list(current_job.iter_runs()))
 
     if exec_count <= 1:
         # This is the first run
         raise RuntimeError("Simulating failure")
 
     return exec_count
+
+
+def job_dep_A():
+    return 'A'
+
+
+def job_dep_B():
+    from jobcontrol.globals import current_job
+    dependencies = current_job.dependencies
+
+    if len(dependencies) != 1:
+        raise RuntimeError("Expected 1 dependency, got {0}"
+                           .format(len(dependencies)))
+
+    latest_run = list(dependencies[0].iter_runs())[-1]
+    res = latest_run.get_result()
+
+    return res + 'B'
+
+
+def job_dep_C():
+    from jobcontrol.globals import current_job
+    dependencies = current_job.dependencies
+
+    if len(dependencies) != 1:
+        raise RuntimeError("Expected 1 dependency, got {0}"
+                           .format(len(dependencies)))
+
+    latest_run = list(dependencies[0].iter_runs())[-1]
+    res = latest_run.get_result()
+
+    return res + 'C'

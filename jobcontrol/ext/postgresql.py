@@ -131,8 +131,10 @@ class PostgreSQLJobControl(JobControlBase):
 
     def _job_create(self, function, args, kwargs, dependencies=None):
         query = """
-        INSERT INTO "{table_name}" (ctime, function, args, kwargs)
-        VALUES (%(ctime)s, %(function)s, %(args)s, %(kwargs)s)
+        INSERT INTO "{table_name}" (ctime, function, args, kwargs,
+            dependencies)
+        VALUES (%(ctime)s, %(function)s, %(args)s, %(kwargs)s,
+            %(dependencies)s)
         RETURNING id;
         """.format(table_name=self._table_name('job'))
 
@@ -279,7 +281,7 @@ class PostgreSQLJobControl(JobControlBase):
             cur.execute(query, {'id': job_id})
 
             for item in cur.fetchall():
-                yield item
+                yield item['id']
 
     # ------------------------------------------------------------
     # Logging

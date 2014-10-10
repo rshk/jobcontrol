@@ -126,3 +126,36 @@ def test_job_failure(jobcontrolmgr):
     assert job_run.is_successful()
 
     assert len(list(created_job.iter_runs())) == 2
+
+
+def test_job_dependencies(jobcontrolmgr):
+    job_A = jobcontrolmgr.job_create(
+        function='jobcontrol.utils.testing:job_dep_A')
+    job_B = jobcontrolmgr.job_create(
+        function='jobcontrol.utils.testing:job_dep_B',
+        dependencies=[job_A.job_id])
+    job_C = jobcontrolmgr.job_create(
+        function='jobcontrol.utils.testing:job_dep_C',
+        dependencies=[job_B.job_id])
+
+    jr_A = job_A.run()
+    assert jr_A.is_finished()
+    assert jr_A.is_successful()
+    assert jr_A.get_result() == 'A'
+
+    for dep in job_B.dependencies:
+        assert isinstance(dep, JobDefinition)
+
+    assert len(job_B.dependencies) == 1
+    assert all(isinstance(x, JobRunStatus)
+               for x in job_B.dependencies[0].iter_runs())
+
+    jr_B = job_B.run()
+    assert jr_B.is_finished()
+    assert jr_B.is_successful()
+    assert jr_B.get_result() == 'AB'
+
+    jr_C = job_C.run()
+    assert jr_C.is_finished()
+    assert jr_C.is_successful()
+    assert jr_C.get_result() == 'ABC'

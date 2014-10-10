@@ -234,8 +234,10 @@ class JobDefinition(object):
 
     @cached_property
     def dependencies(self):
-        for job_id in self._row['dependencies']:
-            yield JobDefinition(self._app, job_id)
+        if self._record['dependencies'] is None:
+            return []
+        return [JobDefinition(self._app, job_id)
+                for job_id in self._record['dependencies']]
 
     @cached_property
     def _record(self):
@@ -269,7 +271,9 @@ class JobDefinition(object):
         return self._app._job_delete(self._job_id)
 
     def iter_runs(self):
-        return self._app._job_run_iter(self._job_id)
+        return (
+            JobRunStatus(self._app, job_run_id=x)
+            for x in self._app._job_run_iter(self._job_id))
 
     def run(self):
         return self._app.execute_job(self._job_id)

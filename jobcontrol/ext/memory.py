@@ -112,7 +112,7 @@ class MemoryJobControl(JobControlBase):
                 if jrdef['job_id'] == job_id)
 
         for jrid, jrdef in sorted(list(runs)):
-            yield jrdef
+            yield jrid
 
     # ------------------------------------------------------------
     # Logging
