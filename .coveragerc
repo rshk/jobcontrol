@@ -1,0 +1,16 @@
+[run]
+parallel = True
+
+[report]
+exclude_lines =
+    pragma: no cover
+    pass
+    raise AssertionError
+    raise NotImplementedError
+    @abc.abstractmethod
+source = datacat
+show_missing = True
+omit =
+     .venv*
+     datacat/settings/*
+     */__main__.py
