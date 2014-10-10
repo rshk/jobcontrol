@@ -292,6 +292,10 @@ class JobRunStatus(object):
     def delete(self):
         return self._app._job_delete(self._job_id)
 
+    @cached_property
+    def job_id(self):
+        return self.get_info()['job_id']
+
     def is_started(self):
         return self.get_info()['started']
 

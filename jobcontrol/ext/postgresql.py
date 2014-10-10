@@ -270,7 +270,16 @@ class PostgreSQLJobControl(JobControlBase):
             cur.execute(query1, {'id': job_run_id})
 
     def _job_run_iter(self, job_id):
-        raise NotImplementedError('Not implemented yet')
+        query = """
+        SELECT * FROM "{table_name}" WHERE job_id=%(id)s
+        ORDER BY id ASC;
+        """.format(table_name=self._table_name('job_run'))
+
+        with self.db, self.db.cursor() as cur:
+            cur.execute(query, {'id': job_id})
+
+            for item in cur.fetchall():
+                yield item
 
     # ------------------------------------------------------------
     # Logging

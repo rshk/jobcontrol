@@ -23,6 +23,7 @@ class MemoryJobControl(JobControlBase):
         self._job = {}
         self._job_run = {}
         # job_run_log[job_id][job_run_id] = [...messages...]
+        # [<job_id>][<job_run_id>] = []
         self._job_run_log = defaultdict(lambda: defaultdict(list))
         self._job_seq = count(1)
         self._job_run_seq = count(1)
@@ -106,8 +107,12 @@ class MemoryJobControl(JobControlBase):
         self._job_run_log[_def['job_id']].pop(job_run_id, None)
 
     def _job_run_iter(self, job_id):
-        for jobid, jobdef in sorted(self._job_run[job_id].iteritems()):
-            yield JobDefinition(app=self, row=jobdef)
+        runs = ((jrid, jrdef)
+                for jrid, jrdef in self._job_run.iteritems()
+                if jrdef['job_id'] == job_id)
+
+        for jrid, jrdef in sorted(list(runs)):
+            yield jrdef
 
     # ------------------------------------------------------------
     # Logging
@@ -118,7 +123,7 @@ class MemoryJobControl(JobControlBase):
 
     def _iter_logs(self, job_run_id):
         job_id = self._job_run[job_run_id]['job_id']
-        return iter(self._job_run_log[job_id][job_run_id])
+        return (x['record'] for x in self._job_run_log[job_id][job_run_id])
 
 
 HOUR = 3600
@@ -149,56 +154,59 @@ class MemoryLogHandler(logging.Handler):
     def flush(self):
         pass  # Nothing to flush!
 
-    def serialize(self, record):
-        import traceback
+    # def serialize(self, record):
+    #     import traceback
 
-        record_dict = {
-            'args': record.args,
-            'created': record.created,
-            'filename': record.filename,
-            'funcName': record.funcName,
-            'levelname': record.levelname,
-            'levelno': record.levelno,
-            'lineno': record.lineno,
-            'module': record.module,
-            'msecs': record.msecs,
-            'msg': record.msg,
-            'name': record.name,
-            'pathname': record.pathname,
-            'process': record.process,
-            'processName': record.processName,
-            'relativeCreated': record.relativeCreated,
-            'thread': record.thread,
-            'threadName': record.threadName}
+    #     record_dict = {
+    #         'args': record.args,
+    #         'created': record.created,
+    #         'filename': record.filename,
+    #         'funcName': record.funcName,
+    #         'levelname': record.levelname,
+    #         'levelno': record.levelno,
+    #         'lineno': record.lineno,
+    #         'module': record.module,
+    #         'msecs': record.msecs,
+    #         'msg': record.msg,
+    #         'name': record.name,
+    #         'pathname': record.pathname,
+    #         'process': record.process,
+    #         'processName': record.processName,
+    #         'relativeCreated': record.relativeCreated,
+    #         'thread': record.thread,
+    #         'threadName': record.threadName}
 
-        if record.exc_info is not None:
-            # We cannot serialize exception information.
-            # The best workaround here is to simply add the
-            # relevant information to the message, as the
-            # formatter would..
-            exc_class = u'{0}.{1}'.format(
-                record.exc_info[0].__module__,
-                record.exc_info[0].__name__)
-            exc_message = str(record.exc_info[1])
-            exc_repr = repr(record.exc_info[1])
-            exc_traceback = '\n'.join(
-                traceback.format_exception(*record.exc_info))
+    #     if record.exc_info is not None:
+    #         # We cannot serialize exception information.
+    #         # The best workaround here is to simply add the
+    #         # relevant information to the message, as the
+    #         # formatter would..
+    #         exc_class = u'{0}.{1}'.format(
+    #             record.exc_info[0].__module__,
+    #             record.exc_info[0].__name__)
+    #         exc_message = str(record.exc_info[1])
+    #         exc_repr = repr(record.exc_info[1])
+    #         exc_traceback = '\n'.join(
+    #             traceback.format_exception(*record.exc_info))
 
-            # record_dict['_orig_msg'] = record_dict['msg']
-            # record_dict['msg'] += "\n\n"
-            # record_dict['msg'] += exc_traceback
-            record_dict['exc_class'] = exc_class
-            record_dict['exc_message'] = exc_message
-            record_dict['exc_repr'] = exc_repr
-            record_dict['exc_traceback'] = exc_traceback
+    #         # record_dict['_orig_msg'] = record_dict['msg']
+    #         # record_dict['msg'] += "\n\n"
+    #         # record_dict['msg'] += exc_traceback
+    #         record_dict['exc_class'] = exc_class
+    #         record_dict['exc_message'] = exc_message
+    #         record_dict['exc_repr'] = exc_repr
+    #         record_dict['exc_traceback'] = exc_traceback
 
-        return record_dict
+    #     return record_dict
 
     def emit(self, record):
         """Handle a received log message"""
 
-        data = self.serialize(record)
+        data = {}
         data.update(self.extra_info)
+        data['record'] = record
+        # data = self.serialize(record)
+        # data.update(self.extra_info)
         self._destination.append(data)
 
     def cleanup_old_messages(self):

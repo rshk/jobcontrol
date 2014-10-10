@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 
 from jobcontrol.base import JobDefinition, JobRunStatus
@@ -91,3 +93,34 @@ def test_job_logging(jobcontrolmgr):
 
     log_messages = list(job_run.get_log_messages())
     assert len(log_messages) == 6
+
+    own_messages = [msg for msg in log_messages
+                    if msg.name == 'jobcontrol.utils.testing']
+    assert len(own_messages) == 6
+    assert own_messages[0].levelno == logging.DEBUG
+    assert own_messages[1].levelno == logging.INFO
+    assert own_messages[2].levelno == logging.WARNING
+    assert own_messages[3].levelno == logging.ERROR
+    assert own_messages[4].levelno == logging.CRITICAL
+
+    # The exception message is quite particular..
+    assert own_messages[5].levelno == logging.ERROR
+    assert own_messages[5].exc_info is not None
+
+
+def test_job_failure(jobcontrolmgr):
+    created_job = jobcontrolmgr.job_create(
+        function='jobcontrol.utils.testing:job_failing_once')
+    assert isinstance(created_job, JobDefinition)
+
+    job_run = created_job.run()
+    assert isinstance(job_run, JobRunStatus)
+    assert job_run.is_finished()
+    assert not job_run.is_successful()
+
+    assert len(list(created_job.iter_runs())) == 1
+
+    job_run = created_job.run()
+    assert isinstance(job_run, JobRunStatus)
+    assert job_run.is_finished()
+    assert job_run.is_successful()

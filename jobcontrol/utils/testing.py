@@ -24,3 +24,18 @@ def job_with_logging():
         raise ValueError('Foobar')
     except:
         logger.exception('This is an exception message')
+
+
+def job_failing_once():
+    """
+    This job will fail exactly once; retry will be successful
+    """
+    from jobcontrol.globals import current_app
+    job = current_app.get_current_job()
+    exec_count = len(list(job.iter_runs()))
+
+    if exec_count <= 1:
+        # This is the first run
+        raise RuntimeError("Simulating failure")
+
+    return exec_count
