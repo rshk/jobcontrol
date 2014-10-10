@@ -1,49 +1,48 @@
 Job Control
 ###########
 
-Library to manage definition + running of "jobs".
+Job scheduling and tracking library.
 
-- Each job is simply a Python callable.
-- Jobs are defined in a PostgreSQL table as ``(callable, args, kwargs)``,
-  serialized using json.
+Provides a base interface for scheduling, running, tracking and
+retrieving results for "jobs".
 
-**Features (planned):**
+Each job definition is simply any Python callable, along with
+arguments to be passed to it.
 
-- Job definition
-- Job execution
-- Asynchronous job execution, via Celery workers
-- Administration via CLI
-- Administration via RESTful API
+The tracking include storing:
+- the function return value
+- any exception raised
+- log messages produced during task execution
+- optionally a "progress", if the task supports it
+
+The library is not tied to any particular storage; the core includes
+two implementations:
+
+- ``MemoryJobControl`` -- keeps all the data in memory; especially
+  useful for testing purposes.
+
+- ``PostgreSQLJobControl`` -- PostgreSQL-backed job control, meant for
+  production use.
 
 
-Data model
-==========
+Project status
+==============
 
-**Job**
+**Travis CI build status**
 
-- id
-- ctime
-- function
-- args
-- kwargs
-- dependencies
++----------+-----------------------------------------------------------------------+
+| Branch   | Status                                                                |
++==========+=======================================================================+
+| master   | .. image:: https://travis-ci.org/rshk/jobcontrol.svg?branch=master    |
+|          |     :target: https://travis-ci.org/rshk/jobcontrol                    |
++----------+-----------------------------------------------------------------------+
+| develop  | .. image:: https://travis-ci.org/rshk/jobcontrol.svg?branch=develop   |
+|          |     :target: https://travis-ci.org/rshk/jobcontrol                    |
++----------+-----------------------------------------------------------------------+
 
-**Job run**
 
-- id
-- job_id
-- start_time
-- end_time
-- started
-- finished
-- success
-- progress_current
-- progress_total
-- retval
+Project documentation
+=====================
 
-**Job run log**
-
-- id
-- job_id
-- job_run_id
-- ..attributes of the log messages..
+Documentation is hosted on GitHub pages: *(coming soon!)*
+http://rshk.github.io/jobcontrol/
