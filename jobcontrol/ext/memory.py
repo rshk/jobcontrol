@@ -57,14 +57,12 @@ class MemoryJobControl(JobControlBase):
         return self._job.iterkeys()
 
     def _job_get_depending(self, job_id):
-        # todo: recursive?
         return sorted([
             jid
             for jid, job in self._job.iteritems()
             if job_id in job['dependencies']])
 
     def _job_get_dependencies(self, job_id):
-        # todo: recursive?
         return self._job[job_id]['dependencies'] or []
 
     # ------------------------------------------------------------

@@ -152,6 +152,22 @@ class JobControlBase(object):
             'retval': None,
         }
 
+        # Before running the job, we want to check dependencies
+        # and stuff. (hint: maybe it's worth doing in a separate
+        # function?)
+
+        if build_deps:
+            # We want to check whether dependencies are built
+            # and up to date. If not, we need to build them.
+            # We only consider *direct* dependencies, others
+            # will be processed recursively.
+            pass
+
+        if build_depending:
+            # We need to schedule build of depending jobs for later,
+            # and only upon successful completion of this run.
+            pass
+
         try:
             function = self._get_function(job_def['function'])
             args = job_def['args']
