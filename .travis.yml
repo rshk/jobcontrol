@@ -1,0 +1,35 @@
+language: python
+
+branches:
+  except:
+    - gh-pages
+
+python:
+  - "2.7"
+
+env:
+  global:
+    - POSTGRES_URL='postgresql://jobctl:jobctl@localhost:5432/jobctl_test'
+
+services:
+  - postgresql
+
+addons:
+  postgresql: "9.3"
+
+before_script:
+  - psql -U postgres -c "CREATE USER jobctl PASSWORD 'jobctl';"
+  - >
+      psql -U postgres -c "
+      CREATE DATABASE jobctl_test
+      WITH OWNER = jobctl ENCODING = 'UTF8'
+      TABLESPACE = pg_default
+      LC_COLLATE = 'en_US.UTF-8'
+      LC_CTYPE = 'en_US.UTF-8';"
+
+install:
+  - pip install .
+  - make setup_tests
+
+script:
+  - make test
