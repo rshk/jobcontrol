@@ -53,8 +53,19 @@ class MemoryJobControl(JobControlBase):
     def _job_delete(self, job_id):
         self._job.pop(job_id, None)
 
-    def _job_iter(self):
+    def _job_get_keys(self):
         return self._job.iterkeys()
+
+    def _job_get_depending(self, job_id):
+        # todo: recursive?
+        return sorted([
+            jid
+            for jid, job in self._job.iteritems()
+            if job_id in job['dependencies']])
+
+    def _job_get_dependencies(self, job_id):
+        # todo: recursive?
+        return self._job[job_id]['dependencies'] or []
 
     # ------------------------------------------------------------
     # Job run CRUD
@@ -106,13 +117,10 @@ class MemoryJobControl(JobControlBase):
         self._job_run.pop(job_run_id, None)
         self._job_run_log[_def['job_id']].pop(job_run_id, None)
 
-    def _job_run_iter(self, job_id):
-        runs = ((jrid, jrdef)
-                for jrid, jrdef in self._job_run.iteritems()
-                if jrdef['job_id'] == job_id)
-
-        for jrid, jrdef in sorted(list(runs)):
-            yield jrid
+    def _job_run_get_keys(self, job_id):
+        return sorted([jrid
+                       for jrid, jrdef in self._job_run.iteritems()
+                       if jrdef['job_id'] == job_id])
 
     # ------------------------------------------------------------
     # Logging

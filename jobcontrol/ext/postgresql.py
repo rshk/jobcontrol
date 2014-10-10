@@ -195,13 +195,25 @@ class PostgreSQLJobControl(JobControlBase):
             DELETE FROM "{table}" WHERE id=%(id)s;
             """.format(table=self._table_name('job')), {'id': job_id})
 
-    def _job_iter(self):
-        query = """ SELECT * FROM "{table}" ORDER BY id ASC; """.format(
+    def _job_get_keys(self):
+        query = """SELECT id FROM "{table}" ORDER BY id ASC;""".format(
             table=self._table_name('job'))
         with self.db, self.db.cursor() as cur:
             cur.execute(query)
-            for row in cur.fetchall():
-                yield row['id']
+            return [row['id'] for row in cur.fetchall()]
+
+    def _job_get_depending(self, job_id):
+        query = """
+        SELECT id FROM "{table}"
+        WHERE dependencies @> ARRAY[%(id)s]
+        ORDER BY id ASC;
+        """.format(table=self._table_name('job'))
+        with self.db, self.db.cursor() as cur:
+            cur.execute(query, {'id': job_id})
+            return [row['id'] for row in cur.fetchone()]
+
+    def _job_get_dependencies(self, job_id):
+        return self._job_read(job_id)['dependencies'] or []
 
     # ------------------------------------------------------------
     # Job run CRUD
@@ -271,7 +283,7 @@ class PostgreSQLJobControl(JobControlBase):
             cur.execute(query2, {'id': job_run_id})
             cur.execute(query1, {'id': job_run_id})
 
-    def _job_run_iter(self, job_id):
+    def _job_run_get_keys(self, job_id):
         query = """
         SELECT * FROM "{table_name}" WHERE job_id=%(id)s
         ORDER BY id ASC;

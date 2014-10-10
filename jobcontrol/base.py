@@ -69,11 +69,19 @@ class JobControlBase(object):
         pass
 
     def job_iter(self):
-        for job_id in self._job_iter():
+        for job_id in self._job_get_keys():
             yield JobDefinition(self, job_id=job_id)
 
     @abc.abstractmethod
-    def _job_iter(self):
+    def _job_get_keys(self):
+        pass
+
+    @abc.abstractmethod
+    def _job_get_depending(self, job_id):
+        pass
+
+    @abc.abstractmethod
+    def _job_get_dependencies(self, job_id):
         pass
 
     # ------------------------------------------------------------
@@ -98,13 +106,20 @@ class JobControlBase(object):
         pass
 
     @abc.abstractmethod
-    def _job_run_iter(self, job_id):
+    def _job_run_get_keys(self, job_id):
         pass
+
+    def _job_run_iter(self, job_id):
+        for key in self._job_run_get_keys():
+            yield self._job_run_read(key)
+
+    def _job_run_get_latest(self, job_id):
+        return list(self._job_run_iter())[-1]
 
     # ------------------------------------------------------------
     # Actual job execution wrapper method
 
-    def execute_job(self, job_id):
+    def execute_job(self, job_id, build_deps=False, build_depending=False):
         """
         Wrapper for job execution.
 
@@ -234,6 +249,20 @@ class JobDefinition(object):
 
     @cached_property
     def dependencies(self):
+        """Dependency jobs"""
+
+        if self._record['dependencies'] is None:
+            return []
+        return [JobDefinition(self._app, job_id)
+                for job_id in self._record['dependencies']]
+
+    @cached_property
+    def depending(self):
+        """Jobs depending on this one"""
+
+        for job_id in self._app._job_list_depending_keys():
+            pass
+
         if self._record['dependencies'] is None:
             return []
         return [JobDefinition(self._app, job_id)
@@ -273,12 +302,12 @@ class JobDefinition(object):
     def iter_runs(self):
         return (
             JobRunStatus(self._app, job_run_id=x)
-            for x in self._app._job_run_iter(self._job_id))
+            for x in self._app._job_run_get_keys(self._job_id))
 
-    def run(self):
-        return self._app.execute_job(self._job_id)
+    def run(self, *a, **kw):
+        return self._app.execute_job(self._job_id, *a, **kw)
 
-    def run_async(self):
+    def run_async(self, *a, **kw):
         raise NotImplementedError('run_async() is not implemented yet')
 
 
