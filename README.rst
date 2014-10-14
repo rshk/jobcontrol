@@ -46,3 +46,44 @@ Project documentation
 
 Documentation is hosted on GitHub pages: *(coming soon!)*
 http://rshk.github.io/jobcontrol/
+
+
+Concepts
+========
+
+- Each job is defined as a Python function to be run, with arguments
+  and keywords.
+- Each job can depend on other jobs; the dependency sistem ensures
+  all dependencies are built before running a given job, and that
+  depending jobs are rebuilt when a "higher-level" one is built.
+
+Example::
+
+    +-----+     +-----+     +-----+     +-----+
+    |  A  | --> |  B  | --> |  C  | --> |  D  |
+    +-----+     +-----+     +-----+     +-----+
+
+When running the task ``C``, a build of ``B`` will be required; this
+in turn requires a build of ``A``. If ``build_deps=True`` was
+specified, a build of ``C`` and ``B`` will be triggered. Otherwise,
+the build will terminate with a "dependencies not met" error.
+
+After a successful build of ``C``, ``D`` is not outdated.  If
+``build_depending=True`` was specified, a build of ``D`` will be
+triggered.
+
+Other example: ``Job #2`` depends on ``Job #2``::
+
+    Job #1                              Job #2
+
+    +-------+-------+------+-------+    +-------+-------+------+-------+
+    | Build | Succ? | Time | Skip? |    | Build | Succ? | Time | Skip? |
+    +=======+=======+======+=======+    +=======+=======+======+=======+
+    |     1 | TRUE  |    1 | FALSE |    |     1 | TRUE  |    2 | FALSE |
+    +-------+-------+------+-------+    +-------+-------+------+-------+
+    |     2 | FALSE |    3 | FALSE |    |       No rebuild needed.     |
+    +-------+-------+------+-------+    +-------+-------+------+-------+
+    |     3 | TRUE  |    4 | TRUE  |    |       No rebuild needed.     |
+    +-------+-------+------+-------+    +-------+-------+------+-------+
+    |     4 | TRUE  |    5 | FALSE |    |     2 | TRUE  |    6 | FALSE |
+    +-------+-------+------+-------+    +-------+-------+------+-------+
