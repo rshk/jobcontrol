@@ -72,10 +72,10 @@ After a successful build of ``C``, ``D`` is not outdated.  If
 ``build_depending=True`` was specified, a build of ``D`` will be
 triggered.
 
-Other example: ``Job #2`` depends on ``Job #2``::
+Other example: ``Job #2`` depends on ``Job #2``:
 
-    Job #1                              Job #2
-
+    +------------------------------+    +------------------------------+
+    | Job #1                       |    | Job #2                       |
     +-------+-------+------+-------+    +-------+-------+------+-------+
     | Build | Succ? | Time | Skip? |    | Build | Succ? | Time | Skip? |
     +=======+=======+======+=======+    +=======+=======+======+=======+
