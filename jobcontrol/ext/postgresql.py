@@ -19,45 +19,66 @@ import psycopg2
 import psycopg2.extras
 
 from jobcontrol.base import JobControlBase
+from jobcontrol.interfaces import StorageBase
+from jobcontrol.utils import cached_property
 
 
-class PostgreSQLJobControl(JobControlBase):
-    table_prefix = 'jobcontrol_'
+# class PostgreSQLJobControl(JobControlBase):  # DEPRECATED!!!
+#     table_prefix = 'jobcontrol_'
+#     def create_log_handler(self, job_id, job_run_id):
+#         handler = PostgresLogHandler(
+#             self.db, self._table_name('job_run_log'),
+#             extra_info={'job_id': job_id, 'job_run_id': job_run_id})
+#         handler.setLevel(logging.DEBUG)
+#         return handler
 
-    # ------------------------------------------------------------
-    # Custom methods
+#     def _iter_logs(self, job_run_id):
+#         query = """
+#         SELECT * FROM {table_name} ORDER BY created ASC;
+#         """.format(table_name=self._table_name('job_run_log'))
+#         with self.db, self.db.cursor() as cur:
+#             cur.execute(query)
+#             for item in cur.fetchall():
+#                 yield pickle.loads(item['log_record'])
 
-    @property
-    def db_conf(self):
-        return self.config['DATABASE']
 
-    def _table_name(self, name):
-        return self.table_prefix + name
+# ============================================================
+# NEW STUFF BELOW
+# ============================================================
 
-    @property
+class PostgreSQLStorage(StorageBase):
+    def __init__(self, dbconf, table_prefix='jobcontrol_'):
+        self._dbconf = dbconf
+        if table_prefix is None:
+            table_prefix = ''
+        self._table_prefix = table_prefix
+
+    @cached_property
     def db(self):
-        if getattr(self, '_db', None) is None:
-            self._db = self.db_connect()
-        return self._db
-
-    def db_connect(self):
-        conn = psycopg2.connect(**self.db_conf)
+        conn = psycopg2.connect(**self._dbconf)
         conn.cursor_factory = psycopg2.extras.DictCursor
         conn.autocommit = False
         return conn
 
-    def create_tables(self):
+    def install(self):
+        self._create_tables()
+
+    def uninstall(self):
+        self._drop_tables()
+
+    def _create_tables(self):
         query = """
         CREATE TABLE "{prefix}job" (
             id SERIAL PRIMARY KEY,
-            ctime TIMESTAMP WITHOUT TIME ZONE,
             function TEXT,
             args TEXT,
             kwargs TEXT,
+            ctime TIMESTAMP WITHOUT TIME ZONE,
+            mtime TIMESTAMP WITHOUT TIME ZONE,
             dependencies INTEGER[]
         );
 
-        CREATE TABLE "{prefix}job_run" (
+        CREATE TABLE "{prefix}build" (
             id SERIAL PRIMARY KEY,
             job_id INTEGER REFERENCES "{prefix}job" (id),
             start_time TIMESTAMP WITHOUT TIME ZONE,
@@ -65,390 +86,442 @@ class PostgreSQLJobControl(JobControlBase):
             started BOOLEAN DEFAULT false,
             finished BOOLEAN DEFAULT false,
             success BOOLEAN DEFAULT false,
+            skipped BOOLEAN DEFAULT false,
             progress_current INTEGER DEFAULT 0,
             progress_total INTEGER DEFAULT 0,
-            retval TEXT
+            retval TEXT,
+            exception TEXT
         );
 
-        CREATE TABLE "{prefix}job_run_log" (
+        CREATE TABLE "{prefix}log" (
             id SERIAL PRIMARY KEY,
             job_id INTEGER REFERENCES "{prefix}job" (id),
-            job_run_id INTEGER REFERENCES "{prefix}job_run" (id),
-
+            build_id INTEGER REFERENCES "{prefix}build" (id),
             created TIMESTAMP WITHOUT TIME ZONE,
-            levelno INTEGER,
-            log_record TEXT
-
-            -- Standard arguments
-            -- "args" TEXT,
-            -- "created" TIMESTAMP WITHOUT TIME ZONE,
-            -- "filename" TEXT,
-            -- "funcName" TEXT,
-            -- "levelname" TEXT,
-            -- "levelno" INTEGER,
-            -- "lineno" INTEGER,
-            -- "module" TEXT,
-            -- "msecs" INTEGER,
-            -- "message" TEXT,
-            -- "msg" TEXT,
-            -- "name" TEXT,
-            -- "pathname" TEXT,
-            -- "process" INTEGER,
-            -- "processName" TEXT,
-            -- "relativeCreated" INTEGER,
-            -- "thread" INTEGER,
-            -- "threadName" TEXT,
-
-            -- Custom, to represent exception
-            -- "exc_class" TEXT,
-            -- "exc_message" TEXT,
-            -- "exc_repr" TEXT,
-            -- "exc_traceback" TEXT
+            level INTEGER,
+            record TEXT
         );
         """.format(prefix=self.table_prefix)
 
         with self.db, self.db.cursor() as cur:
             cur.execute(query)
 
-    def drop_tables(self):
+    def _drop_tables(self):
+        table_names = [self._table_name(x) for x in ('job', 'build', 'log')]
         with self.db, self.db.cursor() as cur:
-            table_names = [self._table_name(x)
-                           for x in ('job', 'job_run', 'job_run_log')]
-            for table in table_names:
+            for table in reversed(table_names):
                 cur.execute('DROP TABLE "{name}" CASCADE;'.format(name=table))
 
-    # ------------------------------------------------------------
-    # Installation methods
+    def _table_name(self, name):
+        return '{0}{1}'.format(self._table_prefix, name)
 
-    def install(self):
-        self.create_tables()
+    def _escape_name(self, name):
+        """Escape a name for use as field name"""
+        return '"{0}"'.format(name)
 
-    def uninstall(self):
-        self.drop_tables()
+    # -------------------- Query building --------------------
 
-    # ------------------------------------------------------------
-    # Job definition CRUD
+    def _query_insert(self, table, data):
+        _fields = sorted(data)
+        return """
+        INSERT INTO "{table}" ({fields})
+        VALUES ({valspec}) RETURNING id;
+        """.format(
+            table=self._table_name(table),
+            fields=', '.join(self._escape_name(x) for x in _fields),
+            valspec=', '.join('%({0})s'.format(x) for x in _fields))
 
-    def _job_create(self, function, args, kwargs, dependencies=None):
-        query = """
-        INSERT INTO "{table_name}" (ctime, function, args, kwargs,
-            dependencies)
-        VALUES (%(ctime)s, %(function)s, %(args)s, %(kwargs)s,
-            %(dependencies)s)
-        RETURNING id;
-        """.format(table_name=self._table_name('job'))
+    def _query_update(self, table, data):
+        _fields = [x for x in sorted(data) if x != 'id']
+        return """
+        UPDATE "{table}" SET {updates} WHERE "id"=%(id)s;
+        """.format(
+            table=self._table_name(table),
+            updates=[', '.join(
+                "{0}=%({1})s".format(self._escape_name(fld), fld)
+                for fld in _fields)])
 
-        if dependencies is None:
-            dependencies = []
+    def _query_select_one(self, table, fields='*'):
+        return """
+        SELECT {fields} FROM "{table}" WHERE "id"=%(id)s;
+        """.format(table=self._table_name(table),
+                   fields=fields)
 
+    def _query_delete_one(self, table):
+        return """
+        DELETE FROM "{table}" WHERE "id"=%(id)s;
+        """.format(table=self._table_name(table))
+
+    def _query_select(self, table, fields='*', filters=None, order=None,
+                      offset=None, limit=None):
+
+        query_parts = ["SELECT {0} FROM {1}".format(
+            fields, self._table_name(table))]
+
+        if filters is not None:
+            query_parts.append('WHERE {0}'.format(' AND '.join(filters)))
+
+        if order is not None:
+            if not isinstance(order, basestring):
+                order = ', '.join(order)
+            query_parts.append('ORDER BY {0}'.format(order))
+
+        if offset is not None:
+            query_parts.append('OFFSET {0}'.format(int(offset)))
+
+        if limit is not None:
+            query_parts.append('LIMIT {0}'.format(int(limit)))
+
+        return ' '.join(query_parts) + ';'
+
+    # -------------------- Query running --------------------
+
+    def _do_insert(self, table, data):
+        query = self._query_insert(table, data)
         with self.db, self.db.cursor() as cur:
-            cur.execute(query, {
-                'ctime': datetime.now(),
-                'function': function,
-                'args': self.pack(args),
-                'kwargs': self.pack(kwargs),
-                'dependencies': dependencies})
+            cur.execute(query, data)
             return cur.fetchone()[0]
 
-    def _job_read(self, job_id):
+    def _do_update(self, table, data):
+        query = self._query_update(table, data)
         with self.db, self.db.cursor() as cur:
-            cur.execute("""
-            SELECT * FROM "{table}" WHERE id=%(id)s;
-            """.format(table=self._table_name('job')), {'id': job_id})
-            data = cur.fetchone()
-        if data is not None:
-            data['args'] = self.unpack(data['args'])
-            data['kwargs'] = self.unpack(data['kwargs'])
-        return data
+            cur.execute(query, data)
 
-    def _job_update(self, job_id, **kwargs):
-        if len(kwargs) < 1:
-            return
-
-        updargs = ['"{0}"=%({0})s'.format(k) for k in kwargs]
-        query = """
-        UPDATE "{table_name}" SET {args} WHERE id=%(id)s;
-        """.format(
-            table_name=self._table_name('job'),
-            args=', '.join(updargs))
-        kwargs['id'] = job_id
-
-        if 'args' in kwargs:
-            kwargs['args'] = self.pack(kwargs['args'])
-        if 'kwargs' in kwargs:
-            kwargs['kwargs'] = self.pack(kwargs['kwargs'])
-
+    def _do_select_one(self, table, pk):
+        query = self._query_select_one(table)
         with self.db, self.db.cursor() as cur:
-            cur.execute(query, kwargs)
+            cur.execute(query, {'id': pk})
+            return cur.fetchone()
 
-    def _job_delete(self, job_id):
+    def _do_delete_one(self, table, pk):
+        query = self._query_delete_one(table)
         with self.db, self.db.cursor() as cur:
-            cur.execute("""
-            DELETE FROM "{table}" WHERE job_id=%(id)s;
-            """.format(table=self._table_name('job_run_log')), {'id': job_id})
+            cur.execute(query, {'id': pk})
 
-            cur.execute("""
-            DELETE FROM "{table}" WHERE job_id=%(id)s;
-            """.format(table=self._table_name('job_run')), {'id': job_id})
-
-            cur.execute("""
-            DELETE FROM "{table}" WHERE id=%(id)s;
-            """.format(table=self._table_name('job')), {'id': job_id})
-
-    def _job_get_keys(self):
-        query = """SELECT id FROM "{table}" ORDER BY id ASC;""".format(
-            table=self._table_name('job'))
+    def _do_select(self, table, **kw):
+        query = self._query_select(table, **kw)
         with self.db, self.db.cursor() as cur:
             cur.execute(query)
-            return [row['id'] for row in cur.fetchall()]
+            for item in cur.fetchall():
+                yield item
 
-    def _job_get_depending(self, job_id):
+    # -------------------- Object serialization --------------------
+
+    def _job_pack(self, job):
+        if job.get('args') is not None:
+            job['args'] = self.pack(job['args'])
+        if job.get('kwargs') is not None:
+            job['kwargs'] = self.pack(job['kwargs'])
+        return job
+
+    def _job_unpack(self, row):
+        if row.get('args') is not None:
+            row['args'] = self.unpack(row['args'])
+        if row.get('kwargs') is not None:
+            row['kwargs'] = self.unpack(row['kwargs'])
+        return row
+
+    def _build_pack(self, job):
+        if job.get('retval') is not None:
+            job['retval'] = self.pack(job['retval'])
+        if job.get('exception') is not None:
+            job['exception'] = self.pack(job['exception'])
+        return job
+
+    def _build_unpack(self, row):
+        if row.get('retval') is not None:
+            row['retval'] = self.unpack(row['retval'])
+        if row.get('exception') is not None:
+            row['exception'] = self.unpack(row['exception'])
+        return row
+
+    # ------------------------------------------------------------
+    # Job CRUD methods
+    # ------------------------------------------------------------
+
+    def job_create(self, function, args, kwargs, dependencies=None):
+        data = self._job_pack({
+            'function': function,
+            'args': args,
+            'kwargs': kwargs,
+            'dependencies': dependencies or [],
+            'ctime': datetime.now(),
+        })
+
+        return self._do_insert('job', data)
+
+    def job_update(self, job_id, function=None, args=None, kwargs=None,
+                   dependencies=None):
+
+        if self._job_get(job_id) is None:
+            raise RuntimeError('No such job: {0}'.format(job_id))
+
+        data = {'id': job_id}
+
+        if function is not None:
+            data['function'] = function
+
+        if args is not None:
+            data['args'] = self.pack(args)
+
+        if kwargs is not None:
+            data['kwargs'] = self.pack(kwargs)
+
+        if dependencies is not None:
+            data['dependencies'] = dependencies
+
+        if len(data) <= 1:
+            return  # nothing to update
+
+        self._do_update('job', data)
+
+    def job_get(self, job_id):
+        data = self._do_select_one('job', job_id)
+
+        if data is None:
+            raise RuntimeError('No such job: {0}'.format(job_id))
+
+        return self._job_unpack(data)
+
+    def job_delete(self, job_id):
+        self._do_delete_one('job', job_id)
+
+    def job_list(self, job_id):
+        query = 'SELECT id FROM "{table}" ORDER BY id ASC;'.format(
+            table=self._table_name('job'))
+
+        with self.db, self.db.cursor() as cur:
+            cur.execute(query, {'id': job_id})
+            return [r['id'] for r in cur.fetchall()]
+
+    def job_iter(self, job_id):
+        for item in self._do_select('job', order='id ASC'):
+            yield self._job_unpack(item)
+
+    def job_mget(self, job_ids):
+        # todo: there should be a better way to do this!
+        return [self.job_get(x) for x in job_ids]
+
+    def job_get_deps(self, job_id):
+        """Get direct job dependencies"""
         query = """
-        SELECT id FROM "{table}"
+        SELECT * FROM "{table}" WHERE id IN (
+            SELECT unnset(dependencies) FROM "{table}"
+            WHERE id=%(id)s);
+        """.format(table=self._table_name('job'))
+        with self.db, self.db.cursor() as cur:
+            cur.execute(query, {'id': job_id})
+            return [self._job_unpack(x) for x in cur.fetchall()]
+
+    def job_get_revdeps(self, job_id):
+        query = """
+        SELECT * FROM "{table}"
         WHERE dependencies @> ARRAY[%(id)s]
         ORDER BY id ASC;
         """.format(table=self._table_name('job'))
         with self.db, self.db.cursor() as cur:
             cur.execute(query, {'id': job_id})
-            return [row['id'] for row in cur.fetchone()]
+            return [self._job_unpack(x) for x in cur.fetchall()]
 
-    def _job_get_dependencies(self, job_id):
-        return self._job_read(job_id)['dependencies'] or []
+    def job_get_builds(self, job_id, started=None, finished=None,
+                       successful=None, skipped=None, order='asc', limit=100):
+        """
+        Get all the builds for a job, sorted by date, according
+        to the order specified by ``order``.
 
-    # ------------------------------------------------------------
-    # Job run CRUD
+        :param job_id:
+            The job id
+        :param started:
+            If set to a boolean, filter on the "started" field
+        :param finished:
+            If set to a boolean, filter on the "finished" field
+        :param successful:
+            If set to a boolean, filter on the "successful" field
+        :param skipped:
+            If set to a boolean, filter on the "skipped" field
+        :param order:
+            'asc' (default) or 'desc'
+        :param limit:
+            only return the first ``limit`` builds
+        """
 
-    def _job_run_create(self, job_id):
-        query = """
-        INSERT INTO "{table_name}"
-        (job_id, start_time, started, finished)
-        VALUES (%(job_id)s, %(start_time)s, true, false)
-        RETURNING id;
-        """.format(table_name=self._table_name('job_run'))
-        with self.db, self.db.cursor() as cur:
-            cur.execute(query, {'job_id': job_id,
-                                'start_time': datetime.now()})
-            return cur.fetchone()[0]
+        wheres = ['"job_id"=%(job_id)s']
+        data = {'job_id': job_id}
 
-    def _job_run_read(self, job_run_id):
-        query = """ SELECT * FROM "{table}" WHERE id=%(id)s; """.format(
-            table=self._table_name('job_run'))
-        with self.db, self.db.cursor() as cur:
-            cur.execute(query, {'id': job_run_id})
-            data = cur.fetchone()
-        if data is not None:
-            data['retval'] = self.unpack(data['retval'])
-        return data
+        filters = [
+            ('started', started),
+            ('finished', finished),
+            ('successful', successful),
+            ('skipped', skipped),
+        ]
 
-    def _job_run_update(self, job_run_id, finished=None, success=None,
-                        progress_current=None, progress_total=None,
-                        retval=None):
+        for key, val in filters:
+            if val is not None:
+                wheres.append('"{0}"=%({0})s'.format(key))
+                data[key] = val
 
-        data = {'id': job_run_id}
-        if finished is not None:
-            data['finished'] = finished
+        query = "SELECT * FROM {table} WHERE {wheres}".format(
+            table=self._table_name('build'),
+            wheres=' AND '.join(wheres))
 
-        if finished:
-            data['end_time'] = datetime.now()
-            data['retval'] = self.pack(retval)
+        order = order.lower()
 
-        if success is not None:
-            data['success'] = success
+        if order == 'asc':
+            query += ' ORDER BY id ASC'
 
-        if progress_current is not None:
-            data['progress_current'] = progress_current
+        elif order == 'desc':
+            query += ' ORDER BY id DESC'
 
-        if progress_total is not None:
-            data['progress_total'] = progress_total
+        else:
+            raise ValueError("Invalid order direction: {0}".format(order))
 
-        set_query = []
-        for key in data:
-            set_query.append("{0}=%({0})s".format(key))
+        if limit is not None:
+            query += ' LIMIT %(limit)s'
+            data['limit'] = limit
 
-        query = """
-        UPDATE "{table_name}" SET {set_query} WHERE id=%(id)s;
-        """.format(table_name=self._table_name('job_run'),
-                   set_query=", ".join(set_query))
+        query += ';'
 
         with self.db, self.db.cursor() as cur:
             cur.execute(query, data)
-
-    def _job_run_delete(self, job_run_id):
-        query1 = 'DELETE FROM "{table_name}" WHERE id=%(id)s'.format(
-            table_name=self._table_name('job_run'))
-        query2 = 'DELETE FROM "{table_name}" WHERE job_run_id=%(id)s'.format(
-            table_name=self._table_name('job_run_log'))
-
-        with self.db, self.db.cursor() as cur:
-            cur.execute(query2, {'id': job_run_id})
-            cur.execute(query1, {'id': job_run_id})
-
-    def _job_run_get_keys(self, job_id):
-        query = """
-        SELECT * FROM "{table_name}" WHERE job_id=%(id)s
-        ORDER BY id ASC;
-        """.format(table_name=self._table_name('job_run'))
-
-        with self.db, self.db.cursor() as cur:
-            cur.execute(query, {'id': job_id})
-
-            for item in cur.fetchall():
-                yield item['id']
+            for x in cur.fetchall():
+                yield self._build_unpack(x)
 
     # ------------------------------------------------------------
-    # Logging
+    # Build CRUD methods
+    # ------------------------------------------------------------
 
-    def create_log_handler(self, job_id, job_run_id):
-        handler = PostgresLogHandler(
-            self.db, self._table_name('job_run_log'),
-            extra_info={'job_id': job_id, 'job_run_id': job_run_id})
-        handler.setLevel(logging.DEBUG)
-        return handler
+    def create_build(self, job_id):
+        return self._do_insert('build', {'job_id': job_id})
 
-    def _iter_logs(self, job_run_id):
-        query = """
-        SELECT * FROM {table_name} ORDER BY created ASC;
-        """.format(table_name=self._table_name('job_run_log'))
-        with self.db, self.db.cursor() as cur:
-            cur.execute(query)
-            for item in cur.fetchall():
-                yield pickle.loads(item['log_record'])
+    def get_build(self, build_id):
+        return self._do_select_one('build', build_id)
 
+    def delete_build(self, build_id):
+        self._do_delete_one('build', build_id)
 
-HOUR = 3600
-DAY = 24 * HOUR
-MONTH = 30 * DAY
+    def start_build(self, build_id):
+        self._do_update('build', {
+            'id': build_id,
+            'start_time': datetime.now(),
+            'started': True,
+        })
 
+    def finish_build(self, build_id, success=None, skipped=None, retval=None,
+                     exception=None):
+        self._do_update('build', self._build_pack({
+            'id': build_id,
+            'end_time': datetime.now(),
+            'finished': True,
+            'success': success,
+            'skipped': skipped,
+            'retval': retval,
+            'exception': exception,
+        }))
 
-class PostgresLogHandler(logging.Handler):
-    """
-    Logging handler writing to a PostgreSQL table.
-    """
+    def update_build_progress(self, build_id, current, total):
+        self._do_update('build', self._build_pack({
+            'id': build_id,
+            'progress_current': current,
+            'progress_total': total,
+        }))
 
-    log_retention_policy = {
-        logging.DEBUG: 15 * DAY,
-        logging.INFO: MONTH,
-        logging.WARNING: 3 * MONTH,
-        logging.ERROR: 6 * MONTH,
-        logging.CRITICAL: 6 * MONTH,
-    }
-    log_max_retention = 12 * MONTH
-
-    def __init__(self, db, table_name, extra_info=None):
-        super(PostgresLogHandler, self).__init__()
-        self.db = db
-        self.table_name = table_name
-        self.setLevel(logging.DEBUG)  # Log everything by default
-        self.extra_info = {}
-        if extra_info is not None:
-            self.extra_info.update(extra_info)
-
-    def flush(self):
-        pass  # Nothing to flush!
-
-    # def serialize(self, record):
-    #     """Prepare log record for insertion into PostgreSQL"""
-
-    #     import traceback
-
-    #     record_dict = {
-    #         'args': pickle.dumps(record.args),
-    #         'created': datetime.utcfromtimestamp(record.created),
-    #         'filename': record.filename,
-    #         'funcName': record.funcName,
-    #         'levelname': record.levelname,
-    #         'levelno': record.levelno,
-    #         'lineno': record.lineno,
-    #         'module': record.module,
-    #         'msecs': record.msecs,
-    #         'msg': record.msg,
-    #         'name': record.name,
-    #         'pathname': record.pathname,
-    #         'process': record.process,
-    #         'processName': record.processName,
-    #         'relativeCreated': record.relativeCreated,
-    #         'thread': record.thread,
-    #         'threadName': record.threadName}
-
-    #     if record.exc_info is not None:
-    #         # We cannot serialize exception information.
-    #         # The best workaround here is to simply add the
-    #         # relevant information to the message, as the
-    #         # formatter would..
-    #         exc_class = u'{0}.{1}'.format(
-    #             record.exc_info[0].__module__,
-    #             record.exc_info[0].__name__)
-    #         exc_message = str(record.exc_info[1])
-    #         exc_repr = repr(record.exc_info[1])
-    #         exc_traceback = '\n'.join(
-    #             traceback.format_exception(*record.exc_info))
-
-    #         # record_dict['_orig_msg'] = record_dict['msg']
-    #         # record_dict['msg'] += "\n\n"
-    #         # record_dict['msg'] += exc_traceback
-    #         record_dict['exc_class'] = exc_class
-    #         record_dict['exc_message'] = exc_message
-    #         record_dict['exc_repr'] = exc_repr
-    #         record_dict['exc_traceback'] = exc_traceback
-
-    #     return record_dict
-
-    def emit(self, record):
-        """Handle a received log message"""
-
-        from jobcontrol.globals import execution_context
-
-        if record.exc_info is not None:
-            # We cannot serialize exception information.
-            # The best workaround here is to simply add the
-            # relevant information to the message, as the
-            # formatter would..
-
-            exc_class, exc_msg, exc_tb = record.exc_info
-            exc_traceback = '\n'.join(
-                traceback.format_exception(*record.exc_info))
-
-            record.exc_info = exc_class, exc_msg, exc_traceback
-
-        data = {
-            'job_id': execution_context.job_id,
-            'job_run_id': execution_context.job_run_id,
+    def log_message(self, job_id, build_id, record):
+        self._do_insert('log', {
+            'job_id': job_id,
+            'build_id': build_id,
             'created': datetime.utcfromtimestamp(record.created),
-            'levelno': record.levelno,
-            'log_record': pickle.dumps(record),
-        }
+            'level': record.levelno,
+            'record': self.pack(record)
+        })
 
-        # data = self.serialize(record)
+    def prune_log_messages(self, job_id=None, build_id=None,
+                           max_age=None, level=None):
+        """
+        Delete old log messages.
 
-        fields = ', '.join('"{0}"'.format(fld) for fld in data)
-        values = ', '.join('%({0})s'.format(fld) for fld in data)
-        query = """
-        INSERT INTO "{table}" ({fields}) VALUES ({values});
-        """.format(table=self.table_name, fields=fields, values=values)
+        :param job_id:
+            If specified, only delete messages for this job
+
+        :param build_id:
+            If specified, only delete messages for this build
+
+        :param max_age:
+            If specified, only delete log messages with an age
+            greater than this one (in seconds)
+
+        :param level:
+            If specified, only delete log messages with a level
+            equal or minor to this one
+        """
+
+        conditions = []
+        filters = {}
+
+        if job_id is not None:
+            conditions.append('"job_id"=%(job_id)s')
+            filters['job_id'] = job_id
+
+        if build_id is not None:
+            conditions.append('"build_id"=%(build_id)s')
+            filters['build_id'] = build_id
+
+        if max_age is not None:
+            expire_date = datetime.now() - timedelta(seconds=max_age)
+            conditions.append('"created" < %(expire_date)s')
+            filters['expire_date'] = expire_date
+
+        if level is not None:
+            conditions.append('"level" <= %(level)s')
+            filters['level'] = level
+
+        query = 'DELETE FROM "{0}"'.format(self._table_name('log'))
+
+        if len(conditions) > 0:
+            query += ' WHERE {0}'.format(' AND '.join(conditions))
+
+        query += ';'
 
         with self.db, self.db.cursor() as cur:
-            cur.execute(query, data)
+            cur.execute(query, filters)
 
-    def cleanup_old_messages(self):
-        """Delete old log messages, according to log retention policy"""
+    def iter_log_messages(self, job_id=None, build_id=None, max_date=None,
+                          min_date=None, min_level=None):
 
-        query = """
-        DELETE FROM "{0}"
-        WHERE "levelno" <= %(levelno)s
-          AND "created" <= %(expiredate)s;
-        """.format(self.table_name)
+        conditions = []
+        filters = {}
 
-        # Apply log retention policy
-        for minlevel, retention in self.log_retention_policy.iteritems():
-            expiredate = datetime.now() - timedelta(seconds=retention)
-            with self.db, self.db.cursor() as cur:
-                cur.execute(query, {'levelno': minlevel,
-                                    'expiredate': expiredate})
+        if job_id is not None:
+            conditions.append('"job_id"=%(job_id)s')
+            filters['job_id'] = job_id
 
-        # Delete all the logs older than self.log_max_retention
-        expiredate = datetime.now() - timedelta(seconds=self.log_max_retention)
-        query = """
-        DELETE FROM "{0}" WHERE "created" <= %(expiredate)s;
-        """.format(self.table_name)
+        if build_id is not None:
+            conditions.append('"build_id"=%(build_id)s')
+            filters['build_id'] = build_id
+
+        if max_date is not None:
+            conditions.append('"created" < %(max_date)s')
+            filters['max_date'] = max_date
+
+        if min_date is not None:
+            conditions.append('"created" >= %(min_date)s')
+            filters['min_date'] = min_date
+
+        if min_level is not None:
+            conditions.append('"level" >= %(min_level)s')
+            filters['min_level'] = min_level
+
+        query = 'SELECT * FROM "{0}"'.format(self._table_name('log'))
+
+        if len(conditions) > 0:
+            query += ' WHERE {0}'.format(' AND '.join(conditions))
+
+        query += ';'
+
         with self.db, self.db.cursor() as cur:
-            cur.execute(query, {'expiredate': expiredate})
+            cur.execute(query, filters)
+            for item in cur.fetchall():
+                record = self.unpack(item['record'])
+
+                # todo: any better way to do this?
+                record.job_id = item['job_id']
+                record.build_id = item['build_id']
