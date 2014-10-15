@@ -1,6 +1,8 @@
 Job Control
 ###########
 
+.. image:: .misc/logo.png
+
 Job scheduling and tracking library.
 
 Provides a base interface for scheduling, running, tracking and
