@@ -250,6 +250,12 @@ class PostgreSQLStorage(StorageBase):
         return self._job_unpack(data)
 
     def delete_job(self, job_id):
+        query = 'DELETE FROM "{table}" WHERE "job_id"=%(job_id)s'.format(
+            table=self._table_name('build'))
+
+        with self.db, self.db.cursor() as cur:
+            cur.execute(query, {'job_id': job_id})
+
         self._do_delete_one('job', job_id)
 
     def list_jobs(self):
@@ -366,7 +372,10 @@ class PostgreSQLStorage(StorageBase):
         return self._do_insert('build', {'job_id': job_id})
 
     def get_build(self, build_id):
-        return self._build_unpack(self._do_select_one('build', build_id))
+        build = self._do_select_one('build', build_id)
+        if build is None:
+            raise NotFound('Build not found: {0}'.format(build_id))
+        return self._build_unpack(build)
 
     def delete_build(self, build_id):
         self._do_delete_one('build', build_id)
@@ -423,7 +432,7 @@ class PostgreSQLStorage(StorageBase):
 
         :param level:
             If specified, only delete log messages with a level
-            equal or minor to this one
+            equal minor to this one
         """
 
         conditions = []
@@ -443,7 +452,7 @@ class PostgreSQLStorage(StorageBase):
             filters['expire_date'] = expire_date
 
         if level is not None:
-            conditions.append('"level" <= %(level)s')
+            conditions.append('"level" < %(level)s')
             filters['level'] = level
 
         query = 'DELETE FROM "{0}"'.format(self._table_name('log'))
@@ -497,3 +506,5 @@ class PostgreSQLStorage(StorageBase):
                 # todo: any better way to do this?
                 record.job_id = item['job_id']
                 record.build_id = item['build_id']
+
+                yield record

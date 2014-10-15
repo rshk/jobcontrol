@@ -311,3 +311,62 @@ def test_job_multiple_builds(storage):
     build4 = storage.get_build(b4id)
     assert build4['success'] is True
     assert build4['retval'] == 'B4-RET'
+
+
+def test_job_deletion(storage):
+    job_id = storage.create_job('foo:bar')
+    b1id = storage.create_build(job_id)
+    b2id = storage.create_build(job_id)
+
+    storage.delete_job(job_id)
+
+    with pytest.raises(NotFound):
+        storage.get_build(b1id)
+    with pytest.raises(NotFound):
+        storage.get_build(b2id)
+    with pytest.raises(NotFound):
+        storage.get_job(job_id)
+
+
+def test_logging(storage):
+    import logging
+
+    job_id = storage.create_job('foo:bar')
+    build_id = storage.create_build(job_id)
+
+    def _make_log(level, msg):
+        return logging.makeLogRecord(
+            {'name': 'my_logger', 'levelno': level, 'msg': msg})
+
+    def _log(level, msg):
+        storage.log_message(job_id, build_id, _make_log(level, msg))
+
+    _log(logging.DEBUG, 'A DEBUG message')
+    _log(logging.INFO, 'A INFO message')
+    _log(logging.WARNING, 'A WARNING message')
+    _log(logging.ERROR, 'A ERROR message')
+    _log(logging.CRITICAL, 'A CRITICAL message')
+
+    log_messages = list(storage.iter_log_messages(
+        job_id=job_id, build_id=build_id))
+    assert len(log_messages) == 5
+
+    warning_messages = list(storage.iter_log_messages(
+        job_id=job_id, build_id=build_id, min_level=logging.WARNING))
+    assert len(warning_messages) == 3
+
+    storage.prune_log_messages(job_id=job_id, build_id=build_id,
+                               level=logging.WARNING)
+
+    log_messages = list(storage.iter_log_messages(
+        job_id=job_id, build_id=build_id))
+    assert len(log_messages) == 3
+
+    storage.prune_log_messages(job_id=job_id, build_id=build_id,
+                               level=logging.ERROR)
+
+    log_messages = list(storage.iter_log_messages(
+        job_id=job_id, build_id=build_id))
+    assert len(log_messages) == 2
+
+    # todo: test logging date filtering / pruning (+ policy pruning)
