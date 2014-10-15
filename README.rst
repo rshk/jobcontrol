@@ -56,11 +56,38 @@ Python Package Index
 
 The project can be found on PyPI here: https://pypi.python.org/pypi/jobcontrol
 
-.. image:: https://pypip.in/v/jobcontrol/badge.png
+.. image:: https://pypip.in/version/jobcontrol/badge.svg?text=version
+    :target: https://github.com/rshk/jobcontrol.git
     :alt: Latest PyPI version
 
-.. image:: https://pypip.in/d/jobcontrol/badge.png
+.. image:: https://pypip.in/download/jobcontrol/badge.png?period=month
+    :target: https://github.com/rshk/jobcontrol.git
     :alt: Number of PyPI downloads
+
+.. image:: https://pypip.in/py_versions/jobcontrol/badge.svg
+    :target: https://pypi.python.org/pypi/jobcontrol/
+    :alt: Supported Python versions
+
+.. image:: https://pypip.in/status/jobcontrol/badge.svg
+    :target: https://pypi.python.org/pypi/jobcontrol/
+    :alt: Development Status
+
+.. image:: https://pypip.in/wheel/jobcontrol/badge.svg
+    :target: https://pypi.python.org/pypi/jobcontrol/
+    :alt: Wheel Status
+
+.. image:: https://pypip.in/egg/jobcontrol/badge.svg
+    :target: https://pypi.python.org/pypi/jobcontrol/
+    :alt: Egg Status
+
+.. image:: https://pypip.in/format/jobcontrol/badge.svg
+    :target: https://pypi.python.org/pypi/jobcontrol/
+    :alt: Download format
+
+.. image:: https://pypip.in/license/jobcontrol/badge.svg
+    :target: https://pypi.python.org/pypi/jobcontrol/
+    :alt: License
+
 
 
 Project documentation
