@@ -9,6 +9,7 @@ import psycopg2.extras
 
 from jobcontrol.interfaces import StorageBase
 from jobcontrol.utils import cached_property
+from jobcontrol.exceptions import NotFound
 
 
 class PostgreSQLStorage(StorageBase):
@@ -219,7 +220,7 @@ class PostgreSQLStorage(StorageBase):
                    dependencies=None):
 
         if self.get_job(job_id) is None:
-            raise RuntimeError('No such job: {0}'.format(job_id))
+            raise NotFound('No such job: {0}'.format(job_id))
 
         data = {'id': job_id}
 
@@ -244,28 +245,34 @@ class PostgreSQLStorage(StorageBase):
         data = self._do_select_one('job', job_id)
 
         if data is None:
-            raise RuntimeError('No such job: {0}'.format(job_id))
+            raise NotFound('No such job: {0}'.format(job_id))
 
         return self._job_unpack(data)
 
     def delete_job(self, job_id):
         self._do_delete_one('job', job_id)
 
-    def list_jobs(self, job_id):
+    def list_jobs(self):
         query = 'SELECT id FROM "{table}" ORDER BY id ASC;'.format(
             table=self._table_name('job'))
 
         with self.db, self.db.cursor() as cur:
-            cur.execute(query, {'id': job_id})
+            cur.execute(query)
             return [r['id'] for r in cur.fetchall()]
 
-    def iter_jobs(self, job_id):
+    def iter_jobs(self):
         for item in self._do_select('job', order='id ASC'):
             yield self._job_unpack(item)
 
     def mget_jobs(self, job_ids):
         # todo: there should be a better way to do this!
-        return [self.get_job(x) for x in job_ids]
+        jobs = []
+        for j in job_ids:
+            try:
+                jobs.append(self.get_job(j))
+            except NotFound:
+                pass
+        return jobs
 
     def get_job_deps(self, job_id):
         """Get direct job dependencies"""
@@ -289,7 +296,7 @@ class PostgreSQLStorage(StorageBase):
             return [self._job_unpack(x) for x in cur.fetchall()]
 
     def get_job_builds(self, job_id, started=None, finished=None,
-                       successful=None, skipped=None, order='asc', limit=100):
+                       success=None, skipped=None, order='asc', limit=100):
         """
         Get all the builds for a job, sorted by date, according
         to the order specified by ``order``.
@@ -300,8 +307,8 @@ class PostgreSQLStorage(StorageBase):
             If set to a boolean, filter on the "started" field
         :param finished:
             If set to a boolean, filter on the "finished" field
-        :param successful:
-            If set to a boolean, filter on the "successful" field
+        :param success:
+            If set to a boolean, filter on the "success" field
         :param skipped:
             If set to a boolean, filter on the "skipped" field
         :param order:
@@ -316,7 +323,7 @@ class PostgreSQLStorage(StorageBase):
         filters = [
             ('started', started),
             ('finished', finished),
-            ('successful', successful),
+            ('success', success),
             ('skipped', skipped),
         ]
 

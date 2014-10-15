@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from jobcontrol.exceptions import NotFound
+
 
 def test_job_crud(storage):  # todo: test list/iter too!
     job_id = storage.create_job(
@@ -36,8 +38,32 @@ def test_job_crud(storage):  # todo: test list/iter too!
 
     storage.delete_job(job_id)
 
-    with pytest.raises(Exception):
+    with pytest.raises(NotFound):
         storage.get_job(job_id)
+
+
+def test_job_list_iter_mget(storage):
+    # With empty db
+    assert storage.list_jobs() == []
+    assert list(storage.iter_jobs()) == []
+    assert storage.mget_jobs([1, 2, 3, 4]) == []
+
+    # Create jobs
+    job_ids = [storage.create_job('foo:bar', args=[x]) for x in xrange(5)]
+
+    # Query..
+    assert storage.list_jobs() == job_ids
+
+    _jobs = list(storage.iter_jobs())
+    assert [x['id'] for x in _jobs] == job_ids
+    for x in _jobs:
+        assert x['function'] == 'foo:bar'
+
+    _jobs2 = storage.mget_jobs(job_ids)
+    assert _jobs2 == _jobs
+
+    for jid in job_ids:
+        storage.delete_job(jid)
 
 
 def test_job_default_values(storage):
@@ -85,18 +111,8 @@ def test_job_deps(storage):
     assert _depids(job_id4) == []
     assert _rdepids(job_id4) == [job_id1, job_id3]
 
-
-def test_job_mget(storage):
-    job_id1 = storage.create_job(
-        'datacat.utils.testing:job_simple_echo', args=['A'])
-    job_id2 = storage.create_job(
-        'datacat.utils.testing:job_simple_echo', args=['B'])
-
-    results = storage.mget_jobs([job_id1, job_id2])
-    job1 = storage.get_job(job_id1)
-    job2 = storage.get_job(job_id2)
-
-    assert results == [job1, job2]
+    for jid in (job_id1, job_id2, job_id3, job_id4):
+        storage.delete_job(jid)
 
 
 def test_job_build_crud(storage):
@@ -191,3 +207,107 @@ def test_job_build_crud(storage):
     storage.delete_build(build_id)
     with pytest.raises(Exception):
         storage.get_build(build_id)
+
+    storage.delete_job(job_id)
+
+
+def test_job_multiple_builds(storage):
+    job_id = storage.create_job('foo:bar')
+
+    def _get_build_ids(**kw):
+        return [x['id'] for x in storage.get_job_builds(job_id, **kw)]
+
+    assert _get_build_ids() == []
+
+    b1id = storage.create_build(job_id)
+    b2id = storage.create_build(job_id)
+    b3id = storage.create_build(job_id)
+    b4id = storage.create_build(job_id)
+
+    assert _get_build_ids() == [b1id, b2id, b3id, b4id]
+    assert _get_build_ids(started=False) == [b1id, b2id, b3id, b4id]
+    assert _get_build_ids(started=True) == []
+    assert _get_build_ids(finished=True) == []
+    assert _get_build_ids(skipped=True) == []
+    assert _get_build_ids(skipped=False) == [b1id, b2id, b3id, b4id]
+
+    assert _get_build_ids(order='asc', limit=2) == [b1id, b2id]
+    assert _get_build_ids(order='desc', limit=2) == [b4id, b3id]
+
+    storage.start_build(b1id)
+
+    assert _get_build_ids() == [b1id, b2id, b3id, b4id]
+    assert _get_build_ids(started=False) == [b2id, b3id, b4id]
+    assert _get_build_ids(started=True) == [b1id]
+    assert _get_build_ids(finished=True) == []
+    assert _get_build_ids(skipped=True) == []
+    assert _get_build_ids(skipped=False) == [b1id, b2id, b3id, b4id]
+
+    storage.start_build(b2id)
+
+    assert _get_build_ids() == [b1id, b2id, b3id, b4id]
+    assert _get_build_ids(started=False) == [b3id, b4id]
+    assert _get_build_ids(started=True) == [b1id, b2id]
+    assert _get_build_ids(finished=True) == []
+    assert _get_build_ids(skipped=True) == []
+    assert _get_build_ids(skipped=False) == [b1id, b2id, b3id, b4id]
+
+    storage.start_build(b3id)
+    storage.finish_build(b1id, success=True, retval='B1-RET')
+
+    assert _get_build_ids() == [b1id, b2id, b3id, b4id]
+    assert _get_build_ids(started=False) == [b4id]
+    assert _get_build_ids(started=True) == [b1id, b2id, b3id]
+    assert _get_build_ids(finished=True) == [b1id]
+    assert _get_build_ids(finished=True, success=True) == [b1id]
+    assert _get_build_ids(finished=True, success=False) == []
+    assert _get_build_ids(skipped=True) == []
+    assert _get_build_ids(skipped=False) == [b1id, b2id, b3id, b4id]
+
+    storage.finish_build(b2id, success=False,
+                         exception=ValueError('Simulated failure'))
+
+    assert _get_build_ids() == [b1id, b2id, b3id, b4id]
+    assert _get_build_ids(started=False) == [b4id]
+    assert _get_build_ids(started=True) == [b1id, b2id, b3id]
+    assert _get_build_ids(finished=True) == [b1id, b2id]
+    assert _get_build_ids(finished=True, success=True) == [b1id]
+    assert _get_build_ids(finished=True, success=False) == [b2id]
+    assert _get_build_ids(skipped=True) == []
+    assert _get_build_ids(skipped=False) == [b1id, b2id, b3id, b4id]
+
+    storage.finish_build(b3id, success=True, skipped=True)
+
+    assert _get_build_ids() == [b1id, b2id, b3id, b4id]
+    assert _get_build_ids(started=False) == [b4id]
+    assert _get_build_ids(started=True) == [b1id, b2id, b3id]
+    assert _get_build_ids(finished=True) == [b1id, b2id, b3id]
+    assert _get_build_ids(finished=True, success=True) == [b1id, b3id]
+    assert _get_build_ids(finished=True, success=False) == [b2id]
+    assert _get_build_ids(skipped=True) == [b3id]
+    assert _get_build_ids(skipped=False) == [b1id, b2id, b4id]
+
+    assert _get_build_ids(finished=True, success=True, skipped=False,
+                          order='desc', limit=1) == [b1id]
+
+    storage.start_build(b4id)
+    storage.finish_build(b4id, success=True, retval='B4-RET')
+
+    # ------------------------------------------------------------
+    # Get build reports
+
+    build1 = storage.get_build(b1id)
+    assert build1['success'] is True
+    assert build1['retval'] == 'B1-RET'
+
+    build2 = storage.get_build(b2id)
+    assert build2['success'] is False
+    assert isinstance(build2['exception'], ValueError)
+
+    build3 = storage.get_build(b3id)
+    assert build3['success'] is True
+    assert build3['skipped'] is True
+
+    build4 = storage.get_build(b4id)
+    assert build4['success'] is True
+    assert build4['retval'] == 'B4-RET'
