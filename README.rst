@@ -42,6 +42,26 @@ Project status
 |          |     :target: https://travis-ci.org/rshk/jobcontrol                    |
 +----------+-----------------------------------------------------------------------+
 
+Source code
+-----------
+
+Source is hosted on GitHub: https://github.com/rshk/jobcontrol/
+
+And can be cloned with::
+
+    git clone https://github.com/rshk/jobcontrol.git
+
+Python Package Index
+--------------------
+
+The project can be found on PyPI here: https://pypi.python.org/pypi/jobcontrol
+
+.. image:: https://pypip.in/v/jobcontrol/badge.png
+    :alt: Latest PyPI version
+
+.. image:: https://pypip.in/d/jobcontrol/badge.png
+    :alt: Number of PyPI downloads
+
 
 Project documentation
 =====================
