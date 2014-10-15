@@ -58,11 +58,12 @@ Concepts
   depending jobs are rebuilt when a "higher-level" one is built.
 
 Example::
-    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐
-    │         │    │         │    │         │    │         │
-    │  Job A  │ ─→ │  Job B  │ ─→ │  Job C  │ ─→ │  Job D  │
-    │         │    │         │    │         │    │         │
-    └─────────┘    └─────────┘    └─────────┘    └─────────┘
+
+    ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐
+    │         │   │         │   │         │   │         │
+    │  Job A  │ → │  Job B  │ → │  Job C  │ → │  Job D  │
+    │         │   │         │   │         │   │         │
+    └─────────┘   └─────────┘   └─────────┘   └─────────┘
 
 When running the task ``C``, a build of ``B`` will be required; this
 in turn requires a build of ``A``. If ``build_deps=True`` was
