@@ -36,13 +36,15 @@ def get_postgres_conf():
 
 
 @pytest.fixture(scope='module', params=['memory', 'postgresql'])
-def jobcontrolmgr(request):
+def storage(request):
     if request.param == 'memory':
-        from jobcontrol.ext.memory import MemoryJobControl
-        jc = MemoryJobControl({})
-        jc.install()
-        request.addfinalizer(jc.uninstall)
-        return jc
+        pytest.skip('Memory storage not implemented yet')
+
+        # from jobcontrol.ext.memory import MemoryJobControl
+        # jc = MemoryJobControl({})
+        # jc.install()
+        # request.addfinalizer(jc.uninstall)
+        # return jc
 
     if request.param == 'postgresql':
         try:
@@ -50,11 +52,11 @@ def jobcontrolmgr(request):
         except RuntimeError:
             pytest.skip('POSTGRESQL_URL not configured')
 
-        from jobcontrol.ext.postgresql import PostgreSQLJobControl
-        jc = PostgreSQLJobControl({'DATABASE': conf})
+        from jobcontrol.ext.postgresql import PostgreSQLStorage
+        jc = PostgreSQLStorage(conf)
 
         try:
-            # Make sure we don't have tables left around
+            # Make sure we don't have tables left around..
             jc.uninstall()
         except:
             pass

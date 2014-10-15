@@ -112,7 +112,7 @@ class StorageBase(object):
     # ------------------------------------------------------------
 
     @abc.abstractmethod
-    def job_create(self, function, args, kwargs, dependencies=None):
+    def create_job(self, function, args=None, kwargs=None, dependencies=None):
         """
         Create a new job.
 
@@ -121,7 +121,7 @@ class StorageBase(object):
         pass
 
     @abc.abstractmethod
-    def job_update(self, job_id, function=None, args=None, kwargs=None,
+    def update_job(self, job_id, function=None, args=None, kwargs=None,
                    dependencies=None):
         """
         Update a job definition.
@@ -129,32 +129,32 @@ class StorageBase(object):
         pass
 
     @abc.abstractmethod
-    def job_get(self, job_id):
+    def get_job(self, job_id):
         """
         Get a job definition, as a dict, by id.
         """
         pass
 
     @abc.abstractmethod
-    def job_delete(self, job_id):
+    def delete_job(self, job_id):
         """
         Delete a job definition, by id.
         """
         pass
 
     @abc.abstractmethod
-    def job_list(self, job_id):
+    def list_jobs(self, job_id):
         """List IDs of all jobs"""
         pass
 
-    def job_iter(self, job_id):
+    def iter_jobs(self, job_id):
         """
         Iterate all jobs, yielding them as dicts.
         """
         for id in self.job_list():
             yield self.job_get(id)
 
-    def job_mget(self, job_ids):
+    def mget_jobs(self, job_ids):
         """
         Get multiple job definitions, by id.
 
@@ -163,17 +163,17 @@ class StorageBase(object):
         return [self.job_get(x) for x in job_ids]
 
     @abc.abstractmethod
-    def job_get_deps(self, job_id):
+    def get_job_deps(self, job_id):
         """Get direct job dependencies"""
         pass
 
     @abc.abstractmethod
-    def job_get_revdeps(self, job_id):
+    def get_job_revdeps(self, job_id):
         """Get jobs directly depending on this one"""
         pass
 
     @abc.abstractmethod
-    def job_get_builds(self, job_id, started=None, finished=None,
+    def get_job_builds(self, job_id, started=None, finished=None,
                        successful=None, skipped=None, order='asc', limit=100):
         """
         Get all the builds for a job, sorted by date, according

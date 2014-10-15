@@ -1,4 +1,4 @@
-def example_function(*args, **kwargs):
+def job_simple_echo(*args, **kwargs):
     return (args, kwargs)
 
 

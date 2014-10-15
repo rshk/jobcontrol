@@ -1,50 +1,15 @@
 """
 PostgreSQL-backed Job control class.
-
-.. warning::
-
-    This class is (currently) **not** thread-safe!
-
-    Thread-safety will be added in the future (includes storing the current
-    job-control app in a thread-local object, filtering logs by thread id,
-    etc.)
 """
 
 from datetime import datetime, timedelta
-import logging
-import pickle
-import traceback
 
 import psycopg2
 import psycopg2.extras
 
-from jobcontrol.base import JobControlBase
 from jobcontrol.interfaces import StorageBase
 from jobcontrol.utils import cached_property
 
-
-# class PostgreSQLJobControl(JobControlBase):  # DEPRECATED!!!
-#     table_prefix = 'jobcontrol_'
-#     def create_log_handler(self, job_id, job_run_id):
-#         handler = PostgresLogHandler(
-#             self.db, self._table_name('job_run_log'),
-#             extra_info={'job_id': job_id, 'job_run_id': job_run_id})
-#         handler.setLevel(logging.DEBUG)
-#         return handler
-
-#     def _iter_logs(self, job_run_id):
-#         query = """
-#         SELECT * FROM {table_name} ORDER BY created ASC;
-#         """.format(table_name=self._table_name('job_run_log'))
-#         with self.db, self.db.cursor() as cur:
-#             cur.execute(query)
-#             for item in cur.fetchall():
-#                 yield pickle.loads(item['log_record'])
-
-
-# ============================================================
-# NEW STUFF BELOW
-# ============================================================
 
 class PostgreSQLStorage(StorageBase):
     def __init__(self, dbconf, table_prefix='jobcontrol_'):
@@ -101,7 +66,7 @@ class PostgreSQLStorage(StorageBase):
             level INTEGER,
             record TEXT
         );
-        """.format(prefix=self.table_prefix)
+        """.format(prefix=self._table_prefix)
 
         with self.db, self.db.cursor() as cur:
             cur.execute(query)
@@ -137,9 +102,9 @@ class PostgreSQLStorage(StorageBase):
         UPDATE "{table}" SET {updates} WHERE "id"=%(id)s;
         """.format(
             table=self._table_name(table),
-            updates=[', '.join(
+            updates=', '.join(
                 "{0}=%({1})s".format(self._escape_name(fld), fld)
-                for fld in _fields)])
+                for fld in _fields))
 
     def _query_select_one(self, table, fields='*'):
         return """
@@ -239,21 +204,21 @@ class PostgreSQLStorage(StorageBase):
     # Job CRUD methods
     # ------------------------------------------------------------
 
-    def job_create(self, function, args, kwargs, dependencies=None):
+    def create_job(self, function, args=None, kwargs=None, dependencies=None):
         data = self._job_pack({
             'function': function,
-            'args': args,
-            'kwargs': kwargs,
+            'args': args or [],
+            'kwargs': kwargs or {},
             'dependencies': dependencies or [],
             'ctime': datetime.now(),
         })
 
         return self._do_insert('job', data)
 
-    def job_update(self, job_id, function=None, args=None, kwargs=None,
+    def update_job(self, job_id, function=None, args=None, kwargs=None,
                    dependencies=None):
 
-        if self._job_get(job_id) is None:
+        if self.get_job(job_id) is None:
             raise RuntimeError('No such job: {0}'.format(job_id))
 
         data = {'id': job_id}
@@ -275,7 +240,7 @@ class PostgreSQLStorage(StorageBase):
 
         self._do_update('job', data)
 
-    def job_get(self, job_id):
+    def get_job(self, job_id):
         data = self._do_select_one('job', job_id)
 
         if data is None:
@@ -283,10 +248,10 @@ class PostgreSQLStorage(StorageBase):
 
         return self._job_unpack(data)
 
-    def job_delete(self, job_id):
+    def delete_job(self, job_id):
         self._do_delete_one('job', job_id)
 
-    def job_list(self, job_id):
+    def list_jobs(self, job_id):
         query = 'SELECT id FROM "{table}" ORDER BY id ASC;'.format(
             table=self._table_name('job'))
 
@@ -294,26 +259,26 @@ class PostgreSQLStorage(StorageBase):
             cur.execute(query, {'id': job_id})
             return [r['id'] for r in cur.fetchall()]
 
-    def job_iter(self, job_id):
+    def iter_jobs(self, job_id):
         for item in self._do_select('job', order='id ASC'):
             yield self._job_unpack(item)
 
-    def job_mget(self, job_ids):
+    def mget_jobs(self, job_ids):
         # todo: there should be a better way to do this!
-        return [self.job_get(x) for x in job_ids]
+        return [self.get_job(x) for x in job_ids]
 
-    def job_get_deps(self, job_id):
+    def get_job_deps(self, job_id):
         """Get direct job dependencies"""
         query = """
         SELECT * FROM "{table}" WHERE id IN (
-            SELECT unnset(dependencies) FROM "{table}"
-            WHERE id=%(id)s);
+            SELECT unnest(dependencies) FROM "{table}"
+            WHERE id=%(id)s) ORDER BY id ASC;
         """.format(table=self._table_name('job'))
         with self.db, self.db.cursor() as cur:
             cur.execute(query, {'id': job_id})
             return [self._job_unpack(x) for x in cur.fetchall()]
 
-    def job_get_revdeps(self, job_id):
+    def get_job_revdeps(self, job_id):
         query = """
         SELECT * FROM "{table}"
         WHERE dependencies @> ARRAY[%(id)s]
@@ -323,7 +288,7 @@ class PostgreSQLStorage(StorageBase):
             cur.execute(query, {'id': job_id})
             return [self._job_unpack(x) for x in cur.fetchall()]
 
-    def job_get_builds(self, job_id, started=None, finished=None,
+    def get_job_builds(self, job_id, started=None, finished=None,
                        successful=None, skipped=None, order='asc', limit=100):
         """
         Get all the builds for a job, sorted by date, according
@@ -394,7 +359,7 @@ class PostgreSQLStorage(StorageBase):
         return self._do_insert('build', {'job_id': job_id})
 
     def get_build(self, build_id):
-        return self._do_select_one('build', build_id)
+        return self._build_unpack(self._do_select_one('build', build_id))
 
     def delete_build(self, build_id):
         self._do_delete_one('build', build_id)
@@ -406,7 +371,7 @@ class PostgreSQLStorage(StorageBase):
             'started': True,
         })
 
-    def finish_build(self, build_id, success=None, skipped=None, retval=None,
+    def finish_build(self, build_id, success=True, skipped=False, retval=None,
                      exception=None):
         self._do_update('build', self._build_pack({
             'id': build_id,
