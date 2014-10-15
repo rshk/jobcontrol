@@ -1,7 +1,7 @@
 Job Control
 ###########
 
-.. image:: https://raw.githubusercontent.com/rshk/jobcontrol/develop/.misc/logo.png
+.. image:: https://raw.githubusercontent.com/rshk/jobcontrol/develop/.misc/banner.png
 
 Job scheduling and tracking library.
 
