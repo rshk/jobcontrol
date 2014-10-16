@@ -1,8 +1,5 @@
 import os
-import random
-import time
 from urlparse import urlparse
-import shutil
 
 import pytest
 import py.path
@@ -37,32 +34,28 @@ def get_postgres_conf():
 
 @pytest.fixture(scope='module', params=['memory', 'postgresql'])
 def storage(request):
-    if request.param == 'memory':
-        pytest.skip('Memory storage not implemented yet')
+    def _get_storage(param):
+        if param == 'memory':
+            from jobcontrol.ext.memory import MemoryStorage
+            return MemoryStorage()
 
-        # from jobcontrol.ext.memory import MemoryJobControl
-        # jc = MemoryJobControl({})
-        # jc.install()
-        # request.addfinalizer(jc.uninstall)
-        # return jc
+        if param == 'postgresql':
+            try:
+                conf = get_postgres_conf()
+            except RuntimeError:
+                pytest.skip('POSTGRESQL_URL not configured')
+            from jobcontrol.ext.postgresql import PostgreSQLStorage
+            st = PostgreSQLStorage(conf)
+            try:
+                # Make sure we don't have tables left around..
+                st.uninstall()
+            except:
+                pass
+            return st
 
-    if request.param == 'postgresql':
-        try:
-            conf = get_postgres_conf()
-        except RuntimeError:
-            pytest.skip('POSTGRESQL_URL not configured')
+        raise RuntimeError('Invalid parameter: {0}'.format(request.param))
 
-        from jobcontrol.ext.postgresql import PostgreSQLStorage
-        jc = PostgreSQLStorage(conf)
-
-        try:
-            # Make sure we don't have tables left around..
-            jc.uninstall()
-        except:
-            pass
-
-        jc.install()
-        request.addfinalizer(jc.uninstall)
-        return jc
-
-    raise RuntimeError('Invalid parameter: {0}'.format(request.param))
+    _storage = _get_storage(request.param)
+    _storage.install()
+    request.addfinalizer(_storage.uninstall)
+    return _storage
