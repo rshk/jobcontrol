@@ -11,212 +11,256 @@ PostgreSQL-backed Job control class.
 """
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import count
-import logging
+import copy
 
-from jobcontrol.base import JobControlBase
+from jobcontrol.interfaces import StorageBase
+from jobcontrol.exceptions import NotFound
 
 
-class MemoryJobControl(JobControlBase):
+class MemoryStorage(StorageBase):
+    def __init__(self):
+        # Does nothing in default implementation, but in others
+        # migth get arguments / do stuff.
+        self._init_vars()
+
+    def _init_vars(self):
+        self._jobs = {}
+        self._builds = {}
+        self._log_messages = defaultdict(list)  # build: messages
+        self._jobs_seq = count()
+        self._builds_seq = count()
+
+    # ------------------------------------------------------------
+    # Installation methods.
+    # For resource initialization, if needed.
+    # ------------------------------------------------------------
+
     def install(self):
-        self._job = {}
-        self._job_run = {}
-        # job_run_log[job_id][job_run_id] = [...messages...]
-        # [<job_id>][<job_run_id>] = []
-        self._job_run_log = defaultdict(lambda: defaultdict(list))
-        self._job_seq = count(1)
-        self._job_run_seq = count(1)
+        self._init_vars()
 
     def uninstall(self):
-        self.install()  # Just flush dicts..
+        self._init_vars()
 
     # ------------------------------------------------------------
-    # Job definition CRUD
+    # Job CRUD methods
+    # ------------------------------------------------------------
 
-    def _job_create(self, function, args, kwargs, dependencies=None):
-        _job_id = self._job_seq.next()
-        self._job[_job_id] = dict(
-            id=_job_id,
-            function=function,
-            args=args,
-            kwargs=kwargs,
-            dependencies=dependencies or [])
-        return _job_id
+    def create_job(self, function, args=None, kwargs=None, dependencies=None):
+        job_id = self._jobs_seq.next()
+        job = {
+            'id': job_id,
+            'function': function,
+            'args': args or (),
+            'kwargs': kwargs or {},
+            'dependencies': dependencies or [],
+            'ctime': datetime.now(),
+            'mtime': datetime.now(),
+        }
+        self._jobs[job_id] = job
+        return job_id
 
-    def _job_read(self, job_id):
-        return self._job.get(job_id, None)
+    def update_job(self, job_id, function=None, args=None, kwargs=None,
+                   dependencies=None):
+        if job_id not in self._jobs:
+            raise NotFound('No such job: {0}'.format(job_id))
 
-    def _job_update(self, job_id, **kwargs):
-        self._job[job_id].update(kwargs)
+        if function is not None:
+            self._jobs[job_id]['function'] = function
 
-    def _job_delete(self, job_id):
-        self._job.pop(job_id, None)
+        if args is not None:
+            self._jobs[job_id]['args'] = args
 
-    def _job_get_keys(self):
-        return self._job.iterkeys()
+        if kwargs is not None:
+            self._jobs[job_id]['kwargs'] = kwargs
 
-    def _job_get_depending(self, job_id):
-        return sorted([
-            jid
-            for jid, job in self._job.iteritems()
-            if job_id in job['dependencies']])
+        if dependencies is not None:
+            self._jobs[job_id]['dependencies'] = dependencies
 
-    def _job_get_dependencies(self, job_id):
-        return self._job[job_id]['dependencies'] or []
+        self._jobs[job_id]['mtime'] = datetime.now()
+
+    def get_job(self, job_id):
+        if job_id not in self._jobs:
+            raise NotFound('No such job: {0}'.format(job_id))
+
+        return copy.deepcopy(self._jobs[job_id])  # Prevent changes!
+
+    def delete_job(self, job_id):
+        for build in self.get_job_builds(job_id):
+            self.delete_build(build['id'])
+
+        self._jobs.pop(job_id, None)
+
+    def list_jobs(self):
+        return sorted(self._jobs.iterkeys())
+
+    def iter_jobs(self):
+        for job_id, job in self._jobs.iteritems():
+            yield copy.deepcopy(job)
+
+    def mget_jobs(self, job_ids):
+        jobs = []
+        for job_id in job_ids:
+            if job_id in self._jobs:
+                jobs.append(copy.deepcopy(self._jobs[job_id]))
+        return jobs
+
+    def get_job_deps(self, job_id):
+        return self.mget_jobs(self.get_job(job_id)['dependencies'])
+
+    def get_job_revdeps(self, job_id):
+        deps = []
+        for _job_id, job in sorted(self._jobs.iteritems()):
+            if job_id in job['dependencies']:
+                deps.append(_job_id)
+        return self.mget_jobs(deps)
+
+    def get_job_builds(self, job_id, started=None, finished=None,
+                       success=None, skipped=None, order='asc', limit=100):
+
+        filters = [lambda x: x['job_id'] == job_id]
+
+        if started is not None:
+            filters.append(lambda x: x['started'] is started)
+
+        if finished is not None:
+            filters.append(lambda x: x['finished'] is finished)
+
+        if success is not None:
+            filters.append(lambda x: x['success'] is success)
+
+        if skipped is not None:
+            filters.append(lambda x: x['skipped'] is skipped)
+
+        if order == 'asc':
+            order_func = lambda x: sorted(x, key=lambda y: y[1]['id'])
+
+        elif order == 'desc':
+            order_func = lambda x: reversed(
+                sorted(x, key=lambda y: y[1]['id']))
+
+        else:
+            raise ValueError("Invalid order direction: {0}"
+                             .format(order))
+
+        for build_id, build in order_func(self._builds.iteritems()):
+            if (limit is not None) and limit <= 0:
+                return
+
+            if all(f(build) for f in filters):
+                yield copy.deepcopy(build)
+
+                if limit is not None:
+                    limit -= 1
 
     # ------------------------------------------------------------
-    # Job run CRUD
+    # Build CRUD methods
+    # ------------------------------------------------------------
 
-    def _job_run_create(self, job_id):
-        _job_run_id = self._job_run_seq.next()
-        self._job_run[_job_run_id] = {
+    def create_build(self, job_id):
+        self.get_job(job_id)
+        build_id = self._builds_seq.next()
+        build = {
+            'id': build_id,
             'job_id': job_id,
-            'start_time': datetime.now(),
-
+            'start_time': None,
             'end_time': None,
-            'started': True,
+            'started': False,
             'finished': False,
-            'success': None,
+            'success': False,
+            'skipped': False,
             'progress_current': 0,
             'progress_total': 0,
             'retval': None,
+            'exception': None,
         }
-        return _job_run_id
+        self._builds[build_id] = build
+        return build_id
 
-    def _job_run_read(self, job_run_id):
-        return self._job_run.get(job_run_id, None)
+    def get_build(self, build_id):
+        if build_id not in self._builds:
+            raise NotFound('No such build: {0}'.format(build_id))
 
-    def _job_run_update(self, job_run_id, finished=None, success=None,
-                        progress_current=None, progress_total=None,
-                        retval=None):
+        return copy.deepcopy(self._builds[build_id])
 
-        data = {'id': job_run_id}
-        if finished is not None:
-            data['finished'] = finished
+    def delete_build(self, build_id):
+        # todo: remove log messages!
+        self._builds.pop(build_id)
 
-        if finished:
-            data['end_time'] = datetime.now()
-            data['retval'] = retval
+    def start_build(self, build_id):
+        if build_id not in self._builds:
+            raise NotFound('No such build: {0}'.format(build_id))
 
-        if success is not None:
-            data['success'] = success
+        self._builds[build_id]['started'] = True
+        self._builds[build_id]['start_time'] = datetime.now()
 
-        if progress_current is not None:
-            data['progress_current'] = progress_current
+    def finish_build(self, build_id, success=True, skipped=False, retval=None,
+                     exception=None):
+        if build_id not in self._builds:
+            raise NotFound('No such build: {0}'.format(build_id))
 
-        if progress_total is not None:
-            data['progress_total'] = progress_total
+        self._builds[build_id]['finished'] = True
+        self._builds[build_id]['end_time'] = datetime.now()
+        self._builds[build_id]['success'] = success
+        self._builds[build_id]['skipped'] = skipped
+        self._builds[build_id]['retval'] = retval
+        self._builds[build_id]['exception'] = exception
 
-        self._job_run[job_run_id].update(data)
+    def update_build_progress(self, build_id, current, total):
+        if build_id not in self._builds:
+            raise NotFound('No such build: {0}'.format(build_id))
+        self._builds[build_id]['progress_current'] = current
+        self._builds[build_id]['progress_total'] = total
 
-    def _job_run_delete(self, job_run_id):
-        _def = self._job_run[job_run_id]
-        self._job_run.pop(job_run_id, None)
-        self._job_run_log[_def['job_id']].pop(job_run_id, None)
+    def log_message(self, job_id, build_id, record):
+        record.job_id = job_id
+        record.build_id = build_id
+        self._log_messages[build_id].append({
+            'job_id': job_id, 'build_id': build_id, 'record': record,
+            'created': datetime.utcfromtimestamp(record.created)})
 
-    def _job_run_get_keys(self, job_id):
-        return sorted([jrid
-                       for jrid, jrdef in self._job_run.iteritems()
-                       if jrdef['job_id'] == job_id])
+    def prune_log_messages(self, job_id=None, build_id=None, max_age=None,
+                           level=None):
+        filters = []
 
-    # ------------------------------------------------------------
-    # Logging
+        if job_id is not None:
+            filters.append(lambda x: x['job_id'] == job_id)
 
-    def create_log_handler(self, job_id, job_run_id):
-        handler = MemoryLogHandler(self._job_run_log[job_id][job_run_id])
-        return handler
+        if build_id is not None:
+            filters.append(lambda x: x['build_id'] == build_id)
 
-    def _iter_logs(self, job_run_id):
-        job_id = self._job_run[job_run_id]['job_id']
-        return (x['record'] for x in self._job_run_log[job_id][job_run_id])
+        if max_age is not None:
+            expire_date = datetime.now() - timedelta(seconds=max_age)
+            filters.append(lambda x: x['created'] < expire_date)
 
+        if level is not None:
+            filters.append(lambda x: x['record'].levelno < level)
 
-HOUR = 3600
-DAY = 24 * HOUR
-MONTH = 30 * DAY
+        self._log_messages[build_id] = [
+            msg for msg in self._log_messages[build_id]
+            if not (all(f(msg) for f in filters))
+        ]
 
+    def iter_log_messages(self, job_id=None, build_id=None, max_date=None,
+                          min_date=None, min_level=None):
+        filters = []
 
-class MemoryLogHandler(logging.Handler):
-    """In-memory log handler, for testing purposes"""
+        if job_id is not None:
+            filters.append(lambda x: x['job_id'] == job_id)
 
-    log_retention_policy = {
-        logging.DEBUG: 15 * DAY,
-        logging.INFO: MONTH,
-        logging.WARNING: 3 * MONTH,
-        logging.ERROR: 6 * MONTH,
-        logging.CRITICAL: 6 * MONTH,
-    }
-    log_max_retention = 12 * MONTH
+        if build_id is not None:
+            filters.append(lambda x: x['build_id'] == build_id)
 
-    def __init__(self, destination, extra_info=None):
-        super(MemoryLogHandler, self).__init__()
-        self._destination = destination
+        if max_date is not None:
+            filters.append(lambda x: x['created'] < max_date)
 
-        self.extra_info = {}
-        if extra_info is not None:
-            self.extra_info.update(extra_info)
+        if min_date is not None:
+            filters.append(lambda x: x['created'] >= min_date)
 
-    def flush(self):
-        pass  # Nothing to flush!
+        if min_level is not None:
+            filters.append(lambda x: x['record'].levelno >= min_level)
 
-    # def serialize(self, record):
-    #     import traceback
-
-    #     record_dict = {
-    #         'args': record.args,
-    #         'created': record.created,
-    #         'filename': record.filename,
-    #         'funcName': record.funcName,
-    #         'levelname': record.levelname,
-    #         'levelno': record.levelno,
-    #         'lineno': record.lineno,
-    #         'module': record.module,
-    #         'msecs': record.msecs,
-    #         'msg': record.msg,
-    #         'name': record.name,
-    #         'pathname': record.pathname,
-    #         'process': record.process,
-    #         'processName': record.processName,
-    #         'relativeCreated': record.relativeCreated,
-    #         'thread': record.thread,
-    #         'threadName': record.threadName}
-
-    #     if record.exc_info is not None:
-    #         # We cannot serialize exception information.
-    #         # The best workaround here is to simply add the
-    #         # relevant information to the message, as the
-    #         # formatter would..
-    #         exc_class = u'{0}.{1}'.format(
-    #             record.exc_info[0].__module__,
-    #             record.exc_info[0].__name__)
-    #         exc_message = str(record.exc_info[1])
-    #         exc_repr = repr(record.exc_info[1])
-    #         exc_traceback = '\n'.join(
-    #             traceback.format_exception(*record.exc_info))
-
-    #         # record_dict['_orig_msg'] = record_dict['msg']
-    #         # record_dict['msg'] += "\n\n"
-    #         # record_dict['msg'] += exc_traceback
-    #         record_dict['exc_class'] = exc_class
-    #         record_dict['exc_message'] = exc_message
-    #         record_dict['exc_repr'] = exc_repr
-    #         record_dict['exc_traceback'] = exc_traceback
-
-    #     return record_dict
-
-    def emit(self, record):
-        """Handle a received log message"""
-
-        data = {}
-        data.update(self.extra_info)
-        data['record'] = record
-        # data = self.serialize(record)
-        # data.update(self.extra_info)
-        self._destination.append(data)
-
-    def cleanup_old_messages(self):
-        """Delete old log messages, according to log retention policy"""
-
-        # todo: write this..
-        pass
+        for msg in self._log_messages[build_id]:
+            if all(f(msg) for f in filters):
+                yield msg['record']
