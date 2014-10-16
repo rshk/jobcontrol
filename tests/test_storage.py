@@ -74,7 +74,7 @@ def test_job_default_values(storage):
     job_info = storage.get_job(job_id)
     assert job_info['id'] == job_id
     assert job_info['function'] == 'datacat.utils.testing:job_simple_echo'
-    assert job_info['args'] == []
+    assert job_info['args'] == ()
     assert job_info['kwargs'] == {}
     assert job_info['dependencies'] == []
     assert storage.get_job_deps(job_id) == []
