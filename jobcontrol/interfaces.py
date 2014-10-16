@@ -143,11 +143,11 @@ class StorageBase(object):
         pass
 
     @abc.abstractmethod
-    def list_jobs(self, job_id):
+    def list_jobs(self):
         """List IDs of all jobs"""
         pass
 
-    def iter_jobs(self, job_id):
+    def iter_jobs(self):
         """
         Iterate all jobs, yielding them as dicts.
         """
@@ -174,7 +174,7 @@ class StorageBase(object):
 
     @abc.abstractmethod
     def get_job_builds(self, job_id, started=None, finished=None,
-                       successful=None, skipped=None, order='asc', limit=100):
+                       success=None, skipped=None, order='asc', limit=100):
         """
         Get all the builds for a job, sorted by date, according
         to the order specified by ``order``.
@@ -185,8 +185,8 @@ class StorageBase(object):
             If set to a boolean, filter on the "started" field
         :param finished:
             If set to a boolean, filter on the "finished" field
-        :param successful:
-            If set to a boolean, filter on the "successful" field
+        :param success:
+            If set to a boolean, filter on the "success" field
         :param skipped:
             If set to a boolean, filter on the "skipped" field
         :param order:
