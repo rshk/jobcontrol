@@ -208,7 +208,7 @@ class PostgreSQLStorage(StorageBase):
     def create_job(self, function, args=None, kwargs=None, dependencies=None):
         data = self._job_pack({
             'function': function,
-            'args': args or [],
+            'args': args or (),
             'kwargs': kwargs or {},
             'dependencies': dependencies or [],
             'ctime': datetime.now(),
