@@ -60,7 +60,7 @@ The project can be found on PyPI here: https://pypi.python.org/pypi/jobcontrol
     :target: https://github.com/rshk/jobcontrol.git
     :alt: Latest PyPI version
 
-.. image:: https://pypip.in/download/jobcontrol/badge.png?period=month
+.. image:: https://pypip.in/download/jobcontrol/badge.svg?period=month
     :target: https://github.com/rshk/jobcontrol.git
     :alt: Number of PyPI downloads
 
@@ -71,6 +71,10 @@ The project can be found on PyPI here: https://pypi.python.org/pypi/jobcontrol
 .. image:: https://pypip.in/status/jobcontrol/badge.svg
     :target: https://pypi.python.org/pypi/jobcontrol/
     :alt: Development Status
+
+.. image:: https://pypip.in/license/jobcontrol/badge.svg
+    :target: https://pypi.python.org/pypi/jobcontrol/
+    :alt: License
 
 ..
    .. image:: https://pypip.in/wheel/jobcontrol/badge.svg
@@ -84,10 +88,6 @@ The project can be found on PyPI here: https://pypi.python.org/pypi/jobcontrol
    .. image:: https://pypip.in/format/jobcontrol/badge.svg
        :target: https://pypi.python.org/pypi/jobcontrol/
        :alt: Download format
-
-.. image:: https://pypip.in/license/jobcontrol/badge.svg
-    :target: https://pypi.python.org/pypi/jobcontrol/
-    :alt: License
 
 
 
