@@ -22,7 +22,14 @@ setup(
     author_email='redshadow@hackzine.org',
     description='Job scheduling and tracking library',
     long_description=longdesc,
-    install_requires=['psycopg2'],
+    install_requires=[
+        'click',  # For the CLI
+        'colorama',  # For color stuff
+        'flask',  # For the webapp; utils used around
+        'nicelog',  # For colorful logging
+        'PrettyTable',  # For creating tables
+        'psycopg2',  # For postgresql storage
+    ],
     # tests_require=tests_require,
     # test_suite='tests',
     classifiers=[
@@ -41,4 +48,9 @@ setup(
     ],
     package_data={'': ['README.rst', 'CHANGELOG.rst']},
     include_package_data=True,
-    zip_safe=False)
+    zip_safe=False,
+    entry_points={
+        'console_scripts': [
+            'jobcontrol-cli = jobcontrol.cli:main'
+        ]
+    })

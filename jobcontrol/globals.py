@@ -24,7 +24,6 @@ def _get_ctx_object(name):
 
 _execution_ctx_stack = LocalStack()
 execution_context = LocalProxy(_get_current_ctx)
-config = LocalProxy(partial(_get_ctx_object, 'config'))
 current_app = LocalProxy(partial(_get_ctx_object, 'app'))
-current_job = LocalProxy(lambda: current_app.get_current_job())
-current_job_run = LocalProxy(lambda: current_app.get_current_job_run())
+current_job_id = LocalProxy(partial(_get_ctx_object, 'job_id'))
+current_build_id = LocalProxy(partial(_get_ctx_object, 'build_id'))
