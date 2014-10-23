@@ -7,7 +7,7 @@ from jobcontrol.exceptions import NotFound
 
 def test_job_crud(storage):  # todo: test list/iter too!
     job_id = storage.create_job(
-        'datacat.utils.testing:job_simple_echo',
+        'jobcontrol.utils.testing:job_simple_echo',
         args=['foo', 'bar', 'baz'],
         kwargs={'spam': 100, 'eggs': 200, 'bacon': 500})
 
@@ -15,7 +15,7 @@ def test_job_crud(storage):  # todo: test list/iter too!
 
     job_info = storage.get_job(job_id)
     assert job_info['id'] == job_id
-    assert job_info['function'] == 'datacat.utils.testing:job_simple_echo'
+    assert job_info['function'] == 'jobcontrol.utils.testing:job_simple_echo'
     assert job_info['args'] == ['foo', 'bar', 'baz']
     assert job_info['kwargs'] == {'spam': 100, 'eggs': 200, 'bacon': 500}
     assert job_info['dependencies'] == []
@@ -67,13 +67,13 @@ def test_job_list_iter_mget(storage):
 
 
 def test_job_default_values(storage):
-    job_id = storage.create_job('datacat.utils.testing:job_simple_echo')
+    job_id = storage.create_job('jobcontrol.utils.testing:job_simple_echo')
 
     assert isinstance(job_id, int)
 
     job_info = storage.get_job(job_id)
     assert job_info['id'] == job_id
-    assert job_info['function'] == 'datacat.utils.testing:job_simple_echo'
+    assert job_info['function'] == 'jobcontrol.utils.testing:job_simple_echo'
     assert job_info['args'] == ()
     assert job_info['kwargs'] == {}
     assert job_info['dependencies'] == []
@@ -84,13 +84,13 @@ def test_job_default_values(storage):
 
 def test_job_deps(storage):
     job_id1 = storage.create_job(
-        'datacat.utils.testing:job_simple_echo', args=['A'])
+        'jobcontrol.utils.testing:job_simple_echo', args=['A'])
     job_id2 = storage.create_job(
-        'datacat.utils.testing:job_simple_echo', args=['B'])
+        'jobcontrol.utils.testing:job_simple_echo', args=['B'])
     job_id3 = storage.create_job(
-        'datacat.utils.testing:job_simple_echo', args=['C'])
+        'jobcontrol.utils.testing:job_simple_echo', args=['C'])
     job_id4 = storage.create_job(
-        'datacat.utils.testing:job_simple_echo', args=['C'])
+        'jobcontrol.utils.testing:job_simple_echo', args=['C'])
 
     storage.update_job(job_id1, dependencies=[job_id2, job_id4])
     storage.update_job(job_id2, dependencies=[job_id3])
