@@ -1,6 +1,6 @@
 import flask
 
-from datacat.web.views import api
+from jobcontrol.web.views import api
 
 
 app = flask.Flask('jobcontrol.web')
