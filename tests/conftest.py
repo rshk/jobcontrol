@@ -59,3 +59,9 @@ def storage(request):
     _storage.install()
     request.addfinalizer(_storage.uninstall)
     return _storage
+
+
+@pytest.fixture(scope='module')
+def jc(storage):
+    from jobcontrol.core import JobControl
+    return JobControl(storage)
