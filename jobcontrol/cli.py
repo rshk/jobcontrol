@@ -2,12 +2,27 @@ import ast
 
 import click
 from flask.config import Config
+import logging
+from nicelog.formatters import ColorLineFormatter
 from prettytable import PrettyTable
+import sys
 
 from jobcontrol.core import JobControl
 from jobcontrol.utils import (
     get_storage_from_url, get_storage_from_config, short_repr,
     json_dumps)
+
+
+logger = logging.getLogger('')
+logger.setLevel(logging.DEBUG)
+
+handler = logging.StreamHandler(sys.stderr)
+handler.setFormatter(ColorLineFormatter(
+    show_date=True, show_function=True, show_filename=True,
+    message_inline=False))
+handler.setLevel(logging.DEBUG)
+
+logger.addHandler(handler)
 
 
 def cli_main(jc_app):
@@ -237,6 +252,15 @@ def build_job(job_id):
 
     build_id = jc.build_job(job_id)
     click.echo('Build id: {0}'.format(build_id))
+
+
+@cli_main_grp.command()
+def web():
+    """Run the web API service"""
+
+    from jobcontrol.web.app import app
+    app.config['JOBCONTROL'] = jc
+    app.run(debug=True)
 
 
 def main():
