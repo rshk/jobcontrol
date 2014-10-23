@@ -3,6 +3,7 @@ PostgreSQL-backed Job control class.
 """
 
 from datetime import datetime, timedelta
+from urlparse import urlparse, parse_qs
 
 import psycopg2
 import psycopg2.extras
@@ -18,6 +19,24 @@ class PostgreSQLStorage(StorageBase):
         if table_prefix is None:
             table_prefix = ''
         self._table_prefix = table_prefix
+
+    @classmethod
+    def from_url(cls, url):
+        parsed = urlparse(url)
+        if parsed.scheme != 'postgresql':
+            raise ValueError("Unsupported scheme: {0}".format(parsed.scheme))
+
+        dbconf = {
+            'database': parsed.path.split('/')[1],
+            'user': parsed.username,
+            'password': parsed.password,
+            'host': parsed.hostname,
+            'port': parsed.port or 5432,
+        }
+
+        kwargs = {k: v[0] for k, v in parse_qs(parsed.query).iteritems()}
+
+        return cls(dbconf, **kwargs)
 
     @cached_property
     def db(self):
@@ -181,6 +200,7 @@ class PostgreSQLStorage(StorageBase):
         return job
 
     def _job_unpack(self, row):
+        row = dict(row)
         if row.get('args') is not None:
             row['args'] = self.unpack(row['args'])
         if row.get('kwargs') is not None:
@@ -195,6 +215,7 @@ class PostgreSQLStorage(StorageBase):
         return job
 
     def _build_unpack(self, row):
+        row = dict(row)
         if row.get('retval') is not None:
             row['retval'] = self.unpack(row['retval'])
         if row.get('exception') is not None:

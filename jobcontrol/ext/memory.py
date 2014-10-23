@@ -25,6 +25,10 @@ class MemoryStorage(StorageBase):
         # migth get arguments / do stuff.
         self._init_vars()
 
+    @classmethod
+    def from_url(cls, url):
+        return cls()
+
     def _init_vars(self):
         self._jobs = {}
         self._builds = {}
