@@ -43,6 +43,17 @@ def _fmt_date(dt):
     return dt.strftime(DATE_FMT)
 
 
+def _fmt_bool(val, inv=False):
+    col = '\x1b[32m' if bool(val) ^ bool(inv) else '\x1b[31m'
+    return '{0}{1}\x1b[0m'.format(col, val)
+
+
+def _fmt_progress(cur, tot):
+    if tot == 0:
+        return 'N/A'
+    return '{0}/{1} ({2:.1f}%)'.format(cur, tot, cur * 100.0 / tot)
+
+
 @click.group()
 @click.option('--config-file', metavar='FILE',
               help='Path to configuration file')
@@ -215,12 +226,14 @@ def list_builds(job_id, started, finished, success, skipped, order, limit):
 
                 item['start_time'],
                 item['end_time'],
-                item['started'],
-                item['finished'],
-                item['success'],
-                item['skipped'],
-                '{0}/{1}'.format(item['progress_current'],
-                                 item['progress_total']),
+
+                _fmt_bool(item['started']),
+                _fmt_bool(item['finished']),
+                _fmt_bool(item['success']),
+                _fmt_bool(item['skipped'], inv=True),
+
+                _fmt_progress(item['progress_current'],
+                              item['progress_total']),
                 item['retval'],
                 item['exception'],
             ])
@@ -255,12 +268,44 @@ def build_job(job_id):
 
 
 @cli_main_grp.command()
-def web():
+@click.option('--port', type=click.INT, help='Server port',
+              default=5000)
+def web(port):
     """Run the web API service"""
 
     from jobcontrol.web.app import app
     app.config['JOBCONTROL'] = jc
-    app.run(debug=True)
+    app.run(debug=True, port=port)
+
+
+@cli_main_grp.command()
+@click.option('--broker', metavar='URL', help='Broker URL',
+              default='redis://localhost:6379')
+def worker(broker):
+    """Run the web API service"""
+
+    from jobcontrol.async.tasks import app as celery_app
+
+    celery_app.conf.JOBCONTROL = jc
+    celery_app.conf.BROKER_URL = broker
+
+    # todo: allow passing arguments
+    celery_app.worker_main(argv=['jobcontrol-cli'])
+
+
+@cli_main_grp.command()
+@click.argument('job_id', type=click.INT)
+@click.option('--broker', metavar='URL', help='Broker URL',
+              default='redis://localhost:6379')
+def async_build_job(job_id, broker):
+    """Run a new build for a job, via Celery"""
+
+    from jobcontrol.async.tasks import app as celery_app, build_job
+
+    celery_app.conf.JOBCONTROL = jc
+    celery_app.conf.BROKER_URL = broker
+
+    build_job.delay(job_id)
 
 
 def main():

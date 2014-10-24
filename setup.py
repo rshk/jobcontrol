@@ -29,6 +29,7 @@ setup(
         'nicelog',  # For colorful logging
         'PrettyTable',  # For creating tables
         'psycopg2',  # For postgresql storage
+        'celery[redis]',  # For async tasks
     ],
     # tests_require=tests_require,
     # test_suite='tests',
