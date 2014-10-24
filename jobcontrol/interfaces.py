@@ -209,6 +209,15 @@ class StorageBase(object):
         """
         pass
 
+    def get_latest_successful_build(self, job_id):
+        builds = list(self.get_job_builds(
+            job_id, started=True, finished=True, success=True, skipped=False,
+            order='desc', limit=1))
+        if len(builds) < 1:
+            return None  # No build!
+        assert len(builds) == 1  # Or something is broken..
+        return builds[0]
+
     @abc.abstractmethod
     def log_message(self, job_id, build_id, record):
         """

@@ -1,3 +1,6 @@
+import logging
+
+
 def job_simple_echo(*args, **kwargs):
     return (args, kwargs)
 
@@ -70,3 +73,34 @@ def job_dep_C():
     res = latest_run.get_result()
 
     return res + 'C'
+
+
+def job_debug_echo(*args, **kwargs):
+    from jobcontrol.globals import current_app, job_id
+    # todo: return information on job + deps..
+    return (args, kwargs)
+
+
+class RecordingLogHandler(logging.Handler):
+    """Log handler that records messages"""
+
+    def __init__(self):
+        super(RecordingLogHandler, self).__init__()
+        self._messages = []
+
+    def flush(self):
+        pass  # Nothing to flush!
+
+    def emit(self, record):
+        self._messages.append(record)
+
+    def print_messages(self):
+        from nicelog.formatters import ColorLineFormatter
+        formatter = ColorLineFormatter(
+            show_date=False, show_function=False, show_filename=False,
+            message_inline=True)
+        for msg in self._messages:
+            print(formatter.format(msg))
+
+    def clear_messages(self):
+        self._messages = []

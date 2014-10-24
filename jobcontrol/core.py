@@ -8,7 +8,7 @@ import logging
 from jobcontrol.globals import _execution_ctx_stack
 from jobcontrol.exceptions import MissingDependencies, SkipBuild
 from jobcontrol.utils import import_object
-
+from jobcontrol.utils.depgraph import resolve_deps
 
 logger = logging.getLogger('jobcontrol')
 
@@ -34,87 +34,135 @@ class JobControl(object):
     def __init__(self, storage):
         self.storage = storage
 
-    def build_job(self, job_id, build_deps=False, build_depending=False):
-        logger.info('Starting build for job: {0}'.format(job_id))
+    def build_job(self, job_id, build_deps=False, build_depending=False,
+                  _depth=0):
+
+        # ------------------------------------------------------------
+        # Get information about the job we want to build
+        # ------------------------------------------------------------
 
         job = self.storage.get_job(job_id)
-
         if job is None:
             raise RuntimeError("No such job: {0}".format(job_id))
 
+        # ------------------------------------------------------------
+        # Build dependency graph for this job
+        # ------------------------------------------------------------
+
+        DEPGRAPH = {}
+
+        def _explore_deps(jid):
+            if jid in DEPGRAPH:
+                # Already processed
+                return
+
+            deps = self.storage.get_job_deps(jid)
+            DEPGRAPH[jid] = deps = [d['id'] for d in deps]
+            for dep in deps:
+                _explore_deps(dep)
+
+        logger.debug('Building dependency graph for job {0}'.format(job_id))
+        _explore_deps(job_id)
+
+        logger.debug('Resolving dependencies for job {0}'.format(job_id))
+        ORDERED_DEPS = self._resolve_deps(DEPGRAPH, job_id)
+
+        SUCCESSFUL_BUILT_JOBS = []
+
+        # ------------------------------------------------------------
+        # Build jobs in order
+        # ------------------------------------------------------------
+
+        logger.debug('We need to build {0} targets'.format(len(ORDERED_DEPS)))
+        for jid in ORDERED_DEPS:
+            if (jid != job_id) and (
+                    self.storage.get_latest_successful_build(jid) is not None):
+                # No need to rebuild this..
+                logger.info('Dependency {0} already built'
+                            .format(jid))
+                continue
+
+            bid = self._build_job(jid)
+            build = self.storage.get_build(bid)
+
+            if build['success']:
+                SUCCESSFUL_BUILT_JOBS.append((jid, bid))
+
+            elif jid != job_id:
+                raise MissingDependencies(
+                    'Dependency build failed: job {0}, build {1}'
+                    .format(jid, bid))
+
+        # ------------------------------------------------------------
+        # Rebuild reverse dependencies, if asked to do so
+        # ------------------------------------------------------------
+        # Todo: we need some way to detect infinite loops here as well!
+
+        if build_depending:
+            REVDEPS = set()
+
+            for jid, bid in SUCCESSFUL_BUILT_JOBS:
+                for item in self.storage.get_job_revdeps(jid):
+                    REVDEPS.add(item['id'])
+
+            REVDEPS = REVDEPS.difference(x[0] for x in SUCCESSFUL_BUILT_JOBS)
+
+            logger.info('Building {0} reverse dependencies'
+                        .format(len(REVDEPS)))
+
+            for jid in REVDEPS:
+                self.build_job(jid, build_deps=build_deps,
+                               build_depending=build_depending)
+
+        return dict(SUCCESSFUL_BUILT_JOBS)[job_id]
+
+    def _resolve_deps(self, depgraph, job_id):
+        # Allow changing dependency resolution function
+        return resolve_deps(depgraph, job_id)
+
+    def _build_job(self, job_id):
+        """Actually run a build for this job"""
+
+        job = self.storage.get_job(job_id)
+        if job is None:
+            raise RuntimeError('No such job: {0}'.format(job_id))
+
+        logger.info('Starting build for job: {0}'.format(job_id))
         build_id = self.storage.create_build(job_id)
+
+        log_prefix = '[job: {0}, build: {1}] '.format(job_id, build_id)
 
         ctx = JobExecutionContext(app=self, job_id=job_id, build_id=build_id)
         ctx.push()
-
-        # Check that dependencies are built
-
-        dependencies = self.storage.get_job_deps(job_id)
-        deps_not_met = []
-        for dep in dependencies:
-            lsbd = self._latest_successful_build_date(dep['id'])
-            if lsbd is None:
-                logger.warning('Dependency job {0} has no successful builds'
-                               .format(dep['id']))
-                deps_not_met.append(dep['id'])
-
-        if len(deps_not_met):
-            if build_deps:
-                logger.info('Building dependencies')
-                # todo: run builds for all the depending jobs; check
-                #       build status -> fail on dep failure
-                # todo: add some argument to tell how many times depending
-                #       jobs should be retired?
-                # todo: figure out some way to run dependency builds in
-                #       parallel
-                # todo: make sure we detect dependency loops, etc.
-
-                for job_id in deps_not_met:
-                    # NOTE: We still need to build depending jobs in case
-                    # we were asked to do so, but only after the main job was
-                    # built, otherwise we risk entering an infinite loop..
-                    build_id = self.build_job(job_id, build_deps=build_deps,
-                                              build_depending=False)
-
-                    build = self.storage.get_build(build_id)
-                    if (not build['success']) or build['skipped']:
-                        raise MissingDependencies(
-                            'Build failed for dependency job {0}'
-                            .format(job_id))
-
-            else:
-                raise MissingDependencies(
-                    'Jobs require building: {0}'
-                    .format(', '.join(str(x) for x in deps_not_met)))
-
-        # Build job
-
         self.storage.start_build(build_id)
 
         try:
             function = self._get_runner_function(job['function'])
+            logger.debug(log_prefix + 'Function is {0!r}'.format(function))
+
             retval = function(*job['args'], **job['kwargs'])
 
         except SkipBuild:
+            logger.info(log_prefix + 'Build SKIPPED')
+
             # Indicates no need to build this..
             self.storage.finish_build(
                 build_id, success=True, skipped=True, retval=None,
                 exception=None)
 
         except Exception as exc:
+            logger.exception(log_prefix + 'Build FAILED')
+
             self.storage.finish_build(
                 build_id, success=False, skipped=False, retval=None,
                 exception=exc)
 
         else:
+            logger.info(log_prefix + 'Build SUCCESSFUL')
+
             self.storage.finish_build(
                 build_id, success=True, skipped=False, retval=retval,
                 exception=None)
-
-        # Check depending jobs are built...
-        if build_depending:
-            pass
-        pass
 
         return build_id
 
