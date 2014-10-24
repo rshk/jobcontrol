@@ -272,6 +272,12 @@ class PostgreSQLStorage(StorageBase):
 
     def delete_job(self, job_id):
         query = 'DELETE FROM "{table}" WHERE "job_id"=%(job_id)s'.format(
+            table=self._table_name('log'))
+
+        with self.db, self.db.cursor() as cur:
+            cur.execute(query, {'job_id': job_id})
+
+        query = 'DELETE FROM "{table}" WHERE "job_id"=%(job_id)s'.format(
             table=self._table_name('build'))
 
         with self.db, self.db.cursor() as cur:
