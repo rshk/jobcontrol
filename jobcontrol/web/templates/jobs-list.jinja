@@ -1,0 +1,57 @@
+{% extends 'base.jinja' %}
+
+{% block page_title %}Jobs{% endblock %}
+
+{% block page_body %}
+<div class="container-fluid">
+  <h1>Jobs List</h1>
+
+  <a href="javascript:void(0)" class="btn btn-success">
+    <i class="glyphicon glyphicon-plus-sign"></i>
+    Create job
+  </a>
+
+  <br><br>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Id</th>
+      <th>Ctime</th>
+      <th>Function</th>
+      <th>Args</th>
+      <th>Kwargs</th>
+      <th>Dependencies</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for job in jobs %}
+      <tr>
+	<td>
+	  <a href="{{ url_for('webui.job_info', job_id=job['id']) }}" class="btn btn-primary">
+	    {{- job['id'] -}}
+	  </a>
+	</td>
+	<td>{{ job['ctime'] }}</td>
+	<td>{{ job['function'] }}</td>
+	<td>{{ job['args'] }}</td>
+	<td>{{ job['kwargs'] }}</td>
+	<td>
+	  {% for dep in job['dependencies'] %}
+	    <a href="{{ url_for('webui.job_info', job_id=dep) }}" class="btn btn-default">
+	      {{ dep }}
+	    </a>
+	  {% endfor %}
+	</td>
+	<td>
+	  <a href="{{ url_for('webui.job_info', job_id=job['id']) }}" class="btn btn-default">info</a>
+	  <a href="{{ url_for('webui.job_edit', job_id=job['id']) }}" class="btn btn-default">edit</a>
+	</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+</div>
+{% endblock %}
