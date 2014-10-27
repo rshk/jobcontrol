@@ -1,20 +1,84 @@
 import logging
+import random
+import time
 
 
 def job_simple_echo(*args, **kwargs):
     return (args, kwargs)
 
 
-def job_with_progress():
-    from jobcontrol.globals import current_app
-    job_run = current_app.get_current_job_run()
-    for i in xrange(11):
-        job_run.set_progress(i, 10)
+_cached_words = None
+
+
+def _get_words():
+    global _cached_words
+
+    if _cached_words is not None:
+        return _cached_words
+
+    try:
+        with open('/usr/share/dict/words') as fp:
+            _cached_words = [x.strip() for x in fp]
+    except:
+        _cached_words = []
+
+    return _cached_words
+
+
+def _capfirst(s):
+    return s[0].upper() + s[1:]
+
+
+def _random_paragraph(size=10):
+    return _capfirst(' '.join(random.sample(_get_words(), size)))
+
+
+def _log_random(logger):
+    classes = (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR,
+               logging.CRITICAL)
+
+    for num in xrange(random.randint(0, 30)):
+        logger.log(random.choice(classes),
+                   _random_paragraph(random.randint(10, 20)))
+
+
+def testing_job(steps=10, sleep=1, retval='DONE', fail=False):
+    from jobcontrol.globals import current_app, execution_context
+
+    logger = logging.getLogger(__name__)
+
+    def update_progress(*a):
+        current_app.storage.update_build_progress(
+            execution_context.build_id, *a)
+
+    update_progress(0, 10)
+    for i in xrange(1, steps + 1):
+        _log_random(logger)
+
+        update_progress(i, 10)
+
+        time.sleep(sleep)
+
+        if isinstance(fail, float):
+            # Float: chance of failing
+            if random.random() <= (fail / steps):
+                raise RuntimeError('Simulating failure {0:.0f}%'
+                                   .format(fail * 100))
+
+        elif isinstance(fail, (int, long)) and fail == i:
+            # Int: where to fail
+            raise RuntimeError('Simulating failure at step {0}'
+                               .format(fail))
+
+    _log_random(logger)
+
+    if fail is True:
+        raise RuntimeError('Simulating failure at end')
+
     return "DONE"
 
 
 def job_with_logging():
-    import logging
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     logger.debug('This is a debug message')

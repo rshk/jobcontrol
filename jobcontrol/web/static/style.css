@@ -1,0 +1,30 @@
+body {
+    font-family: 'Roboto', sans-serif;
+}
+
+.label-round {
+    padding:0;
+    display: inline-block;
+    border-radius: 60px;
+    line-height: 60px;
+    width: 60px;
+    height: 60px;
+    font-size: 20px;
+    font-family: 'Roboto Condensed', sans-serif;
+}
+
+.align-cm {
+    text-align: center;
+    vertical-align: middle !important;
+}
+
+.align-lm {
+    text-align: left;
+    vertical-align: middle !important;
+}
+.navbar-inverse .navbar-nav > li > a {
+    color: #aaa;
+}
+.navbar-inverse .navbar-brand {
+    color: #aaa;
+}

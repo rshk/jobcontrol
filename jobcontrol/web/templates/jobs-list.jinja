@@ -4,20 +4,21 @@
 
 {% block page_body %}
 <div class="container-fluid">
+
+  <div class="btn-group pull-right">
+    <a href="javascript:void(0)" class="btn btn-default">
+      <i class="fa fa-plus-square"></i>
+      Create job
+    </a>
+  </div>
+
   <h1>Jobs List</h1>
-
-  <a href="javascript:void(0)" class="btn btn-success">
-    <i class="glyphicon glyphicon-plus-sign"></i>
-    Create job
-  </a>
-
-  <br><br>
 
 <table class="table table-bordered">
   <thead>
     <tr>
       <th>Id</th>
-      <th>Ctime</th>
+      <th>Created</th>
       <th>Function</th>
       <th>Args</th>
       <th>Kwargs</th>
@@ -28,25 +29,43 @@
   <tbody>
     {% for job in jobs %}
       <tr>
-	<td>
-	  <a href="{{ url_for('webui.job_info', job_id=job['id']) }}" class="btn btn-primary">
-	    {{- job['id'] -}}
-	  </a>
+	<td style="width: 60px;">
+	  {# <a href="{{ url_for('webui.job_info', job_id=job.id) }}" class="btn btn-primary"> #}
+	  {#   {{- job.id -}} #}
+	  {# </a> #}
+
+	    <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
+	      <div class="label label-primary label-round">
+		{{ job.id }}
+	      </div>
+	    </a>
+
 	</td>
 	<td>{{ job['ctime'] }}</td>
-	<td>{{ job['function'] }}</td>
-	<td>{{ job['args'] }}</td>
-	<td>{{ job['kwargs'] }}</td>
+	<td><code>{{ job['function'] }}</code></td>
+	<td><code>{{ job['args'] }}</code></td>
+	<td><code>{{ job['kwargs'] }}</code></td>
 	<td>
 	  {% for dep in job['dependencies'] %}
-	    <a href="{{ url_for('webui.job_info', job_id=dep) }}" class="btn btn-default">
-	      {{ dep }}
+	    <a href="{{ url_for('webui.job_info', job_id=dep) }}">
+	      <div class="label label-primary label-round">
+		{{ dep }}
+	      </div>
 	    </a>
 	  {% endfor %}
 	</td>
 	<td>
-	  <a href="{{ url_for('webui.job_info', job_id=job['id']) }}" class="btn btn-default">info</a>
-	  <a href="{{ url_for('webui.job_edit', job_id=job['id']) }}" class="btn btn-default">edit</a>
+	  <div class="btn-group">
+	    <a href="{{ url_for('webui.job_info', job_id=job.id) }}" class="btn btn-default">
+	      <span class="fa fa-info-circle"></span>
+	      Info</a>
+	    <a href="{{ url_for('webui.job_edit', job_id=job.id) }}" class="btn btn-default">
+	      <span class="fa fa-pencil-square-o"></span>
+	      Edit</a>
+	    <a href="{{ url_for('webui.job_delete', job_id=job.id) }}" class="btn btn-default">
+	      <span class="fa fa-trash"></span>
+	      Delete</a>
+	  </div>
 	</td>
       </tr>
     {% endfor %}

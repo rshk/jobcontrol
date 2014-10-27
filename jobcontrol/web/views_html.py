@@ -1,7 +1,13 @@
-from flask import Blueprint, render_template, redirect, url_for
+from __future__ import division
+
+from flask import Blueprint, render_template, redirect, url_for, flash
+import colorsys
 
 
 html_views = Blueprint('webui', __name__)
+
+
+DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 
 def get_jc():
@@ -21,6 +27,20 @@ def _format_build_records(iterable):
 
         build['progress'] = _fmt_progress(build['progress_current'],
                                           build['progress_total'])
+
+        # Hue: 0 -> 120
+        hue = build['progress_pc_n'] * 120 / 100
+
+        color = ''.join([
+            format(int(x * 255), '02X')
+            for x in colorsys.hsv_to_rgb(hue / 360.0, .8, .8)])
+        build['progress_color'] = '#' + color
+
+        if build['start_time'] is not None:
+            build['start_time'] = build['start_time'].strftime(DATE_FORMAT)
+        if build['end_time'] is not None:
+            build['end_time'] = build['end_time'].strftime(DATE_FORMAT)
+
         yield build
 
 
@@ -67,6 +87,23 @@ def job_edit_submit(job_id):
 @html_views.route('/job/<int:job_id>/run', methods=['GET'])
 def job_run(job_id):
     pass
+
+
+@html_views.route('/job/<int:job_id>/run/submit', methods=['POST'])
+def job_run_submit(job_id):
+    # todo: CSRF protection!
+
+    from jobcontrol.async.tasks import app as celery_app, build_job
+
+    jc = get_jc()
+    broker = 'redis://'  # todo: take from configuration
+    celery_app.conf.JOBCONTROL = jc
+    celery_app.conf.BROKER_URL = broker
+
+    build_job.delay(job_id)
+    flash('Job {0} build scheduled'.format(job_id), 'success')
+
+    return redirect(url_for('.job_info', job_id=job_id))
 
 
 @html_views.route('/job/<int:job_id>/delete', methods=['GET'])
