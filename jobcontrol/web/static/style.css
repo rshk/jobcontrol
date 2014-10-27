@@ -13,6 +13,17 @@ body {
     font-family: 'Roboto Condensed', sans-serif;
 }
 
+.label-round-huge {
+    padding:0;
+    display: inline-block;
+    border-radius: 100px;
+    line-height: 100px;
+    width: 100px;
+    height: 100px;
+    font-size: 40px;
+    font-family: 'Roboto Condensed', sans-serif;
+}
+
 .align-cm {
     text-align: center;
     vertical-align: middle !important;
@@ -27,4 +38,100 @@ body {
 }
 .navbar-inverse .navbar-brand {
     color: #aaa;
+}
+.panel-danger {
+    border-color: #D9534F;
+}
+.panel-danger > .panel-heading {
+    background: #D9534F;
+    color: #fff;
+}
+
+
+
+.log-messages > tbody {
+    font-family: monospace;
+    background: #000;
+    color: #fff;
+}
+.log-messages > tbody > tr > td,
+.log-messages > tbody > tr > th {
+    border: none;
+    padding: 2px 5px;
+}
+/* .log-messages > tbody > tr.info > td { */
+/*     color: #00AFAF; */
+/*     background: #000; */
+/* } */
+.log-messages > tbody > tr.info > td.levelname {
+    background: #00AFAF;
+    color: #000;
+}
+/* .log-messages > tbody > tr.success > td { */
+/*     color: #5FAF00; */
+/*     background: #000; */
+/* } */
+.log-messages > tbody > tr.success > td.levelname {
+    background: #5FAF00;
+    color: #000;
+}
+/* .log-messages > tbody > tr.warning > td { */
+/*     color: #FF5F00; */
+/*     background: #000; */
+/* } */
+.log-messages > tbody > tr.warning > td.levelname {
+    background: #FF5F00;
+    color: #000;
+}
+/* .log-messages > tbody > tr.danger > td { */
+/*     color: #FF0000; */
+/*     background: #000; */
+/* } */
+.log-messages > tbody > tr.danger > td.levelname {
+    background: #FF0000;
+    color: #000;
+}
+
+/* .log-messages > tbody > tr.info:hover > td, */
+/* .log-messages > tbody > tr.success:hover > td, */
+/* .log-messages > tbody > tr.warning:hover > td, */
+/* .log-messages > tbody > tr.danger:hover > td { */
+/*     background: #444; */
+/* } */
+
+.log-messages > tbody > tr > td.levelname {
+    text-align: center;
+}
+.log-messages > tbody > tr > td.logger-name {
+    text-align: center;
+    background: #eee;
+    color: #f00;
+}
+.log-messages > tbody > tr > td.date {
+    color: #00AFAF;
+}
+.log-messages > tbody > tr > td.date,
+.log-messages > tbody > tr > td.file,
+.log-messages > tbody > tr > td.function,
+.log-messages > tbody > tr > td.placeholder {
+    background: #111;
+}
+.log-messages > tbody > tr > td.file > .filename {
+    color: #6EAB11;
+}
+.log-messages > tbody > tr > td.file > .lineno {
+    color: #D7FF00;
+}
+.log-messages > tbody > tr > td.function > .module {
+    color: #FF6B00;
+}
+.log-messages > tbody > tr > td.function > .funcname {
+    color: #FFBB00;
+}
+
+.log-messages > tbody > tr > td {
+    padding: .1em 1em;
+}
+.log-messages > tbody > tr > td.message {
+    padding: 1em 1em;
 }

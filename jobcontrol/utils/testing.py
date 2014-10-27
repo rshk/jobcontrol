@@ -55,7 +55,7 @@ def testing_job(steps=10, sleep=1, retval='DONE', fail=False):
     for i in xrange(1, steps + 1):
         _log_random(logger)
 
-        update_progress(i, 10)
+        update_progress(i, steps)
 
         time.sleep(sleep)
 

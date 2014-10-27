@@ -68,6 +68,62 @@
 
   <h2>Builds</h2>
 
+  <form class="form-inline" role="form" action="" method="GET">
+
+    <div class="form-group">
+      <label for="filter-start-time-from">Start time (from/to)</label>
+      <input class="form-control" name="filter-start-time-from" placeholder="YYYY-mm-dd HH:MM">
+      <input class="form-control" name="filter-start-time-to" placeholder="YYYY-mm-dd HH:MM">
+    </div>
+
+    <div class="form-group">
+      <label for="filter-end-time-from">End time (from/to)</label>
+      <input class="form-control" name="filter-end-time-from" placeholder="YYYY-mm-dd HH:MM">
+      <input class="form-control" name="filter-end-time-to" placeholder="YYYY-mm-dd HH:MM">
+    </div>
+
+    <div class="form-group">
+      <label for="filter-started">Started?</label>
+      <select class="form-control" name="filter-started">
+	<option></option>
+	<option value="true">Yes</option>
+	<option value="false">No</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="filter-finished">Finished?</label>
+      <select class="form-control" name="filter-finished">
+	<option></option>
+	<option value="true">Yes</option>
+	<option value="false">No</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="filter-success">Success?</label>
+      <select class="form-control" name="filter-success">
+	<option></option>
+	<option value="true">Yes</option>
+	<option value="false">No</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="filter-skipped">Skipped?</label>
+      <select class="form-control" name="filter-skipped">
+	<option></option>
+	<option value="true">Yes</option>
+	<option value="false">No</option>
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-default">Filter</button>
+
+  </form>
+
+  <br>
+
   <table class="table table-bordered table-hover table-striped">
     <thead>
       <tr>
@@ -109,7 +165,7 @@
 	  {# </td> #}
 
 	  <td style="width: 60px;">
-	    <a href="#">
+	    <a href="{{ url_for('webui.build_info', build_id=build.id) }}">
 	      <div class="label label-{{ row_class }} label-round">
 		{{ build.id }}
 	      </div>

@@ -285,6 +285,7 @@ def worker(broker):
     """Run the web API service"""
 
     from jobcontrol.async.tasks import app as celery_app
+    import jobcontrol.core  # should set up logging..  # noqa  # nope... :(
 
     celery_app.conf.JOBCONTROL = jc
     celery_app.conf.BROKER_URL = broker

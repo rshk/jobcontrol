@@ -20,8 +20,6 @@
       <th>Id</th>
       <th>Created</th>
       <th>Function</th>
-      <th>Args</th>
-      <th>Kwargs</th>
       <th>Dependencies</th>
       <th>Actions</th>
     </tr>
@@ -42,9 +40,13 @@
 
 	</td>
 	<td>{{ job['ctime'] }}</td>
-	<td><code>{{ job['function'] }}</code></td>
-	<td><code>{{ job['args'] }}</code></td>
-	<td><code>{{ job['kwargs'] }}</code></td>
+	<td>
+	  <code>{{ job['function'] }}</code><br>
+	  <strong>Arguments:</strong>
+	  <code>{{ job['args'] }}</code><br>
+	  <strong>Keywords:</strong>
+	  <code>{{ job['kwargs'] }}</code><br>
+	</td>
 	<td>
 	  {% for dep in job['dependencies'] %}
 	    <a href="{{ url_for('webui.job_info', job_id=dep) }}">

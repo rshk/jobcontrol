@@ -1,0 +1,265 @@
+{% extends 'base.jinja' %}
+
+{% block page_title %}Job {{ job.id }}{% endblock %}
+
+{% block page_body %}
+<div class="container-fluid">
+
+  {# <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST"> #}
+  {#   <div class="btn-group pull-right" style="margin-bottom:10px;"> #}
+
+  {#     <a href="{{ url_for('webui.job_edit', job_id=job.id) }}" class="btn btn-default"> #}
+  {# 	<span class="fa fa-pencil-square-o"></span> Edit #}
+  {#     </a> #}
+
+  {#     <button class="btn btn-default"> #}
+  {# 	<span class="fa fa-cog"></span> Run #}
+  {#     </button> #}
+
+  {#     <a href="{{ url_for('webui.job_delete', job_id=job.id) }}" class="btn btn-default"> #}
+  {# 	<span class="fa fa-trash"></span> Delete #}
+  {#     </a> #}
+
+  {#   </div> #}
+  {# </form> #}
+
+  {% if build.finished %}
+    {% if build['skipped'] %}
+      {% set row_class = 'warning' %}
+    {% elif build['success'] %}
+      {% set row_class = 'success' %}
+    {% else %}
+      {% set row_class = 'danger' %}
+    {% endif %}
+  {% else %}
+    {% set row_class = 'default' %}
+  {% endif %}
+
+  <div class="pull-right">
+    <a href="{{ url_for('webui.build_info', build_id=build.id) }}">
+      <div class="label label-{{ row_class }} label-round label-round-huge">
+	{{ build.id }}
+      </div>
+    </a>
+  </div>
+
+  <h1>
+    <a href="{{ url_for('webui.job_info', job_id=job.id) }}">Job {{ job.id }}</a>
+    &raquo;
+    Build {{ build.id }}
+  </h1>
+
+  <h2>Job Information</h2>
+
+  <table class="table table-bordered">
+    <tr>
+      <th>Function</th>
+      <td>
+	<code>{{ job['function'] }}</code>
+      </td>
+    </tr>
+    <tr>
+      <th>Arguments</th>
+      <td>
+	<code>{{ job['args'] }}</code>
+      </td>
+    </tr>
+    <tr>
+      <th>Keyword arguments</th>
+      <td>
+	<code>{{ job['kwargs'] }}</code>
+      </td>
+    </tr>
+    <tr>
+      <th>Created</th>
+      <td>{{ job['ctime'] }}</td>
+    </tr>
+    <tr>
+      <th>Updated</th>
+      <td>{{ job['mtime'] or 'Never' }}</td>
+    </tr>
+    <tr>
+      <th>Dependencies</th>
+      <td>
+	  {% for dep in job['dependencies'] %}
+	    <a href="{{ url_for('webui.job_info', job_id=dep) }}">
+	      <div class="label label-primary label-round">
+		{{ dep }}
+	      </div>
+	    </a>
+	  {% endfor %}
+      </td>
+    </tr>
+  </table>
+
+
+  <h2>Build information</h2>
+
+  <div class="progress progress-striped {% if build.progress_pc_n < 100 %}active{% endif %}"
+       style="min-width: 200px;position:relative;line-height:40px;height:40px;background:#888;font-size:24px;">
+
+       <div class="progress-bar"
+	    role="progressbar"
+	    aria-valuenow="60" aria-valuemin="0" aria-valuemax="100"
+	    style="width: {{ build.progress_pc }}%; background-color: {{ build.progress_color }};">
+       </div>
+
+       <div style="position:absolute;top:0;left:0;right:0;
+		   bottom:0;text-align:center;color:#fff;
+		   text-shadow: 1px 1px 1px #000;">
+		   {{ build['progress'] }}</div>
+
+  </div>
+
+  {% if build.retval %}
+    <div class="panel panel-primary">
+      <div class="panel-heading">
+	<h3 class="panel-title">Return value</h3>
+      </div>
+      <div class="panel-body">
+	<pre>{{ build.retval }}</pre>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if build.exception %}
+    <div class="panel panel-danger">
+      <div class="panel-heading">
+	<h3 class="panel-title">Exception</h3>
+      </div>
+      <div class="panel-body">
+	<div>{{ build.exception }}</div>
+	<pre>{{ "%r"|format(build.exception) }}</pre>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="row">
+
+    <div class="col-md-6">
+      <div class="jumbotron" style="font-size: 200%">
+	<strong>Start time:</strong>
+	{{ build.start_time }}<br>
+	<strong>End time:</strong>
+	{{ build.end_time }}
+      </div>
+    </div>
+
+    <div class="col-md-6">
+
+      <table class="table table-bordered table-hover table-striped">
+	<thead>
+	  <tr>
+            <th>Started</th>
+            <th>Finished</th>
+            <th>Success</th>
+            <th>Skipped</th>
+	  </tr>
+	</thead>
+	<tbody>
+	  <tr>
+
+	    <td class="align-cm">
+	      {% if build.started %}
+		<span class="label label-round-huge label-success">Yes</span>
+	      {% else %}
+		<span class="label label-round-huge label-warning">No</span>
+	      {% endif %}
+	    </td>
+
+	    <td class="align-cm">
+	      {% if build.finished %}
+		<span class="label label-round-huge label-success">Yes</span>
+	      {% else %}
+		<span class="label label-round-huge label-warning">No</span>
+	      {% endif %}
+	    </td>
+
+            {% if build.finished %}
+
+              <td class="align-cm">
+		{% if build.success %}
+		  <span class="label label-round-huge label-success">Yes</span>
+		{% else %}
+		  <span class="label label-round-huge label-danger">No</span>
+		{% endif %}
+              </td>
+
+              <td class="align-cm">
+		{% if build.skipped %}
+		  <span class="label label-round-huge label-warning">Yes</span>
+		{% else %}
+		  <span class="label label-round-huge label-success">No</span>
+		{% endif %}
+              </td>
+
+            {% else %}
+              <td></td>
+              <td></td>
+            {% endif %}
+
+	  </tr>
+	</tbody>
+      </table>
+
+
+    </div>
+  </div>
+
+  <h2>Log messages</h2>
+
+  <table class="table table-striped log-messages">
+    <thead>
+      <tr>
+	<th>Level</th>
+	<th>Date</th>
+	<th>Logger name</th>
+	<th>File</th>
+	<th>Function</th>
+	<th style="width:100%"></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for record in messages %}
+
+      {% if record.levelno <= 10 %}
+	{% set row_class = 'info' %}
+      {% elif record.levelno <= 20 %}
+	{% set row_class = 'success' %}
+      {% elif record.levelno <= 30 %}
+	{% set row_class = 'warning' %}
+      {% else %}
+	{% set row_class = 'danger' %}
+      {% endif %}
+
+
+      <tr class="{{ row_class }}">
+	<td class="levelname">{{ record.levelname }}</td>
+	<td class="date">{{ record.created }}</td>
+	<td class="logger-name">{{ record.name }}</td>
+	<td class="file">
+	  <span class="filename">
+	    {{- record.filename|escape -}}
+	  </span>:<span class="lineno">
+	    {{- record.lineno|escape -}}
+	  </span>
+	</td>
+	<td class="function">
+	  <span class="module">
+	    {{- record.module|escape -}}
+	  </span>.<span class="funcname">
+	    {{- record.funcName|escape -}}
+	  </span>
+	</td>
+	<td class="placeholder"></td>
+      </tr>
+      <tr>
+	<td class="message" colspan="6">{{ record.msg.decode('utf-8')|escape }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+
+</div>
+{% endblock %}

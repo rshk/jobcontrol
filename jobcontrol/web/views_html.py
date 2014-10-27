@@ -109,3 +109,18 @@ def job_run_submit(job_id):
 @html_views.route('/job/<int:job_id>/delete', methods=['GET'])
 def job_delete(job_id):
     pass
+
+
+@html_views.route('/build/<int:build_id>', methods=['GET'])
+def build_info(build_id):
+    jc = get_jc()
+    build = jc.storage.get_build(build_id)
+    job = jc.storage.get_job(build['job_id'])
+
+    build = list(_format_build_records([build]))[0]
+    messages = jc.storage.iter_log_messages(
+        job_id=build['job_id'], build_id=build_id)
+
+    return render_template(
+        'build-info.jinja',
+        job=job, build=build, messages=messages)
