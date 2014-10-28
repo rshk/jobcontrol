@@ -98,6 +98,7 @@ def uninstall():
 def create_job(function, args, kwargs, dependencies):
     args = ast.literal_eval(args) if args else ()
     kwargs = ast.literal_eval(kwargs) if kwargs else {}
+
     if dependencies:
         dependencies = [int(x) for x in dependencies.split(',')]
     else:
@@ -123,21 +124,21 @@ def create_job(function, args, kwargs, dependencies):
 @click.option('--kwargs', help="Keyword arguments, as a Python dict")
 @click.option('--dependencies', help="Comma-separated list of job ids")
 def update_job(job_id, function, args, kwargs, dependencies):
-    kwargs = {}
+    _kwargs = {}
 
     if function is not None:
-        kwargs['function'] = function
+        _kwargs['function'] = function
 
     if args is not None:
-        kwargs['args'] = ast.literal_eval(args)
+        _kwargs['args'] = ast.literal_eval(args)
 
     if kwargs is not None:
-        kwargs['kwargs'] = ast.literal_eval(kwargs)
+        _kwargs['kwargs'] = ast.literal_eval(kwargs)
 
     if dependencies is not None:
-        kwargs['dependencies'] = [int(x) for x in dependencies.split(',')]
+        _kwargs['dependencies'] = [int(x) for x in dependencies.split(',')]
 
-    jc.storage.update_job(job_id, **kwargs)
+    jc.storage.update_job(job_id, **_kwargs)
 
 
 @cli_main_grp.command()

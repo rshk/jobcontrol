@@ -544,6 +544,8 @@ class PostgreSQLStorage(StorageBase):
         if len(conditions) > 0:
             query += ' WHERE {0}'.format(' AND '.join(conditions))
 
+        query += ' ORDER BY created ASC'
+
         query += ';'
 
         with self.db, self.db.cursor() as cur:

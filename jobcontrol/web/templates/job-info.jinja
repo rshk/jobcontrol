@@ -55,13 +55,29 @@
     <tr>
       <th>Dependencies</th>
       <td>
-	  {% for dep in job['dependencies'] %}
-	    <a href="{{ url_for('webui.job_info', job_id=dep) }}">
-	      <div class="label label-primary label-round">
-		{{ dep }}
-	      </div>
-	    </a>
+	<ul>
+	  {% for dep in deps %}
+	    <li><a href="{{ url_for('webui.job_info', job_id=dep.id) }}">
+		<strong>Job #{{ dep.id }}</strong>
+		<code>{{ dep.function }}</code>
+	    </a></li>
+	  {% else %}
+	    <li>No dependencies.</li>
 	  {% endfor %}
+	</ul>
+      </td>
+    </tr>
+    <tr>
+      <th>Reverse dependencies</th>
+      <td>
+	<ul>
+	  {% for dep in revdeps %}
+	    <li><a href="{{ url_for('webui.job_info', job_id=dep.id) }}">
+		<strong>Job #{{ dep.id }}</strong>
+		<code>{{ dep.function }}</code>
+	    </a></li>
+	  {% endfor %}
+	</ul>
       </td>
     </tr>
   </table>

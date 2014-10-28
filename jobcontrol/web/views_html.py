@@ -68,7 +68,9 @@ def job_info(job_id):
     return render_template(
         'job-info.jinja',
         job=jc.storage.get_job(job_id),
-        builds=_format_build_records(builds))
+        builds=_format_build_records(builds),
+        deps=jc.storage.get_job_deps(job_id),
+        revdeps=jc.storage.get_job_revdeps(job_id))
 
 
 @html_views.route('/job/<int:job_id>/edit', methods=['GET'])
