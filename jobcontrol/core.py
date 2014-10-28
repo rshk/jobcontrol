@@ -164,6 +164,9 @@ class JobControl(object):
                 build_id, success=True, skipped=False, retval=retval,
                 exception=None)
 
+        finally:
+            ctx.pop()
+
         return build_id
 
     def _latest_successful_build_date(self, job_id):
