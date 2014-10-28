@@ -11,4 +11,4 @@ app.conf.CELERY_TASK_SERIALIZER = 'json'
 @app.task
 def build_job(job_id):
     jc = app.conf.JOBCONTROL
-    jc.build_job(job_id)
+    return jc.build_job(job_id)

@@ -100,7 +100,7 @@ def job_with_logging():
     logger.debug('This is a debug message')
     logger.info('This is a info message')
     logger.warning('This is a warning message')
-    logger.error('This is a error message')
+    logger.error('This is an error message')
     logger.critical('This is a critical message')
 
     try:

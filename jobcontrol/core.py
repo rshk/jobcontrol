@@ -4,6 +4,7 @@ Core objects
 
 from datetime import timedelta
 import logging
+import traceback
 
 from jobcontrol.globals import _execution_ctx_stack
 from jobcontrol.exceptions import MissingDependencies, SkipBuild
@@ -36,6 +37,8 @@ class JobControl(object):
 
     def build_job(self, job_id, build_deps=False, build_depending=False,
                   _depth=0):
+
+        self._install_log_handler()
 
         # ------------------------------------------------------------
         # Get information about the job we want to build
@@ -73,6 +76,8 @@ class JobControl(object):
         # Build jobs in order
         # ------------------------------------------------------------
 
+        main_build_id = None
+
         logger.debug('We need to build {0} targets'.format(len(ORDERED_DEPS)))
         for jid in ORDERED_DEPS:
             if (jid != job_id) and (
@@ -84,6 +89,9 @@ class JobControl(object):
 
             bid = self._build_job(jid)
             build = self.storage.get_build(bid)
+
+            if jid == job_id:
+                main_build_id = bid
 
             if build['success']:
                 SUCCESSFUL_BUILT_JOBS.append((jid, bid))
@@ -114,7 +122,7 @@ class JobControl(object):
                 self.build_job(jid, build_deps=build_deps,
                                build_depending=build_depending)
 
-        return dict(SUCCESSFUL_BUILT_JOBS)[job_id]
+        return main_build_id
 
     def _resolve_deps(self, depgraph, job_id):
         # Allow changing dependency resolution function
@@ -188,6 +196,12 @@ class JobControl(object):
             max_age = policy[level]
             self.storage.prune_log_messages(max_age=max_age, leve=level)
 
+    def _install_log_handler(self):
+        _root_logger = logging.getLogger('')
+        _root_logger.setLevel(logging.DEBUG)
+        if _log_handler not in _root_logger.handlers:
+            _root_logger.addHandler(_log_handler)
+
 
 class JobExecutionContext(object):
     """
@@ -238,6 +252,12 @@ class JobControlLogHandler(logging.Handler):
         except:
             return
 
+        # Replace traceback with text representation, as traceback
+        # objects cannot be pickled
+        if record.exc_info is not None:
+            tb = traceback.format_exception(*record.exc_info)
+            record.exc_info = record.exc_info[0], record.exc_info[1], tb
+
         current_app.storage.log_message(
             job_id=execution_context.job_id,
             build_id=execution_context.build_id,
@@ -246,6 +266,6 @@ class JobControlLogHandler(logging.Handler):
 # We need just *one* handler -> create here
 _log_handler = JobControlLogHandler()
 _log_handler.setLevel(logging.DEBUG)
-_root_logger = logging.getLogger('')
-_root_logger.setLevel(logging.DEBUG)
-_root_logger.addHandler(_log_handler)
+# _root_logger = logging.getLogger('')
+# _root_logger.setLevel(logging.DEBUG)
+# _root_logger.addHandler(_log_handler)

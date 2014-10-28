@@ -11,6 +11,7 @@ import psycopg2.extras
 from jobcontrol.interfaces import StorageBase
 from jobcontrol.utils import cached_property
 from jobcontrol.exceptions import NotFound
+from werkzeug.local import Local
 
 
 class PostgreSQLStorage(StorageBase):
@@ -19,6 +20,8 @@ class PostgreSQLStorage(StorageBase):
         if table_prefix is None:
             table_prefix = ''
         self._table_prefix = table_prefix
+        # self._local = Local()
+        self._db = None
 
     @classmethod
     def from_url(cls, url):
@@ -38,8 +41,26 @@ class PostgreSQLStorage(StorageBase):
 
         return cls(dbconf, **kwargs)
 
-    @cached_property
+    def __deepcopy__(self, memo):
+        """
+        The deepcopy is used when we want to use this guy in another thread /
+        process / whatever. Since the psycopg2 connection is not thread-safe,
+        we cannot share it -> instead, we do a copy.
+        """
+        return PostgreSQLStorage(self._dbconf, table_prefix=self._table_prefix)
+
+    @property
     def db(self):
+        if self._db is None or self._db.closed:
+            self._db = self._connect()
+        return self._db
+        # try:
+        #     return self._local.db
+        # except AttributeError:
+        #     self._local.db = self._connect()
+        #     return self._local.db
+
+    def _connect(self):
         conn = psycopg2.connect(**self._dbconf)
         conn.cursor_factory = psycopg2.extras.DictCursor
         conn.autocommit = False
