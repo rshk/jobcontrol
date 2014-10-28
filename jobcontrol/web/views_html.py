@@ -64,10 +64,11 @@ def jobs_list():
 @html_views.route('/job/<int:job_id>', methods=['GET'])
 def job_info(job_id):
     jc = get_jc()
+    builds = jc.storage.get_job_builds(job_id, order='desc')
     return render_template(
         'job-info.jinja',
         job=jc.storage.get_job(job_id),
-        builds=_format_build_records(jc.storage.get_job_builds(job_id)))
+        builds=_format_build_records(builds))
 
 
 @html_views.route('/job/<int:job_id>/edit', methods=['GET'])
@@ -86,6 +87,7 @@ def job_edit_submit(job_id):
 
 @html_views.route('/job/<int:job_id>/run', methods=['GET'])
 def job_run(job_id):
+    # Todo: return confirmation form
     pass
 
 

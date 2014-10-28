@@ -49,89 +49,102 @@ body {
 
 
 
-.log-messages > tbody {
+.log-messages {
     font-family: monospace;
-    background: #000;
-    color: #fff;
+    background: #222;
+    color: #ddd;
+    line-height: 1.5em;
 }
+.log-messages > .message > .message-header {
+    background: #111;
+}
+
+.log-messages > .message:hover > .message-header {
+    background: #333;
+}
+.log-messages > .message:hover > .message-text {
+    background: #444;
+}
+
 .log-messages > tbody > tr > td,
 .log-messages > tbody > tr > th {
     border: none;
     padding: 2px 5px;
 }
-/* .log-messages > tbody > tr.info > td { */
-/*     color: #00AFAF; */
-/*     background: #000; */
-/* } */
-.log-messages > tbody > tr.info > td.levelname {
-    background: #00AFAF;
-    color: #000;
-}
-/* .log-messages > tbody > tr.success > td { */
-/*     color: #5FAF00; */
-/*     background: #000; */
-/* } */
-.log-messages > tbody > tr.success > td.levelname {
-    background: #5FAF00;
-    color: #000;
-}
-/* .log-messages > tbody > tr.warning > td { */
-/*     color: #FF5F00; */
-/*     background: #000; */
-/* } */
-.log-messages > tbody > tr.warning > td.levelname {
-    background: #FF5F00;
-    color: #000;
-}
-/* .log-messages > tbody > tr.danger > td { */
-/*     color: #FF0000; */
-/*     background: #000; */
-/* } */
-.log-messages > tbody > tr.danger > td.levelname {
-    background: #FF0000;
-    color: #000;
-}
-
-/* .log-messages > tbody > tr.info:hover > td, */
-/* .log-messages > tbody > tr.success:hover > td, */
-/* .log-messages > tbody > tr.warning:hover > td, */
-/* .log-messages > tbody > tr.danger:hover > td { */
-/*     background: #444; */
-/* } */
-
-.log-messages > tbody > tr > td.levelname {
+.log-messages > .message > .message-header > .levelname {
+    padding: 0 1em;
+    min-width: 7em;
+    display: inline-block;
+    font-weight: bold;
     text-align: center;
 }
-.log-messages > tbody > tr > td.logger-name {
-    text-align: center;
+
+.log-messages > .message {
+    border-left: solid 5px #222;
+}
+
+.log-messages > .message.msg-debug {
+    border-left-color: #33A78D;
+}
+.log-messages > .message.msg-debug > .message-header > .levelname {
+    background: #33A78D;
+    color: #fff;
+}
+
+.log-messages > .message.msg-info {
+    border-left-color: #62AD0B;
+}
+.log-messages > .message.msg-info > .message-header > .levelname {
+    background: #62AD0B;
+    color: #fff;
+}
+
+.log-messages > .message.msg-warning {
+    border-left-color: #DB6F00;
+}
+.log-messages > .message.msg-warning > .message-header > .levelname {
+    background: #DB6F00;
+    color: #fff;
+}
+
+.log-messages > .message.msg-error {
+    border-left-color: #DC2F2F;
+}
+.log-messages > .message.msg-error > .message-header > .levelname {
+    background: #DC2F2F;
+    color: #fff;
+}
+
+.log-messages > .message.msg-critical {
+    border-left-color: #DC2F2F;
+}
+.log-messages > .message.msg-critical > .message-header > .levelname {
+    background: #DC2F2F;
+    color: #fff;
+}
+
+.log-messages > .message > .message-header > .logger-name {
     background: #eee;
-    color: #f00;
+    color: #DC2F2F;
+    padding: 0 1em;
+    display: inline-block;
+    text-align: center;
 }
-.log-messages > tbody > tr > td.date {
-    color: #00AFAF;
+.log-messages > .message > .message-header > .date {
+    color: #33A78D;
 }
-.log-messages > tbody > tr > td.date,
-.log-messages > tbody > tr > td.file,
-.log-messages > tbody > tr > td.function,
-.log-messages > tbody > tr > td.placeholder {
-    background: #111;
+.log-messages > .message > .message-header > .file > .filename {
+    color: #62AD0B;
 }
-.log-messages > tbody > tr > td.file > .filename {
-    color: #6EAB11;
+.log-messages > .message > .message-header > .file > .lineno {
+    color: #C8E600;
 }
-.log-messages > tbody > tr > td.file > .lineno {
-    color: #D7FF00;
+.log-messages > .message > .message-header > .function > .module {
+    color: #DB6F00;
 }
-.log-messages > tbody > tr > td.function > .module {
-    color: #FF6B00;
+.log-messages > .message > .message-header > .function > .funcname {
+    color: #E2AB00;
 }
-.log-messages > tbody > tr > td.function > .funcname {
-    color: #FFBB00;
-}
-
-.log-messages > tbody > tr > td {
-    padding: .1em 1em;
-}
-.log-messages > tbody > tr > td.message {
-    padding: 1em 1em;
+.log-messages > .message > .message-text {
+    padding: 1em;
 }

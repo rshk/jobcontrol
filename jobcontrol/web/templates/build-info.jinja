@@ -5,24 +5,6 @@
 {% block page_body %}
 <div class="container-fluid">
 
-  {# <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST"> #}
-  {#   <div class="btn-group pull-right" style="margin-bottom:10px;"> #}
-
-  {#     <a href="{{ url_for('webui.job_edit', job_id=job.id) }}" class="btn btn-default"> #}
-  {# 	<span class="fa fa-pencil-square-o"></span> Edit #}
-  {#     </a> #}
-
-  {#     <button class="btn btn-default"> #}
-  {# 	<span class="fa fa-cog"></span> Run #}
-  {#     </button> #}
-
-  {#     <a href="{{ url_for('webui.job_delete', job_id=job.id) }}" class="btn btn-default"> #}
-  {# 	<span class="fa fa-trash"></span> Delete #}
-  {#     </a> #}
-
-  {#   </div> #}
-  {# </form> #}
-
   {% if build.finished %}
     {% if build['skipped'] %}
       {% set row_class = 'warning' %}
@@ -208,57 +190,53 @@
 
   <h2>Log messages</h2>
 
-  <table class="table table-striped log-messages">
-    <thead>
-      <tr>
-	<th>Level</th>
-	<th>Date</th>
-	<th>Logger name</th>
-	<th>File</th>
-	<th>Function</th>
-	<th style="width:100%"></th>
-      </tr>
-    </thead>
-    <tbody>
+  <div class="log-messages">
+
     {% for record in messages %}
 
       {% if record.levelno <= 10 %}
-	{% set row_class = 'info' %}
+	{% set row_class = 'debug' %}
       {% elif record.levelno <= 20 %}
-	{% set row_class = 'success' %}
+	{% set row_class = 'info' %}
       {% elif record.levelno <= 30 %}
 	{% set row_class = 'warning' %}
+      {% elif record.levelno <= 40 %}
+	{% set row_class = 'error' %}
       {% else %}
-	{% set row_class = 'danger' %}
+	{% set row_class = 'critical' %}
       {% endif %}
 
+      <div class="message msg-{{ row_class }}">
 
-      <tr class="{{ row_class }}">
-	<td class="levelname">{{ record.levelname }}</td>
-	<td class="date">{{ record.created }}</td>
-	<td class="logger-name">{{ record.name }}</td>
-	<td class="file">
-	  <span class="filename">
-	    {{- record.filename|escape -}}
-	  </span>:<span class="lineno">
-	    {{- record.lineno|escape -}}
+	<div class="message-header">
+	  <span class="levelname">{{ record.levelname }}</span>
+	  <span class="date">{{ record.created }}</span>
+	  <span class="logger-name">{{ record.name }}</span>
+	  <span class="file">
+	    <span class="filename">
+	      {{- record.filename|escape -}}
+	    </span>:<span class="lineno">
+	      {{- record.lineno|escape -}}
+	    </span>
 	  </span>
-	</td>
-	<td class="function">
-	  <span class="module">
-	    {{- record.module|escape -}}
-	  </span>.<span class="funcname">
-	    {{- record.funcName|escape -}}
+
+	  <span class="function">
+	    <span class="module">
+	      {{- record.module|escape -}}
+	    </span>.<span class="funcname">
+	      {{- record.funcName|escape -}}
+	    </span>
 	  </span>
-	</td>
-	<td class="placeholder"></td>
-      </tr>
-      <tr>
-	<td class="message" colspan="6">{{ record.msg.decode('utf-8')|escape }}</td>
-      </tr>
+	</div>
+
+	<div class="message-text">
+	  {{ record.msg.decode('utf-8')|escape }}
+	</div>
+
+      </div>
     {% endfor %}
-    </tbody>
-  </table>
+
+  </div>
 
 
 </div>
