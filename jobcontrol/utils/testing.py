@@ -43,6 +43,22 @@ def _log_random(logger):
 
 
 def testing_job(steps=10, sleep=1, retval='DONE', fail=False):
+    """
+    Job to be used for testing purposes.
+
+    Provides facilities for simulating various execution scenarios,
+    such as logging, failures, progress, ..
+
+    :param steps: How many "steps" this job is composed of
+    :param sleep: How many seconds to sleep between each "step"
+    :param retval: What to return
+    :param fail:
+        - if ``False``, the build will succeed
+        - if ``True``, the build will fail
+        - if an integer, the step at wich the build will fail
+        - if a float (0 <= x <= 1), the chance of the job failing
+    """
+
     from jobcontrol.globals import current_app, execution_context
 
     logger = logging.getLogger(__name__)
