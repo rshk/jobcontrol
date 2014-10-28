@@ -125,9 +125,11 @@ def test_build_deps(jc, request):
             assert latest_dep_build['end_time'] < latest_build['end_time']
 
 
-def test_build_logging(jc):
+def test_build_logging(jc, request):
     job_id = jc.storage.create_job(
         'jobcontrol.utils.testing:job_with_logging')
+
+    request.addfinalizer(lambda: jc.storage.delete_job(job_id))
 
     job = jc.storage.get_job(job_id)
     assert job['id'] == job_id
@@ -163,3 +165,127 @@ def test_build_logging(jc):
     assert messages[7].levelno == logging.INFO
     assert messages[7].msg == ('[job: {0}, build: {1}] Build SUCCESSFUL'
                                .format(job_id, build_id))
+
+    # ------------------------------------------------------------
+    # Run another build and check logs
+    # ------------------------------------------------------------
+
+    build_id_2 = jc.build_job(job_id)
+
+    messages = list(jc.storage.iter_log_messages(build_id=build_id))
+    assert len(messages) == 8  # 6 from the job, plus start / stop
+
+    messages = list(jc.storage.iter_log_messages(build_id=build_id_2))
+    assert len(messages) == 8  # 6 from the job, plus start / stop
+
+
+def test_build_logs_with_deps(jc, request):
+    # ------------------------------------------------------------
+    # Run a bunch of jobs with deps, check messages
+    # ------------------------------------------------------------
+
+    job_id_1 = jc.storage.create_job(
+        'jobcontrol.utils.testing:job_with_tracer_log')
+    job_id_2 = jc.storage.create_job(
+        'jobcontrol.utils.testing:job_with_tracer_log')
+    job_id_3 = jc.storage.create_job(
+        'jobcontrol.utils.testing:job_with_tracer_log',
+        dependencies=[job_id_1, job_id_2])
+
+    assert len(list(jc.storage.get_job_builds(job_id_1))) == 0
+    assert len(list(jc.storage.get_job_builds(job_id_2))) == 0
+    assert len(list(jc.storage.get_job_builds(job_id_3))) == 0
+
+    jc.build_job(job_id_3)
+
+    builds_1 = list(jc.storage.get_job_builds(job_id_1))
+    builds_2 = list(jc.storage.get_job_builds(job_id_2))
+    builds_3 = list(jc.storage.get_job_builds(job_id_3))
+
+    assert len(builds_1) == 1
+    assert len(builds_2) == 1
+    assert len(builds_3) == 1
+
+    assert builds_1[0]['success'] is True
+    assert builds_2[0]['success'] is True
+    assert builds_3[0]['success'] is True
+
+    msgs_1 = list(jc.storage.iter_log_messages(build_id=builds_1[0]['id']))
+    msgs_2 = list(jc.storage.iter_log_messages(build_id=builds_2[0]['id']))
+    msgs_3 = list(jc.storage.iter_log_messages(build_id=builds_3[0]['id']))
+
+    assert len(msgs_1) == 3
+    assert len(msgs_2) == 3
+    assert len(msgs_3) == 3
+
+    assert msgs_1[1].msg == ('Message from job={0}, build={1}'
+                             .format(job_id_1, builds_1[0]['id']))
+
+    assert msgs_2[1].msg == ('Message from job={0}, build={1}'
+                             .format(job_id_2, builds_2[0]['id']))
+
+    assert msgs_3[1].msg == ('Message from job={0}, build={1}'
+                             .format(job_id_3, builds_3[0]['id']))
+
+
+def test_build_logs_with_deps_async(jc, request):
+    from jobcontrol.async.tasks import app as celery_app, build_job
+    import copy
+
+    conf_bck = celery_app.conf
+    celery_app.conf = copy.deepcopy(celery_app.conf)
+    celery_app.conf.JOBCONTROL = jc
+    celery_app.conf.CELERY_ALWAYS_EAGER = True
+
+    def cleanup():
+        celery_app.conf = conf_bck
+
+    request.addfinalizer(cleanup)
+
+    # ------------------------------------------------------------
+    # Run a bunch of jobs with deps, check messages
+    # ------------------------------------------------------------
+
+    job_id_1 = jc.storage.create_job(
+        'jobcontrol.utils.testing:job_with_tracer_log')
+    job_id_2 = jc.storage.create_job(
+        'jobcontrol.utils.testing:job_with_tracer_log')
+    job_id_3 = jc.storage.create_job(
+        'jobcontrol.utils.testing:job_with_tracer_log',
+        dependencies=[job_id_1, job_id_2])
+
+    assert len(list(jc.storage.get_job_builds(job_id_1))) == 0
+    assert len(list(jc.storage.get_job_builds(job_id_2))) == 0
+    assert len(list(jc.storage.get_job_builds(job_id_3))) == 0
+
+    res = build_job.delay(job_id_3)
+    res.wait()
+
+    builds_1 = list(jc.storage.get_job_builds(job_id_1))
+    builds_2 = list(jc.storage.get_job_builds(job_id_2))
+    builds_3 = list(jc.storage.get_job_builds(job_id_3))
+
+    assert len(builds_1) == 1
+    assert len(builds_2) == 1
+    assert len(builds_3) == 1
+
+    assert builds_1[0]['success'] is True
+    assert builds_2[0]['success'] is True
+    assert builds_3[0]['success'] is True
+
+    msgs_1 = list(jc.storage.iter_log_messages(build_id=builds_1[0]['id']))
+    msgs_2 = list(jc.storage.iter_log_messages(build_id=builds_2[0]['id']))
+    msgs_3 = list(jc.storage.iter_log_messages(build_id=builds_3[0]['id']))
+
+    assert len(msgs_1) == 3
+    assert len(msgs_2) == 3
+    assert len(msgs_3) == 3
+
+    assert msgs_1[1].msg == ('Message from job={0}, build={1}'
+                             .format(job_id_1, builds_1[0]['id']))
+
+    assert msgs_2[1].msg == ('Message from job={0}, build={1}'
+                             .format(job_id_2, builds_2[0]['id']))
+
+    assert msgs_3[1].msg == ('Message from job={0}, build={1}'
+                             .format(job_id_3, builds_3[0]['id']))

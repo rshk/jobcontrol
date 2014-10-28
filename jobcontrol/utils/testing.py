@@ -109,6 +109,15 @@ def job_with_logging():
         logger.exception('This is an exception message')
 
 
+def job_with_tracer_log():
+    from jobcontrol.globals import execution_context
+    logger = logging.getLogger(__name__)
+    logger.info('Message from job={0}, build={1}'
+                .format(execution_context.job_id,
+                        execution_context.build_id))
+    pass
+
+
 def job_failing_once():
     """
     This job will fail exactly once; retry will be successful
