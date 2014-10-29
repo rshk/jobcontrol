@@ -48,6 +48,13 @@ body {
 }
 
 
+.label-default {
+    background: #777;
+}
+.label-gray {
+    background: #ddd;
+}
+
 
 .log-messages {
     font-family: monospace;
@@ -147,4 +154,70 @@ body {
 }
 .log-messages > .message > .message-text {
     padding: 1em;
+}
+
+
+.status-badge {
+    background: #777;
+    width: 200px;
+    height: 200px;
+    border-radius: 100px;
+    position: relative;
+}
+.status-badge .line-top,
+.status-badge .line-bottom {
+}
+.status-badge .line-top {
+    font-size: 20px;
+    line-height: 20px;
+    top: 20px;
+}
+.status-badge .line-middle {
+    top: 50px;
+    font-size: 80px;
+    line-height: 80px;
+    height: 80px;
+}
+.status-badge .line-bottom {
+    bottom: 30px;
+    font-size: 28px;
+    line-height: 30px;
+    text-transform: uppercase;
+}
+
+.status-badge .line-top,
+.status-badge .line-middle,
+.status-badge .line-bottom {
+    /* outline: solid 1px #f00; */
+    /* background: rgba(255,0,0,.5); */
+    text-align: center;
+    font-family: 'Roboto Condensed', sans-serif;
+    position: absolute;
+    left: 0;
+    right: 0;
+    color: #fff;
+    padding: 0;
+    margin: 0;
+}
+
+/* $brand-primary: #428bca !default; */
+/* $brand-success: #5cb85c !default; */
+/* $brand-info: #5bc0de !default; */
+/* $brand-warning: #f0ad4e !default; */
+/* $brand-danger: #d9534f !default; */
+
+.status-badge.primary {
+    background: #428bca;
+}
+.status-badge.success {
+    background: #5cb85c;
+}
+.status-badge.info {
+    background: #5bc0de;
+}
+.status-badge.warning {
+    background: #f0ad4e;
+}
+.status-badge.danger {
+    background: #d9534f;
 }

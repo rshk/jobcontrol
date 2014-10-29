@@ -196,7 +196,7 @@ class StorageBase(object):
 
     @abc.abstractmethod
     def finish_build(self, build_id, success=None, skipped=None, retval=None,
-                     exception=None):
+                     exception=None, exc_info=None):
         """
         Register a build execution end.
         """

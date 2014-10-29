@@ -6,23 +6,31 @@
 <div class="container-fluid">
 
   {% if build.finished %}
-    {% if build['skipped'] %}
+    {% if build.skipped %}
       {% set row_class = 'warning' %}
-    {% elif build['success'] %}
+      {% set status_line = 'Skipped' %}
+    {% elif build.success %}
       {% set row_class = 'success' %}
+      {% set status_line = 'Success' %}
     {% else %}
       {% set row_class = 'danger' %}
+      {% set status_line = 'Failed' %}
     {% endif %}
   {% else %}
     {% set row_class = 'default' %}
+    {% if build.started %}
+      {% set status_line = 'Running' %}
+    {% else %}
+      {% set status_line = 'Created' %}
+    {% endif %}
   {% endif %}
 
   <div class="pull-right">
-    <a href="{{ url_for('webui.build_info', build_id=build.id) }}">
-      <div class="label label-{{ row_class }} label-round label-round-huge">
-	{{ build.id }}
-      </div>
-    </a>
+    <div class="status-badge {{ row_class }}">
+      <div class="line-top">Build</div>
+      <div class="line-middle">{{ build.id }}</div>
+      <div class="line-bottom">{{ status_line }}</div>
+    </div>
   </div>
 
   <h1>
@@ -33,7 +41,7 @@
 
   <h2>Job Information</h2>
 
-  <table class="table table-bordered">
+  <table class="table table-bordered" style="max-width: 800px;">
     <tr>
       <th>Function</th>
       <td>
@@ -107,11 +115,14 @@
   {% if build.exception %}
     <div class="panel panel-danger">
       <div class="panel-heading">
-	<h3 class="panel-title">Exception</h3>
+	<h3 class="panel-title">
+	  <strong>Exception:</strong>
+	  {{ build.exception }}
+	</h3>
       </div>
       <div class="panel-body">
-	<div>{{ build.exception }}</div>
-	<pre>{{ "%r"|format(build.exception) }}</pre>
+	<strong>Full traceback:</strong>
+	<pre>{{ build.exception_tb }}</pre>
       </div>
     </div>
   {% endif %}
@@ -119,6 +130,7 @@
   <div class="row">
 
     <div class="col-md-6">
+
       <div class="jumbotron" style="font-size: 200%">
 	<strong>Start time:</strong>
 	{{ build.start_time }}<br>
@@ -129,61 +141,77 @@
 
     <div class="col-md-6">
 
-      <table class="table table-bordered table-hover table-striped">
-	<thead>
-	  <tr>
-            <th>Started</th>
-            <th>Finished</th>
-            <th>Success</th>
-            <th>Skipped</th>
-	  </tr>
-	</thead>
-	<tbody>
-	  <tr>
+      <div class="row-fluid">
 
-	    <td class="align-cm">
+	<div class="col-xs-3">
+	  <div class="panel panel-default">
+	    <div class="panel-heading">
+	      <h3 class="panel-title">Started</h3>
+	    </div>
+	    <div class="panel-body" style="text-align: center;">
 	      {% if build.started %}
 		<span class="label label-round-huge label-success">Yes</span>
 	      {% else %}
 		<span class="label label-round-huge label-warning">No</span>
 	      {% endif %}
-	    </td>
+	    </div>
+	  </div>
+	</div>
 
-	    <td class="align-cm">
+	<div class="col-xs-3">
+	  <div class="panel panel-default">
+	    <div class="panel-heading">
+	      <h3 class="panel-title">Finished</h3>
+	    </div>
+	    <div class="panel-body" style="text-align: center;">
 	      {% if build.finished %}
 		<span class="label label-round-huge label-success">Yes</span>
 	      {% else %}
 		<span class="label label-round-huge label-warning">No</span>
 	      {% endif %}
-	    </td>
+	    </div>
+	  </div>
+	</div>
 
-            {% if build.finished %}
+        <div class="col-xs-3">
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              <h3 class="panel-title">Success</h3>
+            </div>
+            <div class="panel-body" style="text-align: center;">
+              {% if build.finished %}
+                {% if build.success %}
+                  <span class="label label-round-huge label-success">Yes</span>
+                {% else %}
+                  <span class="label label-round-huge label-danger">No</span>
+                {% endif %}
+              {% else %}
+                  <span class="label label-round-huge label-gray">?</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
 
-              <td class="align-cm">
-		{% if build.success %}
-		  <span class="label label-round-huge label-success">Yes</span>
-		{% else %}
-		  <span class="label label-round-huge label-danger">No</span>
-		{% endif %}
-              </td>
+        <div class="col-xs-3">
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              <h3 class="panel-title">Skipped</h3>
+            </div>
+            <div class="panel-body" style="text-align: center;">
+              {% if build.finished %}
+                {% if build.skipped %}
+                  <span class="label label-round-huge label-warning">Yes</span>
+                {% else %}
+                  <span class="label label-round-huge label-success">No</span>
+                {% endif %}
+              {% else %}
+                  <span class="label label-round-huge label-gray">?</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
 
-              <td class="align-cm">
-		{% if build.skipped %}
-		  <span class="label label-round-huge label-warning">Yes</span>
-		{% else %}
-		  <span class="label label-round-huge label-success">No</span>
-		{% endif %}
-              </td>
-
-            {% else %}
-              <td></td>
-              <td></td>
-            {% endif %}
-
-	  </tr>
-	</tbody>
-      </table>
-
+      </div>
 
     </div>
   </div>
@@ -238,6 +266,7 @@
 
   </div>
 
+    <br></br>
 
 </div>
 {% endblock %}

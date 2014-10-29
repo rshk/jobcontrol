@@ -5,6 +5,7 @@ Core objects
 from datetime import timedelta
 import logging
 import traceback
+import sys
 
 from jobcontrol.globals import _execution_ctx_stack
 from jobcontrol.exceptions import MissingDependencies, SkipBuild
@@ -163,7 +164,7 @@ class JobControl(object):
 
             self.storage.finish_build(
                 build_id, success=False, skipped=False, retval=None,
-                exception=exc)
+                exception=exc, exc_info=sys.exc_info())
 
         else:
             logger.info(log_prefix + 'Build SUCCESSFUL')

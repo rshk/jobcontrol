@@ -4,6 +4,7 @@ PostgreSQL-backed Job control class.
 
 from datetime import datetime, timedelta
 from urlparse import urlparse, parse_qs
+import traceback
 
 import psycopg2
 import psycopg2.extras
@@ -76,6 +77,7 @@ class PostgreSQLStorage(StorageBase):
         query = """
         CREATE TABLE "{prefix}job" (
             id SERIAL PRIMARY KEY,
+            title TEXT,
             function TEXT,
             args TEXT,
             kwargs TEXT,
@@ -96,7 +98,8 @@ class PostgreSQLStorage(StorageBase):
             progress_current INTEGER DEFAULT 0,
             progress_total INTEGER DEFAULT 0,
             retval TEXT,
-            exception TEXT
+            exception TEXT,
+            exception_tb TEXT
         );
 
         CREATE TABLE "{prefix}log" (
@@ -436,7 +439,12 @@ class PostgreSQLStorage(StorageBase):
         })
 
     def finish_build(self, build_id, success=True, skipped=False, retval=None,
-                     exception=None):
+                     exception=None, exc_info=None):
+
+        exc_trace = None
+        if exc_info is not None:
+            exc_trace = ''.join(traceback.format_exception(*exc_info))
+
         self._do_update('build', self._build_pack({
             'id': build_id,
             'end_time': datetime.now(),
@@ -445,6 +453,7 @@ class PostgreSQLStorage(StorageBase):
             'skipped': skipped,
             'retval': retval,
             'exception': exception,
+            'exception_tb': exc_trace,
         }))
 
     def update_build_progress(self, build_id, current, total):
@@ -556,5 +565,9 @@ class PostgreSQLStorage(StorageBase):
                 # todo: any better way to do this?
                 record.job_id = item['job_id']
                 record.build_id = item['build_id']
+
+                # Make sure we're dealing with unicode..
+                if isinstance(record.message, bytes):
+                    record.message = record.message.decode('utf-8')
 
                 yield record
