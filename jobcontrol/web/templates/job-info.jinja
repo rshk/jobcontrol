@@ -23,64 +23,9 @@
     </div>
   </form>
 
-  <h1>Job {{ job.id }}</h1>
+  <h1>Job {{ job.id }}{% if job.title %} - {{ job.title }}{% endif %}</h1>
 
-  <table class="table table-bordered">
-    <tr>
-      <th>Function</th>
-      <td>
-	<code>{{ job['function'] }}</code>
-      </td>
-    </tr>
-    <tr>
-      <th>Arguments</th>
-      <td>
-	<code>{{ job['args'] }}</code>
-      </td>
-    </tr>
-    <tr>
-      <th>Keyword arguments</th>
-      <td>
-	<code>{{ job['kwargs'] }}</code>
-      </td>
-    </tr>
-    <tr>
-      <th>Created</th>
-      <td>{{ job['ctime'] }}</td>
-    </tr>
-    <tr>
-      <th>Updated</th>
-      <td>{{ job['mtime'] or 'Never' }}</td>
-    </tr>
-    <tr>
-      <th>Dependencies</th>
-      <td>
-	<ul>
-	  {% for dep in deps %}
-	    <li><a href="{{ url_for('webui.job_info', job_id=dep.id) }}">
-		<strong>Job #{{ dep.id }}</strong>
-		<code>{{ dep.function }}</code>
-	    </a></li>
-	  {% else %}
-	    <li>No dependencies.</li>
-	  {% endfor %}
-	</ul>
-      </td>
-    </tr>
-    <tr>
-      <th>Reverse dependencies</th>
-      <td>
-	<ul>
-	  {% for dep in revdeps %}
-	    <li><a href="{{ url_for('webui.job_info', job_id=dep.id) }}">
-		<strong>Job #{{ dep.id }}</strong>
-		<code>{{ dep.function }}</code>
-	    </a></li>
-	  {% endfor %}
-	</ul>
-      </td>
-    </tr>
-  </table>
+  {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
 
   <h2>Builds</h2>
 
@@ -228,7 +173,11 @@
 
 	    </div>
 	  </td>
-	  <td class="align-lm"><code>{{ build.retval }}</code></td>
+	  <td class="align-lm">
+	    {% if build.retval %}
+	      <code>{{ build.retval }}</code>
+	    {% endif %}
+	  </td>
 	  <td class="align-lm">{{ build.exception or '' }}</td>
 	</tr>
       {% endfor %}

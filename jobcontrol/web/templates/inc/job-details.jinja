@@ -1,0 +1,68 @@
+{{ job.call_code_html }}
+
+<table class="table table-bordered">
+  <tr>
+    <th>Function</th>
+    <td>
+	<code>{{ job['function'] }}</code>
+	{% if job.function_doc %}
+	  <br><br>
+	<div class="well">{{ job.function_doc }}</div>
+	{% endif %}
+    </td>
+  </tr>
+  <tr>
+    <th>Arguments</th>
+    <td>
+	<code>{{ job['args'] }}</code>
+    </td>
+  </tr>
+  <tr>
+    <th>Keyword arguments</th>
+    <td>
+	<code>{{ job['kwargs'] }}</code>
+    </td>
+  </tr>
+  <tr>
+    <th>Created</th>
+    <td>{{ job['ctime'] }}</td>
+  </tr>
+  <tr>
+    <th>Updated</th>
+    <td>{{ job['mtime'] or 'Never' }}</td>
+  </tr>
+  <tr>
+    <th>Dependencies</th>
+    <td>
+	{% if job.deps %}
+	  <ul>
+	    {% for dep in job.deps %}
+	      <li><a href="{{ url_for('webui.job_info', job_id=dep.id) }}">
+		  <strong>Job #{{ dep.id }}</strong>
+		  <code>{{ dep.function }}</code>
+	      </a></li>
+	    {% endfor %}
+	  </ul>
+	{% else %}
+	  <p>No dependencies.</p>
+	{% endif %}
+    </td>
+  </tr>
+  <tr>
+    <th>Reverse dependencies</th>
+    <td>
+	{% if job.revdeps %}
+	  <ul>
+	    {% for dep in job.revdeps %}
+	      <li><a href="{{ url_for('webui.job_info', job_id=dep.id) }}">
+		  <strong>Job #{{ dep.id }}</strong>
+		  <code>{{ dep.function }}</code>
+	      </a></li>
+	    {% endfor %}
+	  </ul>
+	{% else %}
+	  <p>No reverse dependencies.</p>
+	{% endif %}
+    </td>
+  </tr>
+</table>

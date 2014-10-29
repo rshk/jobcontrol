@@ -74,7 +74,8 @@ class StorageBase(object):
     # ------------------------------------------------------------
 
     @abc.abstractmethod
-    def create_job(self, function, args=None, kwargs=None, dependencies=None):
+    def create_job(self, function, args=None, kwargs=None, dependencies=None,
+                   title=None):
         """
         Create a new job.
 
@@ -84,7 +85,7 @@ class StorageBase(object):
 
     @abc.abstractmethod
     def update_job(self, job_id, function=None, args=None, kwargs=None,
-                   dependencies=None):
+                   dependencies=None, title=None):
         """
         Update a job definition.
         """

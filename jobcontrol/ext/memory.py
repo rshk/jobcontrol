@@ -52,7 +52,8 @@ class MemoryStorage(StorageBase):
     # Job CRUD methods
     # ------------------------------------------------------------
 
-    def create_job(self, function, args=None, kwargs=None, dependencies=None):
+    def create_job(self, function, args=None, kwargs=None, dependencies=None,
+                   title=None):
         job_id = self._jobs_seq.next()
         job = {
             'id': job_id,
@@ -60,6 +61,7 @@ class MemoryStorage(StorageBase):
             'args': args or (),
             'kwargs': kwargs or {},
             'dependencies': dependencies or [],
+            'title': title,
             'ctime': datetime.now(),
             'mtime': datetime.now(),
         }
@@ -67,7 +69,7 @@ class MemoryStorage(StorageBase):
         return job_id
 
     def update_job(self, job_id, function=None, args=None, kwargs=None,
-                   dependencies=None):
+                   dependencies=None, title=None):
         if job_id not in self._jobs:
             raise NotFound('No such job: {0}'.format(job_id))
 
@@ -82,6 +84,9 @@ class MemoryStorage(StorageBase):
 
         if dependencies is not None:
             self._jobs[job_id]['dependencies'] = dependencies
+
+        if title is not None:
+            self._jobs[job_id]['title'] = title
 
         self._jobs[job_id]['mtime'] = datetime.now()
 

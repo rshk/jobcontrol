@@ -1,0 +1,56 @@
+{% macro status_badge(top='', middle='', bottom='', class='') -%}
+    <div class="status-badge {{ class }}">
+      <div class="line-top">{{ top }}</div>
+      <div class="line-middle">{{ middle }}</div>
+      <div class="line-bottom">{{ bottom }}</div>
+    </div>
+{%- endmacro %}
+
+
+{% macro progress_bar(cur, total, color) -%}
+  {% if total %}
+    {% set percent = cur * 100 / total %}
+  {% else %}
+    {% set percent = 0 %}
+  {% endif %}
+
+    <div class="progress progress-striped {% if percent < 100 %}active{% endif %}"
+       style="min-width:200px;position:relative;line-height:40px;height:40px;background:#888;font-size:24px;">
+
+    {% if total %}
+       <div class="progress-bar"
+	    role="progressbar"
+	    aria-valuenow="{{ cur }}" aria-valuemin="0" aria-valuemax="{{ total }}"
+	    style="width: {{ percent }}%; background-color: {{ color }};">
+       </div>
+     {% endif %}
+
+       <div style="position:absolute;top:0;left:0;right:0;
+		   bottom:0;text-align:center;color:#fff;
+		   text-shadow: 1px 1px 1px #000;">
+        {% if total %}
+	  {{ cur }}/{{ total }} ({{ percent|round|int }}%)
+	{% else %}
+	  N/A
+	{% endif %}
+       </div>
+    </div>
+{%- endmacro %}
+
+
+{% macro flag_panel(title, flag, tcls='success', ttxt='Yes', fcls='danger', ftxt='No', ncls='gray', ntxt='?') %}
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">{{ title }}</h3>
+    </div>
+    <div class="panel-body" style="text-align: center;">
+      {% if flag is none %}
+	<span class="label label-round-huge label-{{ ncls }}">{{ ntxt }}</span>
+      {% elif flag %}
+	<span class="label label-round-huge label-{{ tcls }}">{{ ttxt }}</span>
+      {% else %}
+	<span class="label label-round-huge label-{{ fcls }}">{{ ftxt }}</span>
+      {% endif %}
+    </div>
+  </div>
+{% endmacro %}

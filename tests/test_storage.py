@@ -336,7 +336,8 @@ def test_logging(storage):
 
     def _make_log(level, msg):
         return logging.makeLogRecord(
-            {'name': 'my_logger', 'levelno': level, 'msg': msg})
+            {'name': 'my_logger', 'levelno': level, 'msg': msg,
+             'message': msg})
 
     def _log(level, msg):
         storage.log_message(job_id, build_id, _make_log(level, msg))

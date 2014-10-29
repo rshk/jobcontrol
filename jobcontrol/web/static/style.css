@@ -221,3 +221,8 @@ body {
 .status-badge.danger {
     background: #d9534f;
 }
+
+.highlight pre {
+    background: #333;
+    background: #002b36;
+}

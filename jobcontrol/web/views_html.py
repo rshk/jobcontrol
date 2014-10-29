@@ -3,6 +3,8 @@ from __future__ import division
 from flask import Blueprint, render_template, redirect, url_for, flash
 import colorsys
 
+from jobcontrol.utils import import_object
+
 
 html_views = Blueprint('webui', __name__)
 
@@ -36,10 +38,10 @@ def _format_build_records(iterable):
             for x in colorsys.hsv_to_rgb(hue / 360.0, .8, .8)])
         build['progress_color'] = '#' + color
 
-        if build['start_time'] is not None:
-            build['start_time'] = build['start_time'].strftime(DATE_FORMAT)
-        if build['end_time'] is not None:
-            build['end_time'] = build['end_time'].strftime(DATE_FORMAT)
+        # if build['start_time'] is not None:
+        #     build['start_time'] = build['start_time'].strftime(DATE_FORMAT)
+        # if build['end_time'] is not None:
+        #     build['end_time'] = build['end_time'].strftime(DATE_FORMAT)
 
         yield build
 
@@ -48,6 +50,23 @@ def _fmt_progress(cur, tot):
     if tot == 0:
         return 'N/A'
     return '{0}/{1} ({2:.1f}%)'.format(cur, tot, cur * 100.0 / tot)
+
+
+def _add_job_info(job):
+    jc = get_jc()
+    job['call_code'] = _get_call_code(job)
+    job['call_code_html'] = _highlight_code_html(job['call_code'])
+    job['deps'] = jc.storage.get_job_deps(job['id'])
+    job['revdeps'] = jc.storage.get_job_revdeps(job['id'])
+
+    try:
+        func = import_object(job['function'])
+    except Exception as e:
+        docstring = "Error: {0!r}".format(e)
+    else:
+        docstring = _format_function_doc(func)
+
+    job['function_doc'] = docstring
 
 
 @html_views.route('/', methods=['GET'])
@@ -65,12 +84,14 @@ def jobs_list():
 def job_info(job_id):
     jc = get_jc()
     builds = jc.storage.get_job_builds(job_id, order='desc')
+
+    job = jc.storage.get_job(job_id)
+    _add_job_info(job)
+
     return render_template(
         'job-info.jinja',
-        job=jc.storage.get_job(job_id),
-        builds=_format_build_records(builds),
-        deps=jc.storage.get_job_deps(job_id),
-        revdeps=jc.storage.get_job_revdeps(job_id))
+        job=job,
+        builds=_format_build_records(builds))
 
 
 @html_views.route('/job/<int:job_id>/edit', methods=['GET'])
@@ -120,6 +141,7 @@ def build_info(build_id):
     jc = get_jc()
     build = jc.storage.get_build(build_id)
     job = jc.storage.get_job(build['job_id'])
+    _add_job_info(job)
 
     build = list(_format_build_records([build]))[0]
     messages = jc.storage.iter_log_messages(
@@ -128,3 +150,32 @@ def build_info(build_id):
     return render_template(
         'build-info.jinja',
         job=job, build=build, messages=messages)
+
+
+def _get_call_code(job):
+    module, func = job['function'].split(':')
+
+    call_args = []
+    for arg in job['args']:
+        call_args.append(repr(arg))
+    for key, val in sorted(job['kwargs'].iteritems()):
+        call_args.append("{0}={1!r}".format(key, val))
+
+    return "\n".join((
+        "from {0} import {1}".format(module, func),
+        "{0}(\n    {1})".format(func, ",\n    ".join(call_args))))
+
+
+def _highlight_code_html(code):
+    from pygments import highlight
+    from pygments.lexers import PythonLexer
+    from pygments.formatters import HtmlFormatter
+    return highlight(code, PythonLexer(), HtmlFormatter())
+
+
+def _format_function_doc(func):
+    import inspect
+    import docutils.core
+
+    doc = inspect.getdoc(func)
+    return docutils.core.publish_parts(doc, writer_name='html')['fragment']

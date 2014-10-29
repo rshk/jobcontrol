@@ -26,11 +26,7 @@
   {% endif %}
 
   <div class="pull-right">
-    <div class="status-badge {{ row_class }}">
-      <div class="line-top">Build</div>
-      <div class="line-middle">{{ build.id }}</div>
-      <div class="line-bottom">{{ status_line }}</div>
-    </div>
+    {{ macros.status_badge(top='Build', middle=build.id, bottom=status_line, class=row_class) }}
   </div>
 
   <h1>
@@ -39,67 +35,16 @@
     Build {{ build.id }}
   </h1>
 
-  <h2>Job Information</h2>
-
-  <table class="table table-bordered" style="max-width: 800px;">
-    <tr>
-      <th>Function</th>
-      <td>
-	<code>{{ job['function'] }}</code>
-      </td>
-    </tr>
-    <tr>
-      <th>Arguments</th>
-      <td>
-	<code>{{ job['args'] }}</code>
-      </td>
-    </tr>
-    <tr>
-      <th>Keyword arguments</th>
-      <td>
-	<code>{{ job['kwargs'] }}</code>
-      </td>
-    </tr>
-    <tr>
-      <th>Created</th>
-      <td>{{ job['ctime'] }}</td>
-    </tr>
-    <tr>
-      <th>Updated</th>
-      <td>{{ job['mtime'] or 'Never' }}</td>
-    </tr>
-    <tr>
-      <th>Dependencies</th>
-      <td>
-	  {% for dep in job['dependencies'] %}
-	    <a href="{{ url_for('webui.job_info', job_id=dep) }}">
-	      <div class="label label-primary label-round">
-		{{ dep }}
-	      </div>
-	    </a>
-	  {% endfor %}
-      </td>
-    </tr>
-  </table>
-
+  <div class="row row-fluid">
+    <div class="col-md-10">
+      <h2>Job Information</h2>
+      {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
+    </div>
+  </div>
 
   <h2>Build information</h2>
 
-  <div class="progress progress-striped {% if build.progress_pc_n < 100 %}active{% endif %}"
-       style="min-width: 200px;position:relative;line-height:40px;height:40px;background:#888;font-size:24px;">
-
-       <div class="progress-bar"
-	    role="progressbar"
-	    aria-valuenow="60" aria-valuemin="0" aria-valuemax="100"
-	    style="width: {{ build.progress_pc }}%; background-color: {{ build.progress_color }};">
-       </div>
-
-       <div style="position:absolute;top:0;left:0;right:0;
-		   bottom:0;text-align:center;color:#fff;
-		   text-shadow: 1px 1px 1px #000;">
-		   {{ build['progress'] }}</div>
-
-  </div>
+  {{ macros.progress_bar(cur=build.progress_current, total=build.progress_total, color=build.progress_color) }}
 
   {% if build.retval %}
     <div class="panel panel-primary">
@@ -127,88 +72,61 @@
     </div>
   {% endif %}
 
-  <div class="row">
+  <div class="row row-fluid">
 
     <div class="col-md-6">
 
       <div class="jumbotron" style="font-size: 200%">
-	<strong>Start time:</strong>
-	{{ build.start_time }}<br>
-	<strong>End time:</strong>
-	{{ build.end_time }}
+
+	<dl class="dl-horizontal">
+
+	<dt>Start time:</dt>
+	{% if build.start_time %}
+	  <dd>{{ build.start_time.strftime('%a, %d %b %Y %H:%M:%S') }}</dd>
+	{% else %}N/A{% endif %}
+
+	<dt>End time:</dt>
+	{% if build.end_time %}
+	  <dd>{{ build.end_time.strftime('%a, %d %b %Y %H:%M:%S') }}</dd>
+	{% else %}N/A{% endif %}
+
+	{% if build.start_time and build.end_time %}
+	  <dt>Duration:</dt>
+	  <dd>{{ build.end_time - build.start_time }}</dd>
+	{% endif %}
+
+	</dl>
+
       </div>
     </div>
 
+
     <div class="col-md-6">
 
-      <div class="row-fluid">
+      <div class="row row-fluid">
 
 	<div class="col-xs-3">
-	  <div class="panel panel-default">
-	    <div class="panel-heading">
-	      <h3 class="panel-title">Started</h3>
-	    </div>
-	    <div class="panel-body" style="text-align: center;">
-	      {% if build.started %}
-		<span class="label label-round-huge label-success">Yes</span>
-	      {% else %}
-		<span class="label label-round-huge label-warning">No</span>
-	      {% endif %}
-	    </div>
-	  </div>
+	  {{ macros.flag_panel('Started', build.started, fcls='warning', ftxt='No') }}
 	</div>
 
 	<div class="col-xs-3">
-	  <div class="panel panel-default">
-	    <div class="panel-heading">
-	      <h3 class="panel-title">Finished</h3>
-	    </div>
-	    <div class="panel-body" style="text-align: center;">
-	      {% if build.finished %}
-		<span class="label label-round-huge label-success">Yes</span>
-	      {% else %}
-		<span class="label label-round-huge label-warning">No</span>
-	      {% endif %}
-	    </div>
-	  </div>
+	  {{ macros.flag_panel('Finished', build.finished, fcls='warning', ftxt='No') }}
 	</div>
 
         <div class="col-xs-3">
-          <div class="panel panel-default">
-            <div class="panel-heading">
-              <h3 class="panel-title">Success</h3>
-            </div>
-            <div class="panel-body" style="text-align: center;">
-              {% if build.finished %}
-                {% if build.success %}
-                  <span class="label label-round-huge label-success">Yes</span>
-                {% else %}
-                  <span class="label label-round-huge label-danger">No</span>
-                {% endif %}
-              {% else %}
-                  <span class="label label-round-huge label-gray">?</span>
-              {% endif %}
-            </div>
-          </div>
+          {% if build.finished %}
+	    {{ macros.flag_panel('Success', build.success, fcls='warning', ftxt='No') }}
+          {% else %}
+	    {{ macros.flag_panel('Success', None) }}
+          {% endif %}
         </div>
 
         <div class="col-xs-3">
-          <div class="panel panel-default">
-            <div class="panel-heading">
-              <h3 class="panel-title">Skipped</h3>
-            </div>
-            <div class="panel-body" style="text-align: center;">
-              {% if build.finished %}
-                {% if build.skipped %}
-                  <span class="label label-round-huge label-warning">Yes</span>
-                {% else %}
-                  <span class="label label-round-huge label-success">No</span>
-                {% endif %}
-              {% else %}
-                  <span class="label label-round-huge label-gray">?</span>
-              {% endif %}
-            </div>
-          </div>
+          {% if build.finished %}
+	    {{ macros.flag_panel('Skipped', build.skipped, 'warning', 'Yes', 'success', 'No') }}
+          {% else %}
+	    {{ macros.flag_panel('Skipped', None) }}
+          {% endif %}
         </div>
 
       </div>

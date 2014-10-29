@@ -250,19 +250,22 @@ class PostgreSQLStorage(StorageBase):
     # Job CRUD methods
     # ------------------------------------------------------------
 
-    def create_job(self, function, args=None, kwargs=None, dependencies=None):
+    def create_job(self, function, args=None, kwargs=None, dependencies=None,
+                   title=None):
         data = self._job_pack({
             'function': function,
             'args': args or (),
             'kwargs': kwargs or {},
             'dependencies': dependencies or [],
+            'title': title,
             'ctime': datetime.now(),
+            'mtime': datetime.now(),
         })
 
         return self._do_insert('job', data)
 
     def update_job(self, job_id, function=None, args=None, kwargs=None,
-                   dependencies=None):
+                   dependencies=None, title=None):
 
         if self.get_job(job_id) is None:
             raise NotFound('No such job: {0}'.format(job_id))
@@ -280,6 +283,9 @@ class PostgreSQLStorage(StorageBase):
 
         if dependencies is not None:
             data['dependencies'] = dependencies
+
+        if title is not None:
+            data['title'] = title
 
         if len(data) <= 1:
             return  # nothing to update
