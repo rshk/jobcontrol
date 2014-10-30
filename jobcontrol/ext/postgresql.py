@@ -573,6 +573,10 @@ class PostgreSQLStorage(StorageBase):
                 record.build_id = item['build_id']
 
                 # Make sure we're dealing with unicode..
+                if not hasattr(record, 'message'):
+                    # Why is this sometimes not set?
+                    record.message = record.getMessage()
+
                 if isinstance(record.message, bytes):
                     record.message = record.message.decode('utf-8')
 
