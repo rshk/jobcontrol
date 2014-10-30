@@ -4,8 +4,10 @@ Utilities for the RESTful API
 
 from functools import wraps
 import json
+import os
+import binascii
 
-from flask import request, make_response
+from flask import request, make_response, session
 from werkzeug.exceptions import BadRequest
 
 
@@ -31,3 +33,13 @@ def _get_json_from_request():
         return json.loads(request.data)
     except:
         raise BadRequest('Error decoding json')
+
+
+def generate_csrf_token():
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = _generate_csrf_token()
+    return session['_csrf_token']
+
+
+def _generate_csrf_token():
+    return binascii.hexlify(os.urandom(32))

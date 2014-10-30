@@ -1,9 +1,17 @@
 from __future__ import division
 
-from flask import Blueprint, render_template, redirect, url_for, flash
+from collections import defaultdict
+import ast
 import colorsys
 
+from flask import (Blueprint, render_template, redirect, url_for,
+                   flash, request, abort)
+
 from jobcontrol.utils import import_object
+
+
+class FormError(Exception):
+    pass
 
 
 html_views = Blueprint('webui', __name__)
@@ -96,16 +104,94 @@ def job_info(job_id):
 
 @html_views.route('/job/<int:job_id>/edit', methods=['GET'])
 def job_edit(job_id):
+    job = get_jc().storage.get_job(job_id)
     return render_template(
-        'job-edit.jinja',
-        job=get_jc().storage.get_job(job_id))
+        'job-edit.jinja', job=job,
+        form_data=_job_edit_form_prepare_values(job),
+        form_errors={})
 
 
-@html_views.route('/job/<int:job_id>/edit/submit', methods=['POST'])
+@html_views.route('/job/<int:job_id>/edit', methods=['POST'])
 def job_edit_submit(job_id):
-    # Do stuff
-    # Redirect to job_edit page
-    pass
+    jc = get_jc()
+    job = jc.get_job(job_id)
+
+    read_data = {
+        'title': request.form['title'],
+        'function': request.form['function'],
+        'args': request.form['args'],
+        'kwargs': request.form['kwargs'],
+        'dependencies': request.form['dependencies'],
+    }
+
+    data, errors = _job_edit_form_process(read_data)
+
+    if len(errors):
+        flash("The form contains errors!", 'error')
+        return render_template(
+            'job-edit.jinja', job=job,
+            form_data=read_data,
+            form_errors=errors)
+
+    job.update(**data)
+    flash('Job {0} updated'.format(job_id), 'success')
+    return redirect(url_for('.job_info', job_id=job_id))
+
+
+def _job_edit_form_prepare_values(job):
+    return {
+        'title': job['title'],
+        'function': job['function'],
+        'args': repr(job['args']),
+        'kwargs': repr(job['kwargs']),
+        'dependencies': ', '.join(str(x) for x in job['dependencies']),
+    }
+
+
+def _job_edit_form_process(form_data):
+    data = {}
+    errors = defaultdict(list)
+
+    data['title'] = form_data['title']
+
+    # todo: check for function existence? (maybe just warning..)
+    data['function'] = form_data['function']
+
+    # ---------- args
+
+    try:
+        args = ast.literal_eval(form_data['args'])
+    except:
+        errors['args'].append('Parse failed for arguments (check syntax)')
+    else:
+        if isinstance(args, tuple):
+            data['args'] = args
+        else:
+            errors['args'].append('Arguments must be a tuple')
+
+    # ---------- kwargs
+
+    try:
+        kwargs = ast.literal_eval(form_data['kwargs'])
+    except:
+        errors['kwargs'].append(
+            'Parse failed for Keyword arguments (check syntax)')
+    else:
+        if isinstance(kwargs, dict):
+            data['kwargs'] = kwargs
+        else:
+            errors['kwargs'].append('Keyword arguments must be a dict')
+
+    # ---------- dependencies
+
+    try:
+        _deps = [x.strip() for x in form_data['dependencies'].split(',')]
+        data['dependencies'] = [int(x) for x in _deps if x]
+
+    except Exception as e:
+        errors['dependencies'].append(str(e))
+
+    return data, errors
 
 
 @html_views.route('/job/<int:job_id>/run', methods=['GET'])

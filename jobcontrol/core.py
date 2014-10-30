@@ -36,8 +36,23 @@ class JobControl(object):
     def __init__(self, storage):
         self.storage = storage
 
+    def create_job(self, *a, **kw):
+        return JobInfo.new(self, *a, **kw)
+
+    def get_job(self, job_id):
+        job = JobInfo(self, job_id)
+        job.refresh()  # To get 404 early..
+        return job
+
+    def iter_jobs(self):
+        for job in self.storage.iter_jobs():
+            yield JobInfo(self.app, job['id'], info=job)
+
     def build_job(self, job_id, build_deps=False, build_depending=False,
                   _depth=0):
+
+        if isinstance(job_id, JobInfo):
+            job_id = JobInfo.id
 
         self._install_log_handler()
 
@@ -264,9 +279,110 @@ class JobControlLogHandler(logging.Handler):
             build_id=execution_context.build_id,
             record=record)
 
+
+class JobInfo(object):
+    """High-level interface to jobs"""
+
+    def __init__(self, app, job_id, info=None):
+        self.app = app
+        self.job_id = job_id
+        if info is not None:
+            self._info = {}
+            self._info.update(info)
+
+    @classmethod
+    def new(cls, app, *w, **kw):
+        job_id = app.storage.create_job(*w, **kw)
+        return cls(app, job_id)
+
+    @property
+    def id(self):
+        return self.job_id
+
+    @property
+    def info(self):
+        if getattr(self, '_info') is None:
+            self.refresh()
+        return self._info
+
+    def refresh(self):
+        self._info = self.app.storage.get_job(self.job_id)
+
+    def __getitem__(self, name):
+        return self.info[name]
+
+    def update(self, *a, **kw):
+        self.app.storage.update_job(self.job_id, *a, **kw)
+        self.refresh()
+
+    def delete(self):
+        self.app.storage.delete_job(self.job_id)
+
+    def get_deps(self):
+        for dep in self.app.storage.get_job_deps(self.job_id):
+            yield JobInfo(self.app, dep['id'], info=dep)
+
+    def get_revdeps(self):
+        for revdep in self.app.storage.get_job_revdeps(self.job_id):
+            yield JobInfo(self.app, revdep['id'], info=revdep)
+
+    def get_builds(self, *a, **kw):
+        for build in self.get_job_builds(self.job_id, *a, **kw):
+            yield BuildInfo(self.app, build['id'], info=build)
+
+    # def create_build(self):
+    #     # Meant for future usage, when builds will support .run()
+    #     build_id = self.app.storage.create_build(self.job_id)
+    #     return BuildInfo(self.app, build_id)
+
+    def run(self):
+        return self.app.build_job(self.job_id)
+
+    def get_latest_successful_build(self):
+        build = self.app.storage.get_latest_successful_build(self.job_id)
+        return BuildInfo(self.app, build['id'], info=build)
+
+
+class BuildInfo(object):
+    """High-level interface to builds"""
+
+    def __init__(self, app, build_id, info=None):
+        self.app = app
+        self.build_id = build_id
+        if info is not None:
+            self._info = {}
+            self._info.update(info)
+
+    @property
+    def id(self):
+        return self.build_id
+
+    @property
+    def job_id(self):
+        return self.info['job_id']
+
+    @property
+    def info(self):
+        if getattr(self, '_info') is None:
+            self.refresh()
+        return self._info
+
+    def refresh(self):
+        self._info = self.app.storage.get_build(self.build_id)
+
+    def __getitem__(self, name):
+        return self.info[name]
+
+    def delete(self):
+        self.app.storage.delete_build(self.build_id)
+
+    def run(self):
+        raise NotImplementedError("Cannot run a build directly")
+
+    def iter_log_messages(self):
+        return self.app.storage.iter_log_messages(build_id=self.build_id)
+
+
 # We need just *one* handler -> create here
 _log_handler = JobControlLogHandler()
 _log_handler.setLevel(logging.DEBUG)
-# _root_logger = logging.getLogger('')
-# _root_logger.setLevel(logging.DEBUG)
-# _root_logger.addHandler(_log_handler)

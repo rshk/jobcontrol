@@ -54,3 +54,70 @@
     </div>
   </div>
 {% endmacro %}
+
+
+{% macro form_errors(errors) %}
+  {% if errors %}
+    {% for e in errors %}
+      <div class="alert alert-danger">
+	{{ e }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endmacro %}
+
+
+{% macro form_input(label, name, placeholder='', type='text', val='', err=None) -%}
+    <div class="form-group {% if err %}has-error{% endif %}">
+      <label for="input-{{ name }}" class="col-sm-2 control-label">
+	{{ label }}
+      </label>
+      <div class="col-sm-10">
+	<input type="{{ type }}" class="form-control" id="input-{{ name }}" placeholder="{{ placeholder }}" name="{{ name }}" value="{{ val or '' }}">
+	  {{ form_errors(err) }}
+      </div>
+    </div>
+{%- endmacro %}
+
+
+{% macro form_text(label, name, val='', rows=5, err=None) -%}
+    <div class="form-group {% if err %}has-error{% endif %}">
+      <label for="input-{{ name }}" class="col-sm-2 control-label">
+	{{ label }}
+      </label>
+      <div class="col-sm-10">
+	<textarea class="form-control" id="input-{{ name }}" name="{{ name }}" rows="{{ rows }}">
+	  {{- val or '' -}}
+	</textarea>
+	{{ form_errors(err) }}
+      </div>
+    </div>
+{%- endmacro %}
+
+
+{% macro form_button(label='Submit') %}
+  <div class="form-group">
+    <div class="col-sm-offset-2 col-sm-10">
+      <button type="submit" class="btn btn-primary">{{ label }}</button>
+    </div>
+  </div>
+{% endmacro %}
+
+
+{% macro form_aside() %}
+    <div class="form-group"><div class="col-sm-10 col-sm-offset-2">
+	{{ caller() }}
+    </div></div>
+{% endmacro %}
+
+
+{% macro form(action="", method="POST") %}
+<form class="form-horizontal" role="form" action="{{ action }}" method="{{ method }}">
+  {{ caller() }}
+</form>
+{% endmacro %}
+
+
+{% macro form_csrf_token() %}
+  <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+{% endmacro %}

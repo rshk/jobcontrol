@@ -1,0 +1,53 @@
+{% extends 'base.jinja' %}
+
+{% block page_title %}Job {{ job.id }} - Edit{% endblock %}
+
+{% block page_body %}
+<div class="container-fluid">
+
+  <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST">
+    <div class="btn-group pull-right" style="margin-bottom:10px;">
+
+      <a href="{{ url_for('webui.job_edit', job_id=job.id) }}" class="btn btn-default">
+	<span class="fa fa-pencil-square-o"></span> Edit
+      </a>
+
+      <button class="btn btn-default">
+	<span class="fa fa-cog"></span> Run
+      </button>
+
+      <a href="{{ url_for('webui.job_delete', job_id=job.id) }}" class="btn btn-default">
+	<span class="fa fa-trash"></span> Delete
+      </a>
+
+    </div>
+  </form>
+
+  <h1>Edit Job {{ job.id }}{% if job.title %} - {{ job.title }}{% endif %}</h1>
+
+  {% call macros.form(action=url_for('webui.job_edit_submit', job_id=job.id)) %}
+
+    {{ macros.form_csrf_token() }}
+
+    {{ macros.form_input('Title', 'title', val=form_data.title, err=form_errors.title) }}
+    {{ macros.form_input('Function', 'function', val=form_data.function, err=form_errors.function) }}
+
+    {% call macros.form_aside() %}
+	-- function selector placeholder --
+    {% endcall %}
+
+    {{ macros.form_text('Arguments', 'args', val=form_data.args, err=form_errors.args) }}
+    {{ macros.form_text('Keyword arguments', 'kwargs', val=form_data.kwargs, err=form_errors.kwargs) }}
+    {{ macros.form_input('Dependencies', 'dependencies', val=form_data.dependencies, err=form_errors.dependencies) }}
+
+    {% call macros.form_aside() %}
+	-- job selector placeholder --
+    {% endcall %}
+
+    {{ macros.form_button('Save') }}
+
+  {% endcall %}
+
+
+</div>
+{% endblock %}

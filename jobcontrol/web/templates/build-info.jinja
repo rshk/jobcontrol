@@ -115,7 +115,7 @@
 
         <div class="col-xs-3">
           {% if build.finished %}
-	    {{ macros.flag_panel('Success', build.success, fcls='warning', ftxt='No') }}
+	    {{ macros.flag_panel('Success', build.success) }}
           {% else %}
 	    {{ macros.flag_panel('Success', None) }}
           {% endif %}
