@@ -60,7 +60,7 @@
   {% endif %}
 
     <div class="progress progress-striped {% if percent < 100 %}active{% endif %}"
-       style="position:relative;background:#888;min-width:200px;{% if size == 'big' %}line-height:40px;height:40px;font-size:24px;{% endif %}">
+       style="position:relative;background:#888;min-width:200px;{% if size == 'big' %}line-height:40px;height:40px;font-size:24px;{% else %}margin-bottom:0;{% endif %}">
 
     {% if total %}
        <div class="progress-bar"

@@ -52,7 +52,11 @@
 
 	    {% set job_docs = job.get_docs() %}
 	    <div style="font-size: 120%;margin-bottom: 1em;">
-	      {{ job_docs.function_module }}.<strong>{{ job_docs.function_name }}</strong>({{ job_docs.function_argspec_human }})
+
+	      <em>{{ job_docs.function_module -}}</em>{{ '' -}}
+	      .<strong>{{ job_docs.function_name -}}</strong>{{ '' -}}
+	      ({{ job_docs.function_argspec_human }})
+
 	    </div>
 
 	    {# todo: allow toggling this #}

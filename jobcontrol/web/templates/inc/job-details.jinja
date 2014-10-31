@@ -11,7 +11,9 @@
     <th>Function</th>
     <td>
 	<div style="font-size: 120%;margin-bottom: 1em;">
-	  {{ job_docs.function_module }}.<strong>{{ job_docs.function_name }}</strong>({{ job_docs.function_argspec_human }})
+	      <em>{{ job_docs.function_module -}}</em>{{ '' -}}
+	      .<strong>{{ job_docs.function_name -}}</strong>{{ '' -}}
+	      ({{ job_docs.function_argspec_human }})
 	</div>
 
 	{% if job_docs.function_doc %}
@@ -34,11 +36,11 @@
   </tr>
   <tr>
     <th>Created</th>
-    <td>{{ job['ctime'] }}</td>
+    <td>{{ job.ctime|strftime }} ({{ job.ctime|humanize_timestamp }})</td>
   </tr>
   <tr>
     <th>Updated</th>
-    <td>{{ job['mtime'] or 'Never' }}</td>
+    <td>{{ job.mtime|strftime }} ({{ job.mtime|humanize_timestamp }})</td>
   </tr>
 
   <tr>

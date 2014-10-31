@@ -166,7 +166,7 @@
 
 	<div class="message-header">
 	  <span class="levelname">{{ record.levelname }}</span>
-	  <span class="date">{{ record.created }}</span>
+	  <span class="date">{{ record.created|strftime }}</span>
 	  <span class="logger-name">{{ record.name }}</span>
 	  <span class="file">
 	    <span class="filename">
