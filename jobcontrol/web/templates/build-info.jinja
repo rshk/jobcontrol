@@ -52,7 +52,7 @@
 	<h3 class="panel-title">Return value</h3>
       </div>
       <div class="panel-body">
-	<pre>{{ build.retval }}</pre>
+	<pre>{{ build.retval|pprint }}</pre>
       </div>
     </div>
   {% endif %}
@@ -81,18 +81,28 @@
 	<dl class="dl-horizontal">
 
 	<dt>Start time:</dt>
-	{% if build.start_time %}
-	  <dd>{{ build.start_time.strftime('%a, %d %b %Y %H:%M:%S') }}</dd>
-	{% else %}N/A{% endif %}
+
+	<dd>
+	  {% if build.start_time %}
+	    <abbr title="{{ build.start_time|strftime }}">
+	      {{ build.start_time|humanize_timestamp }}
+	    </abbr>
+	  {% else %}N/A{% endif %}
+	</dd>
 
 	<dt>End time:</dt>
-	{% if build.end_time %}
-	  <dd>{{ build.end_time.strftime('%a, %d %b %Y %H:%M:%S') }}</dd>
-	{% else %}N/A{% endif %}
+
+	<dd>
+	  {% if build.end_time %}
+	    <abbr title="{{ build.end_time|strftime }}">
+	      {{ build.end_time|humanize_timestamp }}
+	    </abbr>
+	  {% else %}N/A{% endif %}
+	</dd>
 
 	{% if build.start_time and build.end_time %}
 	  <dt>Duration:</dt>
-	  <dd>{{ build.end_time - build.start_time }}</dd>
+	  <dd>{{ (build.end_time - build.start_time)|humanize_timedelta }}</dd>
 	{% endif %}
 
 	</dl>
