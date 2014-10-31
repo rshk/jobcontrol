@@ -4,6 +4,7 @@ from flask import request, session, abort
 from jobcontrol.web.views_api import api_views
 from jobcontrol.web.views_html import html_views
 from jobcontrol.utils.web import generate_csrf_token
+from jobcontrol.web.template_filters import filters
 
 
 app = flask.Flask('jobcontrol.web')
@@ -24,3 +25,5 @@ def csrf_protect():
 
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
+
+app.jinja_env.filters.update(filters)

@@ -11,7 +11,7 @@
     <th>Function</th>
     <td>
 	<div style="font-size: 120%;margin-bottom: 1em;">
-	  {{ job_docs.function_module }}.<strong>{{ job_docs.function_name }}</strong>( ... )
+	  {{ job_docs.function_module }}.<strong>{{ job_docs.function_name }}</strong>({{ job_docs.function_argspec_human }})
 	</div>
 
 	{% if job_docs.function_doc %}

@@ -25,28 +25,6 @@ def get_jc():
     return current_app.config['JOBCONTROL']
 
 
-# def _get_job_docs(job):
-#     call_code = _get_call_code(job)
-
-#     docs = {
-#         'call_code': call_code,
-#         'call_code_html': _highlight_code_html(call_code),
-#     }
-
-#     try:
-#         func = import_object(job['function'])
-
-#     except Exception as e:
-#         docstring = "Error: {0!r}".format(e)
-
-#     else:
-#         docstring = _format_function_doc(func)
-
-#     docs['function_module'], docs['function_name'] = job['function'].split(':')
-#     docs['function_doc'] = docstring
-#     return docs
-
-
 @html_views.route('/', methods=['GET'])
 def index():
     return redirect(url_for('webui.jobs_list'))
@@ -76,11 +54,28 @@ def job_create():
 
 @html_views.route('/job/create', methods=['POST'])
 def job_create_submit():
-    raise NotImplementedError
-    return render_template(
-        'job-edit.jinja', job=None,
-        form_data={},
-        form_errors={})
+    jc = get_jc()
+
+    read_data = {
+        'title': request.form['title'],
+        'function': request.form['function'],
+        'args': request.form['args'],
+        'kwargs': request.form['kwargs'],
+        'dependencies': request.form['dependencies'],
+    }
+
+    data, errors = _job_edit_form_process(read_data)
+
+    if len(errors):
+        flash("The form contains errors!", 'error')
+        return render_template(
+            'job-edit.jinja', job=None,
+            form_data=read_data,
+            form_errors=errors)
+
+    job = jc.create_job(**data)
+    flash('Job {0} created'.format(job.id), 'success')
+    return redirect(url_for('.job_info', job_id=job.id))
 
 
 @html_views.route('/job/<int:job_id>/edit', methods=['GET'])
@@ -133,15 +128,19 @@ def _job_edit_form_process(form_data):
     data = {}
     errors = defaultdict(list)
 
-    data['title'] = form_data['title']
+    data['title'] = form_data['title'].strip()
 
     # todo: check for function existence? (maybe just warning..)
-    data['function'] = form_data['function']
+    data['function'] = form_data['function'].strip()
 
     # ---------- args
 
+    _args = form_data['args'].strip()
+    if not _args:
+        _args = '()'
+
     try:
-        args = ast.literal_eval(form_data['args'])
+        args = ast.literal_eval(_args)
     except:
         errors['args'].append('Parse failed for arguments (check syntax)')
     else:
@@ -152,8 +151,12 @@ def _job_edit_form_process(form_data):
 
     # ---------- kwargs
 
+    _kwargs = form_data['kwargs'].strip()
+    if not _kwargs:
+        _kwargs = '{}'
+
     try:
-        kwargs = ast.literal_eval(form_data['kwargs'])
+        kwargs = ast.literal_eval(_kwargs)
     except:
         errors['kwargs'].append(
             'Parse failed for Keyword arguments (check syntax)')

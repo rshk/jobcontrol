@@ -11,24 +11,6 @@
 {% block page_body %}
 <div class="container-fluid">
 
-  {# <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST"> #}
-  {#   <div class="btn-group pull-right" style="margin-bottom:10px;"> #}
-
-  {#     <a href="{{ url_for('webui.job_edit', job_id=job.id) }}" class="btn btn-default"> #}
-  {# 	<span class="fa fa-pencil-square-o"></span> Edit #}
-  {#     </a> #}
-
-  {#     <button class="btn btn-default"> #}
-  {# 	<span class="fa fa-cog"></span> Run #}
-  {#     </button> #}
-
-  {#     <a href="{{ url_for('webui.job_delete', job_id=job.id) }}" class="btn btn-default"> #}
-  {# 	<span class="fa fa-trash"></span> Delete #}
-  {#     </a> #}
-
-  {#   </div> #}
-  {# </form> #}
-
   {% if job %}
     <h1>Edit Job {{ job.id }}{% if job.title %} - {{ job.title }}{% endif %}</h1>
   {% else %}

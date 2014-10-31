@@ -4,6 +4,7 @@ Core objects
 
 from datetime import timedelta
 import colorsys
+import inspect
 import logging
 import sys
 import traceback
@@ -346,6 +347,8 @@ class JobInfo(object):
 
     def get_latest_successful_build(self):
         build = self.app.storage.get_latest_successful_build(self.job_id)
+        if build is None:
+            return
         return BuildInfo(self.app, build['id'], info=build)
 
     def get_docs(self):
@@ -363,14 +366,17 @@ class JobInfo(object):
             func = import_object(self['function'])
 
         except Exception as e:
-            docstring = "Error: {0!r}".format(e)
+            docs['function_doc'] = u"Error: {0!r}".format(e)
 
         else:
-            docstring = self._format_function_doc(func)
+            docs['function_doc'] = self._format_function_doc(func)
+            docs['function_argspec'] = self._get_function_argspec(func)
+            docs['function_argspec_human'] = \
+                self._make_human_argspec(docs['function_argspec'])
 
         docs['function_module'], docs['function_name'] = \
             self['function'].split(':')
-        docs['function_doc'] = docstring
+
         return docs
 
     def _get_call_code(self):
@@ -400,6 +406,32 @@ class JobInfo(object):
         if doc is None:
             return 'No docstring available.'
         return docutils.core.publish_parts(doc, writer_name='html')['fragment']
+
+    def _get_function_argspec(self, func):
+        aspec = inspect.getargspec(func)
+        return {
+            'varargs': aspec.varargs,
+            'keywords': aspec.keywords,
+            'reqargs': aspec.args[:-len(aspec.defaults)],
+            'optargs': zip(aspec.args[len(aspec.defaults):], aspec.defaults),
+        }
+
+    def _make_human_argspec(self, argspec):
+        parts = []
+
+        for arg in argspec['reqargs']:
+            parts.append(arg)
+
+        for arg, default in argspec['optargs']:
+            parts.append('{0}={1!r}'.format(arg, default))
+
+        if argspec['varargs']:
+            parts.append('*' + argspec['varargs'])
+
+        if argspec['keywords']:
+            parts.append('**' + argspec['keywords'])
+
+        return ', '.join(parts)
 
 
 class BuildInfo(object):
@@ -457,7 +489,7 @@ class BuildInfo(object):
             progress_info['label'] = '{0}/{1} ({2:.0f}%)'.format(
                 current, total, percent)
 
-            hue = percent * 120  # todo: use logaritmic scale?
+            hue = ratio * 120  # todo: use logaritmic scale?
             color = ''.join([
                 format(int(x * 255), '02X')
                 for x in colorsys.hsv_to_rgb(hue / 360.0, .8, .8)])

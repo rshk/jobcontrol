@@ -7,7 +7,7 @@
   <div class="container-fluid">
 
     <div class="btn-group pull-right">
-      <a href="{{ url_for('webui.job_create') }}" class="btn btn-success">
+      <a href="{{ url_for('webui.job_create') }}" class="btn btn-success btn-lg">
 	<i class="fa fa-plus-square"></i>
 	Create job
       </a>
@@ -43,15 +43,22 @@
 	    <h2 class="media-heading">
 	      {{ job.title or 'Untitled' }}
 	      {% if latest_build %}
-		<small>Latest build: {{ latest_build.end_time }}</small>
+		<small>Latest built <abbr title="{{ latest_build.end_time }}">
+		    {{ latest_build.end_time|humanize_timestamp }}</abbr></small>
 	      {% else %}
 		<small>No successful builds.</small>
 	      {% endif %}
 	    </h2>
 
-	    {{ job.get_docs().call_code_html }}
+	    {% set job_docs = job.get_docs() %}
+	    <div style="font-size: 120%;margin-bottom: 1em;">
+	      {{ job_docs.function_module }}.<strong>{{ job_docs.function_name }}</strong>({{ job_docs.function_argspec_human }})
+	    </div>
 
-	    <div class="row-fluid">
+	    {# todo: allow toggling this #}
+	    {# {{ job_docs.call_code_html }} #}
+
+	    <div class="row row-fluid">
 	      <div class="col-md-6">
 		<strong>Dependencies:</strong>
 		{{ macros.jobs_list(job.get_deps()|list, emptymsg='No dependencies') }}

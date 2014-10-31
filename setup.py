@@ -32,6 +32,7 @@ setup(
         'pygments',
         'celery[redis]',  # For async tasks
         'docutils',
+        'humanize',  # For nicer display of information
     ],
     # tests_require=tests_require,
     # test_suite='tests',

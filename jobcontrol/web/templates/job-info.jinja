@@ -2,32 +2,41 @@
 
 {% block page_title %}Job {{ job.id }}{% endblock %}
 
+{% set latest_build = job.get_latest_successful_build() %}
+
 {% block page_body %}
 <div class="container-fluid">
 
   <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST">
-    <div class="btn-group pull-right" style="margin-bottom:10px;">
-
-      <a href="{{ url_for('webui.job_edit', job_id=job.id) }}" class="btn btn-default">
-	<span class="fa fa-pencil-square-o"></span> Edit
-      </a>
-
-      <button class="btn btn-default">
-	<span class="fa fa-cog"></span> Run
+    {{ macros.form_csrf_token() }}
+      <button class="btn btn-primary btn-lg pull-right">
+	<span class="fa fa-cog"></span> Run build
       </button>
-
-      <a href="{{ url_for('webui.job_delete', job_id=job.id) }}" class="btn btn-default">
-	<span class="fa fa-trash"></span> Delete
-      </a>
-
-    </div>
   </form>
 
   <h1>
     <span class="label label-round-huge label-primary">{{job.id}}</span>
     {# Job {{ job.id }}{% if job.title %} - {{ job.title }}{% endif %} #}
     {{ job.title or 'Untitled' }}
+    {% if latest_build %}
+      <small>Latest built <abbr title="{{ latest_build.end_time }}">
+	  {{ latest_build.end_time|humanize_timestamp }}</abbr></small>
+    {% else %}
+      <small>No successful builds.</small>
+    {% endif %}
   </h1>
+
+  <ul class="nav nav-tabs" role="tablist">
+    <li role="presentation" class="active">
+      <a href="{{ url_for('webui.job_info', job_id=job.id) }}">Info</a></li>
+    <li role="presentation">
+      <a href="{{ url_for('webui.job_edit', job_id=job.id) }}">Edit</a></li>
+    <li role="presentation">
+      <a href="{{ url_for('webui.job_delete', job_id=job.id) }}">Delete</a></li>
+  </ul>
+
+  <br>
+
 
   {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
 
@@ -96,13 +105,13 @@
         <th>Build id</th>
         <th>Start time</th>
         <th>End time</th>
+        <th>Duration</th>
         <th>Started</th>
         <th>Finished</th>
         <th>Success</th>
         <th>Skipped</th>
         <th>Progress</th>
-        <th>Return value</th>
-        <th>Exception</th>
+        <th>Return value / exception</th>
       </tr>
     </thead>
     <tbody>
@@ -137,23 +146,37 @@
 	    </a>
 	  </td>
 
-	  <td class="align-lm">{{ build['start_time'] }}</td>
-	  <td class="align-lm">{{ build['end_time'] }}</td>
+	  <td class="align-lm">
+	    <abbr title="{{ build.start_time }}">
+	      {{ build.start_time|humanize_timestamp }}
+	    </abbr>
+	  </td>
+	  <td class="align-lm">
+	    <abbr title="{{ build.end_time }}">
+	      {{ build.end_time|humanize_timestamp }}
+	    </abbr>
+	  </td>
+
+	  <td class="align-lm">
+	    {% if build.end_time and build.start_time %}
+	      {{ (build.end_time - build.start_time)|humanize_timedelta }}
+	    {% endif %}
+	  </td>
 
 	  <td class="align-cm {% if build.started %}success{% else %}warning{% endif %}">
-	    {{ build['started'] }}
+	    {{ build.started|yesno }}
 	  </td>
 
 	  <td class="align-cm {% if build.finished %}success{% else %}warning{% endif %}">
-	    {{ build.finished }}
+	    {{ build.finished|yesno }}
 	  </td>
 
           {% if build.finished %}
             <td class="align-cm {% if build.success %}success{% else %}danger{% endif %}">
-              {{ build['success'] }}
+              {{ build.success|yesno }}
             </td>
             <td class="align-cm {% if build.skipped %}warning{% else %}success{% endif %}">
-              {{ build['skipped'] }}
+              {{ build.skipped|yesno }}
             </td>
           {% else %}
             <td></td>
@@ -181,10 +204,14 @@
 	  </td>
 	  <td class="align-lm">
 	    {% if build.retval %}
-	      <code>{{ build.retval }}</code>
+	      <code>{{ build.retval|pprint }}</code>
+	    {% endif %}
+
+	    {% if build.exception %}
+	      <strong>Exception:</strong>
+	      {{ build.exception|pprint }}
 	    {% endif %}
 	  </td>
-	  <td class="align-lm">{{ build.exception or '' }}</td>
 	</tr>
       {% endfor %}
     </tbody>
