@@ -1,3 +1,48 @@
+{# ------------------------------------------------------------
+    Misc shortcuts
+------------------------------------------------------------ #}
+
+{% macro css(href) %}
+  <link rel="stylesheet" type="text/css" href="{{ href }}">
+{% endmacro %}
+
+{% macro google_fonts(fonts) %}
+  {% set href = "http://fonts.googleapis.com/css?family=" + fonts|join("|") %}
+  {{ css(href) }}
+{% endmacro %}
+
+{% macro js(src) %}
+  <script src="{{ src }}" type="text/javascript"></script>
+{% endmacro %}
+
+
+{# ------------------------------------------------------------
+    Bootstrap widgets
+------------------------------------------------------------ #}
+
+{% macro navbar(inverse=False, static=None, brand=None) %}
+  <nav class="navbar {% if inverse %}navbar-inverse{% endif %} {% if static %}navbar-static-{{ static }}{% endif %}" role="navigation">
+    <div class="container-fluid">
+
+      {% if brand %}
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="/">{{ brand }}</a>
+        </div>
+      {% endif %}
+
+      {{ caller() }}
+
+    </div>
+  </nav>
+{% endmacro %}
+
+
 {% macro status_badge(top='', middle='', bottom='', class='') -%}
     <div class="status-badge {{ class }}">
       <div class="line-top">{{ top }}</div>
@@ -7,7 +52,7 @@
 {%- endmacro %}
 
 
-{% macro progress_bar(cur, total, color) -%}
+{% macro progress_bar(cur, total, color, size='big') -%}
   {% if total %}
     {% set percent = cur * 100 / total %}
   {% else %}
@@ -15,24 +60,24 @@
   {% endif %}
 
     <div class="progress progress-striped {% if percent < 100 %}active{% endif %}"
-       style="min-width:200px;position:relative;line-height:40px;height:40px;background:#888;font-size:24px;">
+       style="position:relative;background:#888;min-width:200px;{% if size == 'big' %}line-height:40px;height:40px;font-size:24px;{% endif %}">
 
     {% if total %}
        <div class="progress-bar"
-	    role="progressbar"
-	    aria-valuenow="{{ cur }}" aria-valuemin="0" aria-valuemax="{{ total }}"
-	    style="width: {{ percent }}%; background-color: {{ color }};">
+            role="progressbar"
+            aria-valuenow="{{ cur }}" aria-valuemin="0" aria-valuemax="{{ total }}"
+            style="width: {{ percent }}%; background-color: {{ color }};">
        </div>
      {% endif %}
 
        <div style="position:absolute;top:0;left:0;right:0;
-		   bottom:0;text-align:center;color:#fff;
-		   text-shadow: 1px 1px 1px #000;">
+                   bottom:0;text-align:center;color:#fff;
+                   text-shadow: 1px 1px 1px #000;">
         {% if total %}
-	  {{ cur }}/{{ total }} ({{ percent|round|int }}%)
-	{% else %}
-	  N/A
-	{% endif %}
+          {{ cur }}/{{ total }} ({{ percent|round|int }}%)
+        {% else %}
+          N/A
+        {% endif %}
        </div>
     </div>
 {%- endmacro %}
@@ -45,22 +90,27 @@
     </div>
     <div class="panel-body" style="text-align: center;">
       {% if flag is none %}
-	<span class="label label-round-huge label-{{ ncls }}">{{ ntxt }}</span>
+        <span class="label label-round-huge label-{{ ncls }}">{{ ntxt }}</span>
       {% elif flag %}
-	<span class="label label-round-huge label-{{ tcls }}">{{ ttxt }}</span>
+        <span class="label label-round-huge label-{{ tcls }}">{{ ttxt }}</span>
       {% else %}
-	<span class="label label-round-huge label-{{ fcls }}">{{ ftxt }}</span>
+        <span class="label label-round-huge label-{{ fcls }}">{{ ftxt }}</span>
       {% endif %}
     </div>
   </div>
 {% endmacro %}
 
 
+{# ------------------------------------------------------------
+    Forms
+------------------------------------------------------------ #}
+
+
 {% macro form_errors(errors) %}
   {% if errors %}
     {% for e in errors %}
       <div class="alert alert-danger">
-	{{ e }}
+        {{ e }}
       </div>
     {% endfor %}
   {% endif %}
@@ -70,11 +120,11 @@
 {% macro form_input(label, name, placeholder='', type='text', val='', err=None) -%}
     <div class="form-group {% if err %}has-error{% endif %}">
       <label for="input-{{ name }}" class="col-sm-2 control-label">
-	{{ label }}
+        {{ label }}
       </label>
       <div class="col-sm-10">
-	<input type="{{ type }}" class="form-control" id="input-{{ name }}" placeholder="{{ placeholder }}" name="{{ name }}" value="{{ val or '' }}">
-	  {{ form_errors(err) }}
+        <input type="{{ type }}" class="form-control" id="input-{{ name }}" placeholder="{{ placeholder }}" name="{{ name }}" value="{{ val or '' }}">
+          {{ form_errors(err) }}
       </div>
     </div>
 {%- endmacro %}
@@ -83,13 +133,13 @@
 {% macro form_text(label, name, val='', rows=5, err=None) -%}
     <div class="form-group {% if err %}has-error{% endif %}">
       <label for="input-{{ name }}" class="col-sm-2 control-label">
-	{{ label }}
+        {{ label }}
       </label>
       <div class="col-sm-10">
-	<textarea class="form-control" id="input-{{ name }}" name="{{ name }}" rows="{{ rows }}">
-	  {{- val or '' -}}
-	</textarea>
-	{{ form_errors(err) }}
+        <textarea class="form-control" id="input-{{ name }}" name="{{ name }}" rows="{{ rows }}">
+          {{- val or '' -}}
+        </textarea>
+        {{ form_errors(err) }}
       </div>
     </div>
 {%- endmacro %}
@@ -106,7 +156,7 @@
 
 {% macro form_aside() %}
     <div class="form-group"><div class="col-sm-10 col-sm-offset-2">
-	{{ caller() }}
+        {{ caller() }}
     </div></div>
 {% endmacro %}
 
@@ -120,4 +170,24 @@
 
 {% macro form_csrf_token() %}
   <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+{% endmacro %}
+
+
+{# ------------------------------------------------------------
+    Application-specific
+------------------------------------------------------------ #}
+
+{% macro jobs_list(jobs, emptymsg='No jobs') %}
+  {% if jobs %}
+    <ul>
+      {% for job in jobs %}
+        <li><a href="{{ url_for('webui.job_info', job_id=job.id) }}">
+            <strong>Job #{{ job.id }} - {{ job.title or 'untitled' }}</strong>
+            <code>{{ job.function }}</code>
+        </a></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>{{ emptymsg }}</p>
+  {% endif %}
 {% endmacro %}

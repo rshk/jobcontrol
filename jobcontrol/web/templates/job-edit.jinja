@@ -1,31 +1,48 @@
 {% extends 'base.jinja' %}
 
-{% block page_title %}Job {{ job.id }} - Edit{% endblock %}
+{% block page_title %}
+  {% if job %}
+    Edit Job #{{ job.id }}
+  {% else %}
+    Create Job
+  {% endif %}
+{% endblock %}
 
 {% block page_body %}
 <div class="container-fluid">
 
-  <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST">
-    <div class="btn-group pull-right" style="margin-bottom:10px;">
+  {# <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST"> #}
+  {#   <div class="btn-group pull-right" style="margin-bottom:10px;"> #}
 
-      <a href="{{ url_for('webui.job_edit', job_id=job.id) }}" class="btn btn-default">
-	<span class="fa fa-pencil-square-o"></span> Edit
-      </a>
+  {#     <a href="{{ url_for('webui.job_edit', job_id=job.id) }}" class="btn btn-default"> #}
+  {# 	<span class="fa fa-pencil-square-o"></span> Edit #}
+  {#     </a> #}
 
-      <button class="btn btn-default">
-	<span class="fa fa-cog"></span> Run
-      </button>
+  {#     <button class="btn btn-default"> #}
+  {# 	<span class="fa fa-cog"></span> Run #}
+  {#     </button> #}
 
-      <a href="{{ url_for('webui.job_delete', job_id=job.id) }}" class="btn btn-default">
-	<span class="fa fa-trash"></span> Delete
-      </a>
+  {#     <a href="{{ url_for('webui.job_delete', job_id=job.id) }}" class="btn btn-default"> #}
+  {# 	<span class="fa fa-trash"></span> Delete #}
+  {#     </a> #}
 
-    </div>
-  </form>
+  {#   </div> #}
+  {# </form> #}
 
-  <h1>Edit Job {{ job.id }}{% if job.title %} - {{ job.title }}{% endif %}</h1>
+  {% if job %}
+    <h1>Edit Job {{ job.id }}{% if job.title %} - {{ job.title }}{% endif %}</h1>
+  {% else %}
+    <h1>Create Job</h1>
+  {% endif %}
 
-  {% call macros.form(action=url_for('webui.job_edit_submit', job_id=job.id)) %}
+  {% if job %}
+    {% set form_action = url_for('webui.job_edit_submit', job_id=job.id) %}
+  {% else %}
+    {% set form_action = url_for('webui.job_create_submit') %}
+  {% endif %}
+
+
+  {% call macros.form(action=form_action) %}
 
     {{ macros.form_csrf_token() }}
 

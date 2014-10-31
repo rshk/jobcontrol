@@ -3,9 +3,10 @@ Core objects
 """
 
 from datetime import timedelta
+import colorsys
 import logging
-import traceback
 import sys
+import traceback
 
 from jobcontrol.globals import _execution_ctx_stack
 from jobcontrol.exceptions import MissingDependencies, SkipBuild
@@ -46,7 +47,12 @@ class JobControl(object):
 
     def iter_jobs(self):
         for job in self.storage.iter_jobs():
-            yield JobInfo(self.app, job['id'], info=job)
+            yield JobInfo(self, job['id'], info=job)
+
+    def get_build(self, build_id):
+        build = BuildInfo(self, build_id)
+        build.refresh()  # To get 404 early..
+        return build
 
     def build_job(self, job_id, build_deps=False, build_depending=False,
                   _depth=0):
@@ -327,7 +333,7 @@ class JobInfo(object):
             yield JobInfo(self.app, revdep['id'], info=revdep)
 
     def get_builds(self, *a, **kw):
-        for build in self.get_job_builds(self.job_id, *a, **kw):
+        for build in self.app.storage.get_job_builds(self.job_id, *a, **kw):
             yield BuildInfo(self.app, build['id'], info=build)
 
     # def create_build(self):
@@ -341,6 +347,59 @@ class JobInfo(object):
     def get_latest_successful_build(self):
         build = self.app.storage.get_latest_successful_build(self.job_id)
         return BuildInfo(self.app, build['id'], info=build)
+
+    def get_docs(self):
+        return self._get_job_docs()
+
+    def _get_job_docs(self):
+        call_code = self._get_call_code()
+
+        docs = {
+            'call_code': call_code,
+            'call_code_html': self._highlight_code_html(call_code),
+        }
+
+        try:
+            func = import_object(self['function'])
+
+        except Exception as e:
+            docstring = "Error: {0!r}".format(e)
+
+        else:
+            docstring = self._format_function_doc(func)
+
+        docs['function_module'], docs['function_name'] = \
+            self['function'].split(':')
+        docs['function_doc'] = docstring
+        return docs
+
+    def _get_call_code(self):
+        module, func = self['function'].split(':')
+
+        call_args = []
+        for arg in self['args']:
+            call_args.append(repr(arg))
+        for key, val in sorted(self['kwargs'].iteritems()):
+            call_args.append("{0}={1!r}".format(key, val))
+
+        return "\n".join((
+            "from {0} import {1}".format(module, func),
+            "{0}(\n    {1})".format(func, ",\n    ".join(call_args))))
+
+    def _highlight_code_html(self, code):
+        from pygments import highlight
+        from pygments.lexers import PythonLexer
+        from pygments.formatters import HtmlFormatter
+        return highlight(code, PythonLexer(), HtmlFormatter())
+
+    def _format_function_doc(self, func):
+        import inspect
+        import docutils.core
+
+        doc = inspect.getdoc(func)
+        if doc is None:
+            return 'No docstring available.'
+        return docutils.core.publish_parts(doc, writer_name='html')['fragment']
 
 
 class BuildInfo(object):
@@ -371,7 +430,43 @@ class BuildInfo(object):
         self._info = self.app.storage.get_build(self.build_id)
 
     def __getitem__(self, name):
+        if name not in self.info:
+            if name == 'progress_info':
+                self._info['progress_info'] = self.get_progress_info()
+                return self._info['progress_info']
+
         return self.info[name]
+
+    def get_progress_info(self):
+        current = self.info['progress_current']
+        total = self.info['progress_total']
+
+        progress_info = {
+            'current': current,
+            'total': total,
+            'percent': 0,
+            'percent_human': 'N/A',
+            'label': 'N/A',
+        }
+
+        if total != 0:
+            ratio = current * 1.0 / total
+            percent = ratio * 100
+            progress_info['percent'] = percent
+            progress_info['percent_human'] = format(percent, '.0f')
+            progress_info['label'] = '{0}/{1} ({2:.0f}%)'.format(
+                current, total, percent)
+
+            hue = percent * 120  # todo: use logaritmic scale?
+            color = ''.join([
+                format(int(x * 255), '02X')
+                for x in colorsys.hsv_to_rgb(hue / 360.0, .8, .8)])
+            progress_info['color'] = '#' + color
+
+        return progress_info
+
+    def get_job(self):
+        return JobInfo(self.app, self.job_id)
 
     def delete(self):
         self.app.storage.delete_build(self.build_id)

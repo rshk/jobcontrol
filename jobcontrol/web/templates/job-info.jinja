@@ -23,7 +23,11 @@
     </div>
   </form>
 
-  <h1>Job {{ job.id }}{% if job.title %} - {{ job.title }}{% endif %}</h1>
+  <h1>
+    <span class="label label-round-huge label-primary">{{job.id}}</span>
+    {# Job {{ job.id }}{% if job.title %} - {{ job.title }}{% endif %} #}
+    {{ job.title or 'Untitled' }}
+  </h1>
 
   {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
 
@@ -157,21 +161,23 @@
           {% endif %}
 
 	  <td class="align-cm">
-	    <div class="progress progress-striped {% if build.progress_pc_n < 100 %}active{% endif %}"
-		 style="min-width: 200px;position:relative;height:24px;background:#888;">
+	    {{ macros.progress_bar(cur=build.progress_current, total=build.progress_total, color=build.get_progress_info().color, size='small') }}
 
-	      <div class="progress-bar"
-		   role="progressbar"
-		   aria-valuenow="60" aria-valuemin="0" aria-valuemax="100"
-		   style="width: {{ build.progress_pc }}%; background-color: {{ build.progress_color }};">
-	      </div>
+	    {# <div class="progress progress-striped {% if build.progress_info.percent < 100 %}active{% endif %}" #}
+	    {# 	 style="min-width: 200px;position:relative;height:24px;background:#888;"> #}
 
-	      <div style="position:absolute;top:0;left:0;right:0;
-			  bottom:0;text-align:center;color:#fff;
-			  text-shadow: 1px 1px 1px #000;">
-		{{ build['progress'] }}</div>
+	    {#   <div class="progress-bar" #}
+	    {# 	   role="progressbar" #}
+	    {# 	   aria-valuenow="60" aria-valuemin="0" aria-valuemax="100" #}
+	    {# 	   style="width: {{ build.progress_pc }}%; background-color: {{ build.progress_color }};"> #}
+	    {#   </div> #}
 
-	    </div>
+	    {#   <div style="position:absolute;top:0;left:0;right:0; #}
+	    {# 		  bottom:0;text-align:center;color:#fff; #}
+	    {# 		  text-shadow: 1px 1px 1px #000;"> #}
+	    {# 	{{ build['progress'] }}</div> #}
+
+	    {# </div> #}
 	  </td>
 	  <td class="align-lm">
 	    {% if build.retval %}

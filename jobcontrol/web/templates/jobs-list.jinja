@@ -3,76 +3,70 @@
 {% block page_title %}Jobs{% endblock %}
 
 {% block page_body %}
-<div class="container-fluid">
 
-  <div class="btn-group pull-right">
-    <a href="javascript:void(0)" class="btn btn-default">
-      <i class="fa fa-plus-square"></i>
-      Create job
-    </a>
-  </div>
+  <div class="container-fluid">
 
-  <h1>Jobs List</h1>
+    <div class="btn-group pull-right">
+      <a href="{{ url_for('webui.job_create') }}" class="btn btn-success">
+	<i class="fa fa-plus-square"></i>
+	Create job
+      </a>
+    </div>
 
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th>Id</th>
-      <th>Created</th>
-      <th>Function</th>
-      <th>Dependencies</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for job in jobs %}
-      <tr>
-	<td style="width: 60px;">
-	  {# <a href="{{ url_for('webui.job_info', job_id=job.id) }}" class="btn btn-primary"> #}
-	  {#   {{- job.id -}} #}
-	  {# </a> #}
+    <h1>All Jobs</h1>
 
+    <div class="media-list">
+      {% for job in jobs %}
+	<div class="media">
+	  {% set latest_build = job.get_latest_successful_build() %}
+
+	  <div class="media-left">
 	    <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
-	      <div class="label label-primary label-round">
-		{{ job.id }}
-	      </div>
+	      <div class="label label-{% if latest_build %}success{% else %}danger{% endif %} label-round-huge">
+		{{ job.id }}</div>
 	    </a>
-
-	</td>
-	<td>{{ job['ctime'] }}</td>
-	<td>
-	  <code>{{ job['function'] }}</code><br>
-	  <strong>Arguments:</strong>
-	  <code>{{ job['args'] }}</code><br>
-	  <strong>Keywords:</strong>
-	  <code>{{ job['kwargs'] }}</code><br>
-	</td>
-	<td>
-	  {% for dep in job['dependencies'] %}
-	    <a href="{{ url_for('webui.job_info', job_id=dep) }}">
-	      <div class="label label-primary label-round">
-		{{ dep }}
-	      </div>
-	    </a>
-	  {% endfor %}
-	</td>
-	<td>
-	  <div class="btn-group">
-	    <a href="{{ url_for('webui.job_info', job_id=job.id) }}" class="btn btn-default">
-	      <span class="fa fa-info-circle"></span>
-	      Info</a>
-	    <a href="{{ url_for('webui.job_edit', job_id=job.id) }}" class="btn btn-default">
-	      <span class="fa fa-pencil-square-o"></span>
-	      Edit</a>
-	    <a href="{{ url_for('webui.job_delete', job_id=job.id) }}" class="btn btn-default">
-	      <span class="fa fa-trash"></span>
-	      Delete</a>
 	  </div>
-	</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
 
-</div>
+	  <div class="media-body" style="width: 100%">
+	    <div class="btn-group pull-right">
+	      <a href="{{ url_for('webui.job_info', job_id=job.id) }}" class="btn btn-default">
+		<span class="fa fa-info-circle"></span>
+		Info</a>
+		<a href="{{ url_for('webui.job_edit', job_id=job.id) }}" class="btn btn-default">
+		  <span class="fa fa-pencil-square-o"></span>
+		  Edit</a>
+		  <a href="{{ url_for('webui.job_delete', job_id=job.id) }}" class="btn btn-default">
+		    <span class="fa fa-trash"></span>
+		    Delete</a>
+	    </div>
+
+	    <h2 class="media-heading">
+	      {{ job.title or 'Untitled' }}
+	      {% if latest_build %}
+		<small>Latest build: {{ latest_build.end_time }}</small>
+	      {% else %}
+		<small>No successful builds.</small>
+	      {% endif %}
+	    </h2>
+
+	    {{ job.get_docs().call_code_html }}
+
+	    <div class="row-fluid">
+	      <div class="col-md-6">
+		<strong>Dependencies:</strong>
+		{{ macros.jobs_list(job.get_deps()|list, emptymsg='No dependencies') }}
+	      </div>
+	      <div class="col-md-6">
+		<strong>Reverse dependencies:</strong>
+		{{ macros.jobs_list(job.get_revdeps()|list, emptymsg='No reverse dependencies') }}
+	      </div>
+	    </div>
+
+
+	  </div>
+	</div>
+      {% endfor %}
+    </div>
+
+  </div>
 {% endblock %}
