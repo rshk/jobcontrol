@@ -32,7 +32,9 @@
     {{ macros.form_input('Function', 'function', val=form_data.function, err=form_errors.function) }}
 
     {% call macros.form_aside() %}
-	-- function selector placeholder --
+      <div id="input-function-autocomplete">
+	Autocomplete requires JavaScript.
+      </div>
     {% endcall %}
 
     {{ macros.form_text('Arguments', 'args', val=form_data.args, err=form_errors.args) }}
@@ -49,4 +51,15 @@
 
 
 </div>
+{% endblock %}
+
+
+{% block scripts %}
+  {{ super() }}
+  <script type="text/javascript">
+    $(function() {
+        JobControl.FunctionAutocomplete(
+            $('#input-function'), $('#input-function-autocomplete'));
+    });
+  </script>
 {% endblock %}

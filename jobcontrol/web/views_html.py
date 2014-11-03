@@ -2,12 +2,12 @@ from __future__ import division
 
 from collections import defaultdict
 import ast
-import colorsys
+# import colorsys
 
 from flask import (Blueprint, render_template, redirect, url_for,
-                   flash, request, abort)
+                   flash, request)
 
-from jobcontrol.utils import import_object
+# from jobcontrol.utils import import_object
 
 
 class FormError(Exception):
@@ -222,32 +222,13 @@ def build_info(build_id):
         job=job, build=build, messages=messages)
 
 
-def _get_call_code(job):
-    module, func = job['function'].split(':')
+@html_views.route('/autocomplete/function/<path:function_name>',
+                  methods=['GET'])
+def autocomplete_function_name(function_name):
+    """
+    Autocomplete the function name, returning a json object containing:
 
-    call_args = []
-    for arg in job['args']:
-        call_args.append(repr(arg))
-    for key, val in sorted(job['kwargs'].iteritems()):
-        call_args.append("{0}={1!r}".format(key, val))
-
-    return "\n".join((
-        "from {0} import {1}".format(module, func),
-        "{0}(\n    {1})".format(func, ",\n    ".join(call_args))))
-
-
-def _highlight_code_html(code):
-    from pygments import highlight
-    from pygments.lexers import PythonLexer
-    from pygments.formatters import HtmlFormatter
-    return highlight(code, PythonLexer(), HtmlFormatter())
-
-
-def _format_function_doc(func):
-    import inspect
-    import docutils.core
-
-    doc = inspect.getdoc(func)
-    if doc is None:
-        return 'No docstring available.'
-    return docutils.core.publish_parts(doc, writer_name='html')['fragment']
+    - candidate completions (for module/function)
+    - documentation for the function, if it is valid
+    """
+    pass

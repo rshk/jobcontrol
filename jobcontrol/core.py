@@ -6,6 +6,7 @@ from datetime import timedelta
 import colorsys
 import inspect
 import logging
+# import pkgutil
 import sys
 import traceback
 
@@ -224,6 +225,20 @@ class JobControl(object):
         _root_logger.setLevel(logging.DEBUG)
         if _log_handler not in _root_logger.handlers:
             _root_logger.addHandler(_log_handler)
+
+    # ------------------------------------------------------------
+    # Job function selection / sandboxing / ... functions
+    # ------------------------------------------------------------
+
+    def is_function_allowed(self, name):
+        return True  # Allow everything in default implementation
+
+    def get_function(self, name):
+        pass
+
+    def autocomplete_function(self, name_prefix):
+        # Autocomplete function name
+        pass
 
 
 class JobExecutionContext(object):
