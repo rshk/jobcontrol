@@ -226,3 +226,11 @@ body {
     background: #333;
     background: #002b36;
 }
+
+.site-footer {
+    text-align: center;
+    border-top: solid 1px #ddd;
+    margin-top: 10px;
+    padding-top: 10px;
+    font-size: 90%;
+}
