@@ -17,14 +17,15 @@ The tracking include storing:
 - log messages produced during task execution
 - optionally a "progress", if the task supports it
 
-The library is not tied to any particular storage; the core includes
-two implementations:
+The status storage is completely decoupled from the main application.
 
-- ``MemoryJobControl`` -- keeps all the data in memory; especially
-  useful for testing purposes.
+The project "core" currently includes two storage implementations:
 
-- ``PostgreSQLJobControl`` -- PostgreSQL-backed job control, meant for
-  production use.
+- ``MemoryStorage`` -- keeps all data in memory, useful for
+  development / testing.
+
+- ``PostgreSQLStorage`` -- keeps all data in a PostgreSQL database,
+  meant for production use.
 
 
 Project status
