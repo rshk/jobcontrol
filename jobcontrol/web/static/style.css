@@ -234,3 +234,18 @@ body {
     padding-top: 10px;
     font-size: 90%;
 }
+
+.media-list-striped .media {
+    padding: 10px;
+    margin: 0;
+    border-bottom: solid 1px #ddd;
+}
+.media-list-striped .media:first-child {
+    border-top: solid 1px #ddd;
+}
+.media-list-striped .media:nth-child(even) {
+    background: #f8f8f8;
+}
+.media-list-striped .media:nth-child(odd) {
+    background: #f0f0f0;
+}

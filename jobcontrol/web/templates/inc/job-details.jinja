@@ -25,13 +25,13 @@
   <tr>
     <th>Arguments</th>
     <td>
-	<pre>{{ job.args|pprint }}</pre>
+	{{ job.args|pprint|highlight(lexer='python') }}
     </td>
   </tr>
   <tr>
     <th>Keyword arguments</th>
     <td>
-	<pre>{{ job.kwargs|pprint }}</pre>
+	{{ job.kwargs|pprint|highlight(lexer='python') }}
     </td>
   </tr>
   <tr>

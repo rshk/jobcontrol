@@ -312,6 +312,9 @@ class JobInfo(object):
             self._info = {}
             self._info.update(info)
 
+    def __repr__(self):
+        return '<Job {0}>'.format(self.job_id)
+
     @classmethod
     def new(cls, app, *w, **kw):
         job_id = app.storage.create_job(*w, **kw)
@@ -459,6 +462,10 @@ class BuildInfo(object):
             self._info = {}
             self._info.update(info)
 
+    def __repr__(self):
+        return '<Build {0} (job={1}, status={2})>'.format(
+            self.build_id, self.job_id, self.descriptive_status)
+
     @property
     def id(self):
         return self.build_id
@@ -472,6 +479,18 @@ class BuildInfo(object):
         if getattr(self, '_info') is None:
             self.refresh()
         return self._info
+
+    @property
+    def descriptive_status(self):
+        if not self['started']:
+            return 'CREATED'
+        if not self['finished']:
+            return 'RUNNING'
+        if self['success']:
+            if self['skipped']:
+                return 'SKIPPED'
+            return 'SUCCESSFUL'
+        return 'FAILED'
 
     def refresh(self):
         self._info = self.app.storage.get_build(self.build_id)

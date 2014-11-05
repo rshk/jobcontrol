@@ -15,7 +15,7 @@
 
     <h1>All Jobs</h1>
 
-    <div class="media-list">
+    <div class="media-list media-list-striped">
       {% for job in jobs %}
 	<div class="media">
 	  {% set latest_build = job.get_latest_successful_build() %}

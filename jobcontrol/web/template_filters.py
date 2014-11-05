@@ -1,6 +1,8 @@
 import datetime
-import humanize
 import time
+
+import humanize
+from flask import escape
 
 
 filters = {}
@@ -55,7 +57,22 @@ def strftime(value, fmt=DEFAULT_DATE_FORMAT):
     raise TypeError("Unsupported date object: {0!r}".format(value))
 
 
+def highlight(value, lexer='python'):
+    from pygments import highlight
+    from pygments.lexers import get_lexer_by_name
+    from pygments.formatters import HtmlFormatter
+
+    try:
+        lexer = get_lexer_by_name(lexer)
+        return highlight(value, lexer, HtmlFormatter())
+
+    except:
+        lexer = get_lexer_by_name('text')
+        return highlight(value, lexer, HtmlFormatter())
+
+
 filters['humanize_timestamp'] = humanize_timestamp
 filters['humanize_timedelta'] = humanize_timedelta
 filters['yesno'] = yesno
 filters['strftime'] = strftime
+filters['highlight'] = highlight

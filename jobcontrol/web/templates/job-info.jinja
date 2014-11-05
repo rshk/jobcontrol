@@ -18,6 +18,7 @@
     <span class="label label-round-huge label-primary">{{job.id}}</span>
     {# Job {{ job.id }}{% if job.title %} - {{ job.title }}{% endif %} #}
     {{ job.title or 'Untitled' }}
+
     {% if latest_build %}
       <small>Latest built <abbr title="{{ latest_build.end_time }}">
 	  {{ latest_build.end_time|humanize_timestamp }}</abbr></small>
@@ -36,7 +37,6 @@
   </ul>
 
   <br>
-
 
   {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
 
@@ -204,12 +204,12 @@
 	  </td>
 	  <td class="align-lm">
 	    {% if build.retval %}
-	      <code>{{ build.retval|pprint }}</code>
+	      <code>{{ build.retval|pprint|escape }}</code>
 	    {% endif %}
 
 	    {% if build.exception %}
 	      <strong>Exception:</strong>
-	      {{ build.exception|pprint }}
+	      {{ build.exception|pprint|escape }}
 	    {% endif %}
 	  </td>
 	</tr>
