@@ -44,6 +44,44 @@ def job_info(job_id):
     return render_template('job-info.jinja', job=job, builds=builds)
 
 
+@html_views.route('/job/<int:job_id>/depgraph.<string:fmt>', methods=['GET'])
+def job_depgraph(job_id, fmt):
+    # todo: add reverse dependencies
+    # todo: add colors to indicate job status (has builds, outdated, ..)
+    # todo: figure out a way to add image map, for links
+
+    jc = get_jc()
+
+    try:
+        import pygraphviz
+    except:
+        return 'PyGraphviz is not installed', 500
+
+    depgraph = jc._create_job_depgraph(job_id, complete=True)
+    graph = pygraphviz.AGraph(depgraph, directed=True, name="Depgraph")
+
+    graph.node_attr['fontsize'] = '14'
+    graph.node_attr['fontname'] = 'monospace'
+
+    node = graph.get_node(job_id)
+    # node.attr['fontcolor'] = '#000088'
+    # node.attr['color'] = '#000088'
+    # node.attr['fillcolor'] = '#eeeeff'
+    # node.attr['style'] = 'filled'
+    node.attr['fontsize'] = '20'
+    node.attr['penwidth'] = '3'
+
+    graph.layout()
+
+    if fmt == 'png':
+        return graph.draw(format='png'), 200, {'content-type': 'image/png'}
+
+    elif fmt == 'svg':
+        return graph.draw(format='svg'), 200, {'content-type': 'image/svg+xml'}
+
+    return 'Unsupported format', 404
+
+
 @html_views.route('/job/create', methods=['GET'])
 def job_create():
     return render_template(
@@ -80,7 +118,7 @@ def job_create_submit():
 
 @html_views.route('/job/<int:job_id>/edit', methods=['GET'])
 def job_edit(job_id):
-    job = get_jc().storage.get_job(job_id)
+    job = get_jc().get_job(job_id)
     return render_template(
         'job-edit.jinja', job=job,
         form_data=_job_edit_form_prepare_values(job),
@@ -181,7 +219,9 @@ def _job_edit_form_process(form_data):
 @html_views.route('/job/<int:job_id>/run', methods=['GET'])
 def job_run(job_id):
     # Todo: return confirmation form
-    pass
+    jc = get_jc()
+    job = jc.get_job(job_id)
+    return render_template('job-run-form.jinja', job=job)
 
 
 @html_views.route('/job/<int:job_id>/run/submit', methods=['POST'])
@@ -203,7 +243,8 @@ def job_run_submit(job_id):
 
 @html_views.route('/job/<int:job_id>/delete', methods=['GET'])
 def job_delete(job_id):
-    pass
+    job = get_jc().get_job(job_id)
+    return render_template('job-delete.jinja', job=job)
 
 
 @html_views.route('/build/<int:build_id>', methods=['GET'])
@@ -252,6 +293,8 @@ def job_action(job_id):
     elif action == 'delete':
         job = jc.get_job(job_id)
         job.delete()
+        flash('Job {0} deleted'.format(job_id), 'success')
+        return redirect(url_for('.jobs_list'))
 
     else:
         flash('Unsupported action: {0}'.format(action))

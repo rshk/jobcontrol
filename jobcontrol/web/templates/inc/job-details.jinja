@@ -44,12 +44,20 @@
   </tr>
 
   <tr>
+    <th>Dependency graph</th>
+    <td>
+      <img src="{{ url_for('.job_depgraph', job_id=job.id, fmt='svg') }}" alt="Dependency graph">
+    </td>
+  </tr>
+
+  <tr>
     <th>Dependencies</th>
     <td>
       {% set deps = job.get_deps()|list %}
       {{ macros.jobs_list(deps, emptymsg='No dependencies') }}
     </td>
   </tr>
+
   <tr>
     <th>Reverse dependencies</th>
     <td>

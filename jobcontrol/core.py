@@ -10,6 +10,8 @@ import logging
 import sys
 import traceback
 
+from flask import escape
+
 from jobcontrol.globals import _execution_ctx_stack
 from jobcontrol.exceptions import MissingDependencies, SkipBuild
 from jobcontrol.utils import import_object
@@ -76,20 +78,7 @@ class JobControl(object):
         # Build dependency graph for this job
         # ------------------------------------------------------------
 
-        DEPGRAPH = {}
-
-        def _explore_deps(jid):
-            if jid in DEPGRAPH:
-                # Already processed
-                return
-
-            deps = self.storage.get_job_deps(jid)
-            DEPGRAPH[jid] = deps = [d['id'] for d in deps]
-            for dep in deps:
-                _explore_deps(dep)
-
-        logger.debug('Building dependency graph for job {0}'.format(job_id))
-        _explore_deps(job_id)
+        DEPGRAPH = self._create_job_depgraph(job_id)
 
         logger.debug('Resolving dependencies for job {0}'.format(job_id))
         ORDERED_DEPS = self._resolve_deps(DEPGRAPH, job_id)
@@ -147,6 +136,38 @@ class JobControl(object):
                                build_depending=build_depending)
 
         return main_build_id
+
+    def _create_job_depgraph(self, job_id, complete=False):
+        processed = set()
+        DEPGRAPH = {}
+
+        def _explore_deps(jid):
+            if jid in processed:
+                # Already processed
+                return
+
+            # Early, to prevent infinite recursion
+            processed.add(jid)
+
+            deps = self.storage.get_job_deps(jid)
+            DEPGRAPH[jid] = deps = [d['id'] for d in deps]
+            for dep in deps:
+                _explore_deps(dep)
+
+            if complete:
+                revdeps = self.storage.get_job_revdeps(jid)
+                revdeps = [d['id'] for d in revdeps]
+                for rdid in revdeps:
+                    if rdid not in DEPGRAPH:
+                        DEPGRAPH[rdid] = []
+                    if jid not in DEPGRAPH[rdid]:
+                        DEPGRAPH[rdid].append(jid)
+                    _explore_deps(rdid)
+
+        logger.debug('Building dependency graph for job {0}'.format(job_id))
+        _explore_deps(job_id)
+
+        return DEPGRAPH
 
     def _resolve_deps(self, depgraph, job_id):
         # Allow changing dependency resolution function
@@ -412,7 +433,7 @@ class JobInfo(object):
             func = import_object(self['function'])
 
         except Exception as e:
-            docs['function_doc'] = u"Error: {0!r}".format(e)
+            docs['function_doc'] = escape(u"Error: {0!r}".format(e))
 
         else:
             docs['function_doc'] = self._format_function_doc(func)
@@ -420,13 +441,20 @@ class JobInfo(object):
             docs['function_argspec_human'] = \
                 self._make_human_argspec(docs['function_argspec'])
 
-        docs['function_module'], docs['function_name'] = \
-            self['function'].split(':')
+        try:
+            docs['function_module'], docs['function_name'] = \
+                self['function'].split(':')
+        except:
+            docs['function_module'] = '???'
+            docs['function_name'] = self['function']
 
         return docs
 
     def _get_call_code(self):
-        module, func = self['function'].split(':')
+        try:
+            module, func = self['function'].split(':')
+        except:
+            return '# Invalid function: {0}'.format(self['function'])
 
         call_args = []
         for arg in self['args']:
@@ -434,9 +462,14 @@ class JobInfo(object):
         for key, val in sorted(self['kwargs'].iteritems()):
             call_args.append("{0}={1!r}".format(key, val))
 
+        if len(call_args):
+            _args = "\n    {1}".format(func, ",\n    ".join(call_args))
+        else:
+            _args = ""
+
         return "\n".join((
             "from {0} import {1}".format(module, func),
-            "{0}(\n    {1})".format(func, ",\n    ".join(call_args))))
+            "{0}({1})".format(func, _args)))
 
     def _highlight_code_html(self, code):
         from pygments import highlight

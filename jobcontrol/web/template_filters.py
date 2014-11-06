@@ -1,6 +1,8 @@
 import datetime
 import time
 
+from flask import escape
+
 import humanize
 
 
@@ -70,8 +72,21 @@ def highlight(value, lexer='python'):
         return highlight(value, lexer, HtmlFormatter())
 
 
+def job_build_options(job):
+    options = []
+    for build in job.get_builds(started=True, finished=True, success=True,
+                                skipped=False, order='desc'):
+        label = "Build #{0} &mdash; {1} ({2})".format(
+            build.id,
+            escape(humanize_timestamp(build['end_time'])),
+            escape(strftime(build['end_time'])))
+        options.append((label, build.id))
+    return options
+
+
 filters['humanize_timestamp'] = humanize_timestamp
 filters['humanize_timedelta'] = humanize_timedelta
 filters['yesno'] = yesno
 filters['strftime'] = strftime
 filters['highlight'] = highlight
+filters['job_build_options'] = job_build_options

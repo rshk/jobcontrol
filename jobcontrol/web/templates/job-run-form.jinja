@@ -1,0 +1,57 @@
+{% extends 'base.jinja' %}
+
+{% block page_title %}Job {{ job.id }}{% endblock %}
+
+{% set latest_build = job.get_latest_successful_build() %}
+
+{% block page_body %}
+<div class="container-fluid">
+
+  {{ macros.job_info_title(job) }}
+  {{ macros.job_info_nav(job.id, current='run') }}
+
+  <h2>Configure build</h2>
+
+  {% set form_data = {} %}
+  {% set form_errors = {} %}
+
+  {% call macros.form(action=url_for('.job_run_submit', job_id=job.id)) %}
+    {{ macros.form_csrf_token() }}
+
+    {{ macros.form_static('Job id', job.id) }}
+    {{ macros.form_static('Function', job.function) }}
+    {{ macros.form_static('Args', job.args|pprint|highlight) }}
+    {{ macros.form_static('Kwargs', job.kwargs|pprint|highlight) }}
+
+    <h3>
+      Select dependency builds
+      <small>Not implemented yet</small>
+    </h3>
+
+    {% for dep in job.get_deps() %}
+      {{ macros.form_select('Job %d (%s)'|format(dep.id, dep.title), 'dep-build-%d'|format(dep.id), options=dep|job_build_options) }}
+    {% else %}
+      {% call macros.form_aside() %}
+	No dependencies
+      {% endcall %}
+    {% endfor %}
+
+    <h3>
+      Reverse dependencies to rebuild
+      <small>Not implemented yet</small>
+    </h3>
+
+    {% for revdep in job.get_revdeps() %}
+      {{ macros.form_checkbox('Job %d (%s)'|format(revdep.id, revdep.title), 'revdep-rebuild-%d'|format(revdep.id), val=True) }}
+    {% else %}
+      {% call macros.form_aside() %}
+	No reverse dependencies
+      {% endcall %}
+    {% endfor %}
+
+    {{ macros.form_button('Run job') }}
+
+  {% endcall %}
+
+</div>
+{% endblock %}

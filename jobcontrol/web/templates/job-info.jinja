@@ -7,64 +7,9 @@
 {% block page_body %}
 <div class="container-fluid">
 
-  {% if job.has_builds() %}
-    {% if job.has_successful_builds() %}
-      {% if job.is_outdated() %}
-	{% set badge_class='warning' %}
-	{% set badge_status='Outdated' %}
-      {% else %}
-	{% set badge_class='success' %}
-	{% set badge_status='Success' %}
-      {% endif %}
-    {% else %}
-      {% set badge_class='danger' %}
-      {% set badge_status='Failed' %}
-    {% endif %}
-  {% else %}
-    {% set badge_class='default' %}
-    {% set badge_status='No builds' %}
-  {% endif %}
-
-
-  <div class="media" style="margin-bottom: 20px;width:100%">
-    <div class="media-left">
-      {{ macros.status_badge(top='Job', middle=job.id, bottom=badge_status, class='compact ' + badge_class) }}
-    </div>
-    <div class="media-body">
-      <h1>{{ job.title or 'Untitled' }}</h1>
-      <div>
-	{% if latest_build %}
-	  <strong>Latest built:</strong>
-	  <abbr title="{{ latest_build.end_time }}">
-	    {{ latest_build.end_time|humanize_timestamp }}</abbr>
-	{% else %}
-	  No successful builds.
-	{% endif %}
-      </div>
-    </div>
-
-    <div class="media-right pull-right">
-      <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST">
-	{{ macros.form_csrf_token() }}
-	<button class="btn btn-primary btn-lg">
-	  <span class="fa fa-cog"></span> Run build
-	</button>
-      </form>
-    </div>
-  </div>
-
-  <ul class="nav nav-tabs" role="tablist">
-    <li role="presentation" class="active">
-      <a href="{{ url_for('webui.job_info', job_id=job.id) }}">Info</a></li>
-    <li role="presentation">
-      <a href="{{ url_for('webui.job_edit', job_id=job.id) }}">Edit</a></li>
-    <li role="presentation">
-      <a href="{{ url_for('webui.job_delete', job_id=job.id) }}">Delete</a></li>
-  </ul>
-
-  <br>
-
-  {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
+  {{ macros.job_info_title(job) }}
+  {{ macros.job_info_nav(job.id, current='info') }}
+  {{ macros.job_info_details(job) }}
 
   <h2>Builds</h2>
 
