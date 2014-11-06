@@ -20,10 +20,27 @@
 	<div class="media">
 	  {% set latest_build = job.get_latest_successful_build() %}
 
+	  {% if job.has_builds() %}
+	    {% if job.has_successful_builds() %}
+	      {% if job.is_outdated() %}
+		{% set badge_class='warning' %}
+		{% set badge_status='Outdated' %}
+	      {% else %}
+		{% set badge_class='success' %}
+		{% set badge_status='Success' %}
+	      {% endif %}
+	    {% else %}
+	      {% set badge_class='danger' %}
+	      {% set badge_status='Failed' %}
+	    {% endif %}
+	  {% else %}
+	    {% set badge_class='default' %}
+	    {% set badge_status='No builds' %}
+	  {% endif %}
+
 	  <div class="media-left">
 	    <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
-	      <div class="label label-{% if latest_build %}success{% else %}danger{% endif %} label-round-huge">
-		{{ job.id }}</div>
+	      {{ macros.status_badge(top='Job', middle=job.id, bottom=badge_status, class='compact ' + badge_class) }}
 	    </a>
 	  </div>
 
@@ -41,7 +58,9 @@
 	    </div>
 
 	    <h2 class="media-heading">
-	      {{ job.title or 'Untitled' }}
+	      <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
+		{{ job.title or 'Untitled' }}
+	      </a>
 	      {% if latest_build %}
 		<small>Latest built <abbr title="{{ latest_build.end_time }}">
 		    {{ latest_build.end_time|humanize_timestamp }}</abbr></small>

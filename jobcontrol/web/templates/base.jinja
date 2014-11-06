@@ -12,8 +12,8 @@
 
     {% call macros.navbar(inverse=True, static="top", brand="JobControl") %}
         <ul class="nav navbar-nav">
-          <li><a href="/job/">Jobs</a></li>
-          <li><a href="#">New Job</a></li>
+          <li><a href="{{ url_for('webui.jobs_list') }}">Jobs</a></li>
+          <li><a href="{{ url_for('webui.job_create') }}">New Job</a></li>
         </ul>
     {% endcall %}
 
@@ -39,34 +39,18 @@
 
     <footer class="site-footer">
       <ul class="list-inline">
-	<li><a target="_blank" href="https://github.com/rshk/jobcontrol">Source code</a></li>
-	<li><a target="_blank" href="https://github.com/rshk/jobcontrol/issues">Issues</a></li>
-	<li><a target="_blank" href="https://github.com/rshk/jobcontrol/issues/new?labels=bug">Report bug</a></li>
-	<li><a target="_blank" href="https://github.com/rshk/jobcontrol/issues/new?labels=enhancement">Request feature</a></li>
+	{% set repo='rshk/jobcontrol' %}
+	<li><a target="_blank" href="https://github.com/{{ repo }}">Source code</a></li>
+	<li><a target="_blank" href="https://github.com/{{ repo }}/issues">Issues</a></li>
+	<li><a target="_blank" href="https://github.com/{{ repo }}/issues/new?labels=bug">Report bug</a></li>
+	<li><a target="_blank" href="https://github.com/{{ repo }}/issues/new?labels=enhancement">Request feature</a></li>
 	<li><a target="_blank" href="https://rshk.github.io/jobcontrol">Documentation</a></li>
       </ul>
+
       <p>JobControl &mdash; Copyright &copy; 2014
 	<a target="_blank" href="https://github.com/rshk">Samuele Santi</a>
 	and <a target="_blank" href="http://trentorise.eu">Trento RISE</a>.
 	Under Apache 2.0 License.</p>
-
-	{# <p> #}
-	{#   <a href="https://github.com/rshk/jobcontrol.git"> #}
-	{#     <img src="https://pypip.in/version/jobcontrol/badge.svg?text=version" alt="Latest PyPI version"> #}
-	{#   </a> #}
-	{#   <a href="https://github.com/rshk/jobcontrol.git"> #}
-	{#     <img src="https://pypip.in/download/jobcontrol/badge.svg?period=month" alt="Number of PyPI downloads"> #}
-	{#   </a> #}
-	{#   <a href="https://pypi.python.org/pypi/jobcontrol/"> #}
-	{#     <img src="https://pypip.in/py_versions/jobcontrol/badge.svg" alt="Supported Python versions"> #}
-	{#   </a> #}
-	{#   <a href="https://pypi.python.org/pypi/jobcontrol/"> #}
-	{#     <img src="https://pypip.in/status/jobcontrol/badge.svg" alt="Development Status"> #}
-	{#   </a> #}
-	{#   <a href="https://pypi.python.org/pypi/jobcontrol/"> #}
-	{#     <img src="https://pypip.in/license/jobcontrol/badge.svg" alt="License"> #}
-	{#   </a> #}
-	{# </p> #}
 
     </footer>
 

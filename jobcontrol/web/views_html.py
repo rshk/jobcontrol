@@ -232,3 +232,45 @@ def autocomplete_function_name(function_name):
     - documentation for the function, if it is valid
     """
     pass
+
+
+@html_views.route('/job/<int:job_id>/action', methods=['POST'])
+def job_action(job_id):
+    action = request.form['action']
+    jc = get_jc()
+
+    if action == 'build':
+        from jobcontrol.async.tasks import app as celery_app, build_job
+
+        broker = 'redis://'  # todo: take from configuration!!
+        celery_app.conf.JOBCONTROL = jc
+        celery_app.conf.BROKER_URL = broker
+
+        build_job.delay(job_id)
+        flash('Job {0} build scheduled'.format(job_id), 'success')
+
+    elif action == 'delete':
+        job = jc.get_job(job_id)
+        job.delete()
+
+    else:
+        flash('Unsupported action: {0}'.format(action))
+
+    # todo: return to caller page
+    return redirect(url_for('.job_info', job_id=job_id))
+
+
+@html_views.route('/build/<int:build_id>/action', methods=['POST'])
+def build_action(build_id):
+    action = request.form['action']
+    jc = get_jc()
+
+    if action == 'delete':
+        build = jc.get_build(build_id)
+        build.delete()
+
+    else:
+        flash('Unsupported action: {0}'.format(action))
+
+    # todo: return to caller page
+    return redirect(url_for('.build_info', build_id=build_id))

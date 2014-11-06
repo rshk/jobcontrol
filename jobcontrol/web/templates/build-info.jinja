@@ -7,40 +7,57 @@
 
   {% if build.finished %}
     {% if build.skipped %}
-      {% set row_class = 'warning' %}
-      {% set status_line = 'Skipped' %}
+      {% set badge_class = 'warning' %}
+      {% set badge_status = 'Skipped' %}
     {% elif build.success %}
-      {% set row_class = 'success' %}
-      {% set status_line = 'Success' %}
+      {% set badge_class = 'success' %}
+      {% set badge_status = 'Success' %}
     {% else %}
-      {% set row_class = 'danger' %}
-      {% set status_line = 'Failed' %}
+      {% set badge_class = 'danger' %}
+      {% set badge_status = 'Failed' %}
     {% endif %}
   {% else %}
-    {% set row_class = 'default' %}
+    {% set badge_class = 'default' %}
     {% if build.started %}
-      {% set status_line = 'Running' %}
+      {% set badge_status = 'Running' %}
     {% else %}
-      {% set status_line = 'Created' %}
+      {% set badge_status = 'Created' %}
     {% endif %}
   {% endif %}
 
-  <div class="pull-right">
-    {{ macros.status_badge(top='Build', middle=build.id, bottom=status_line, class=row_class) }}
-  </div>
+  <div class="media" style="margin-bottom: 20px;">
+    <div class="media-left">
+      {{ macros.status_badge(top='Build', middle=build.id, bottom=badge_status, class='compact ' + badge_class) }}
+    </div>
+    <div class="media-body">
+      <h1>
+	<a href="{{ url_for('webui.job_info', job_id=job.id) }}">Job {{ job.id }}</a>
+	&raquo;
+	Build {{ build.id }}
+      </h1>
+      <div>
 
-  <h1>
-    <a href="{{ url_for('webui.job_info', job_id=job.id) }}">Job {{ job.id }}</a>
-    &raquo;
-    Build {{ build.id }}
-  </h1>
+	{% if build.start_time %}
+	  <strong>Started:</strong>
+	  <abbr title="{{ build.start_time }}">
+	    {{ build.start_time|humanize_timestamp }}
+	  </abbr>
+	{% endif %}
 
-  <div class="row row-fluid">
-    <div class="col-md-10">
-      <h2>Job Information</h2>
-      {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
+	{% if build.end_time %}
+	  <strong>Finished:</strong>
+	  <abbr title="{{ build.end_time }}">
+	    {{ build.end_time|humanize_timestamp }}
+	  </abbr>
+	{% endif %}
+
+      </div>
     </div>
   </div>
+
+
+  <h2>Job Information</h2>
+  {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
 
   <h2>Build information</h2>
 

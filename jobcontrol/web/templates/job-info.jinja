@@ -7,25 +7,51 @@
 {% block page_body %}
 <div class="container-fluid">
 
-  <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST">
-    {{ macros.form_csrf_token() }}
-      <button class="btn btn-primary btn-lg pull-right">
-	<span class="fa fa-cog"></span> Run build
-      </button>
-  </form>
-
-  <h1>
-    <span class="label label-round-huge label-primary">{{job.id}}</span>
-    {# Job {{ job.id }}{% if job.title %} - {{ job.title }}{% endif %} #}
-    {{ job.title or 'Untitled' }}
-
-    {% if latest_build %}
-      <small>Latest built <abbr title="{{ latest_build.end_time }}">
-	  {{ latest_build.end_time|humanize_timestamp }}</abbr></small>
+  {% if job.has_builds() %}
+    {% if job.has_successful_builds() %}
+      {% if job.is_outdated() %}
+	{% set badge_class='warning' %}
+	{% set badge_status='Outdated' %}
+      {% else %}
+	{% set badge_class='success' %}
+	{% set badge_status='Success' %}
+      {% endif %}
     {% else %}
-      <small>No successful builds.</small>
+      {% set badge_class='danger' %}
+      {% set badge_status='Failed' %}
     {% endif %}
-  </h1>
+  {% else %}
+    {% set badge_class='default' %}
+    {% set badge_status='No builds' %}
+  {% endif %}
+
+
+  <div class="media" style="margin-bottom: 20px;width:100%">
+    <div class="media-left">
+      {{ macros.status_badge(top='Job', middle=job.id, bottom=badge_status, class='compact ' + badge_class) }}
+    </div>
+    <div class="media-body">
+      <h1>{{ job.title or 'Untitled' }}</h1>
+      <div>
+	{% if latest_build %}
+	  <strong>Latest built:</strong>
+	  <abbr title="{{ latest_build.end_time }}">
+	    {{ latest_build.end_time|humanize_timestamp }}</abbr>
+	{% else %}
+	  No successful builds.
+	{% endif %}
+      </div>
+    </div>
+
+    <div class="media-right pull-right">
+      <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST">
+	{{ macros.form_csrf_token() }}
+	<button class="btn btn-primary btn-lg">
+	  <span class="fa fa-cog"></span> Run build
+	</button>
+      </form>
+    </div>
+  </div>
 
   <ul class="nav nav-tabs" role="tablist">
     <li role="presentation" class="active">

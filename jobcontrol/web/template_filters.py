@@ -2,7 +2,6 @@ import datetime
 import time
 
 import humanize
-from flask import escape
 
 
 filters = {}

@@ -372,6 +372,34 @@ class JobInfo(object):
     def get_docs(self):
         return self._get_job_docs()
 
+    def has_builds(self):
+        builds = list(self.get_builds(
+            started=True, finished=True, order='desc', limit=1))
+        return len(builds) >= 1
+
+    def has_successful_builds(self):
+        builds = list(self.get_builds(
+            started=True, finished=True, success=True, skipped=False,
+            order='desc', limit=1))
+        return len(builds) >= 1
+
+    def is_outdated(self):
+        latest_build = self.get_latest_successful_build()
+
+        if not latest_build:
+            return None  # Unknown (no build)
+
+        for dep in self.get_deps():
+            _build = dep.get_latest_successful_build()
+            if _build is None:
+                return None  # Unknown (no dep build) [error!]
+
+            if _build['end_time'] > latest_build['end_time']:
+                # dependency build is newer
+                return True
+
+        return False
+
     def _get_job_docs(self):
         call_code = self._get_call_code()
 

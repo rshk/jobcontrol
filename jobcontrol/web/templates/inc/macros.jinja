@@ -182,7 +182,24 @@
     <ul>
       {% for job in jobs %}
         <li><a href="{{ url_for('webui.job_info', job_id=job.id) }}">
-            <strong>Job #{{ job.id }} - {{ job.title or 'untitled' }}</strong>
+
+	  {% if job.has_builds() %}
+	    {% if job.has_successful_builds() %}
+	      {% if job.is_outdated() %}
+		{% set label_class='warning' %}
+	      {% else %}
+		{% set label_class='success' %}
+	      {% endif %}
+	    {% else %}
+	      {% set label_class='danger' %}
+	    {% endif %}
+	  {% else %}
+	    {% set label_class='default' %}
+	  {% endif %}
+
+	    <div class="label label-{{ label_class }}">Job #{{ job.id }}</div>
+
+            <strong>{{ job.title or 'untitled' }}</strong>
             <code>{{ job.function }}</code>
         </a></li>
       {% endfor %}
