@@ -488,11 +488,41 @@ class JobInfo(object):
 
     def _get_function_argspec(self, func):
         aspec = inspect.getargspec(func)
+
+        if aspec.defaults is not None:
+            optargs = zip(aspec.args[len(aspec.defaults):], aspec.defaults)
+            reqargs = aspec.args[:-len(aspec.defaults)]
+        else:
+            optargs = []
+            reqargs = aspec.args[:]
+
+        # ============================================================ #
+        #   Note:                                                      #
+        # ============================================================ #
+        #                                                              #
+        # Terminology used by the AST is:                              #
+        # - args -> positional arguments                               #
+        # - keywords -> arguments with default values                  #
+        # - startargs -> name of *args                                 #
+        # - kwargs -> name of **kwargs                                 #
+        #                                                              #
+        # Terminology used by inspect is quite different;              #
+        # - varargs -> *args                                           #
+        # - keywords -> **kwargs                                       #
+        # - args -> all the named arguments                            #
+        # - defaults -> default values, for keyword arguments          #
+        #                                                              #
+        # Maybe we should use the AST terminology here, as it better   #
+        # reflect the structure? (the bad part is the different        #
+        # meaning of the "keywords" term here..)                       #
+        #                                                              #
+        # ============================================================ #
+
         return {
             'varargs': aspec.varargs,
             'keywords': aspec.keywords,
-            'reqargs': aspec.args[:-len(aspec.defaults)],
-            'optargs': zip(aspec.args[len(aspec.defaults):], aspec.defaults),
+            'reqargs': reqargs,
+            'optargs': optargs,
         }
 
     def _make_human_argspec(self, argspec):
