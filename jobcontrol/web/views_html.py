@@ -84,6 +84,8 @@ def job_depgraph(job_id, fmt):
 
         node.attr['fontcolor'] = '#ffffff'
         node.attr['style'] = 'filled'
+        node.attr['shape'] = 'circle'
+        # node.attr['width'] = '.5'
 
         if int(node) == job_id:
             node.attr['penwidth'] = '3'
