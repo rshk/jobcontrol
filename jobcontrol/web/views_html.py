@@ -58,18 +58,54 @@ def job_depgraph(job_id, fmt):
         return 'PyGraphviz is not installed', 500
 
     depgraph = jc._create_job_depgraph(job_id, complete=True)
-    graph = pygraphviz.AGraph(depgraph, directed=True, name="Depgraph")
+    graph = pygraphviz.AGraph(depgraph, directed=True,
+                              name="Job {0} Dependency graph".format(job_id))
+
+    graph.graph_attr['dpi'] = '70'  # Other values make things go wrong
+    graph.graph_attr['splines'] = 'curved'
 
     graph.node_attr['fontsize'] = '14'
     graph.node_attr['fontname'] = 'monospace'
 
+    graph.edge_attr['minlen'] = '1'
+    graph.edge_attr['len'] = '1.5'  # Inches
+
     node = graph.get_node(job_id)
-    # node.attr['fontcolor'] = '#000088'
-    # node.attr['color'] = '#000088'
-    # node.attr['fillcolor'] = '#eeeeff'
-    # node.attr['style'] = 'filled'
-    node.attr['fontsize'] = '20'
+    node.attr['fontsize'] = '16'
     node.attr['penwidth'] = '3'
+    # node.attr['color'] = '#ff0000'
+    # node.attr['label'] = 'Job {0}'.format(job_id)
+
+    for node in graph.nodes():
+        job = jc.get_job(node)
+        node.attr['URL'] = url_for('.job_info', job_id=node, _external=True)
+        node.attr['target'] = '_top'
+        node.attr['tooltip'] = job['title']
+
+        node.attr['fontcolor'] = '#ffffff'
+        node.attr['style'] = 'filled'
+
+        if int(node) == job_id:
+            node.attr['penwidth'] = '3'
+            node.attr['color'] = '#000000'
+        else:
+            node.attr['penwidth'] = '0'
+
+        if job.has_successful_builds():
+            if job.is_outdated():
+                node.attr['fillcolor'] = '#f0ad4e'
+
+            else:
+                node.attr['fillcolor'] = '#5cb85c'
+
+        elif job.has_builds():
+            node.attr['fillcolor'] = '#d9534f'
+
+        else:
+            node.attr['fillcolor'] = '#777777'
+
+    # todo: give different color to revdep edges
+    # todo: detect loops, color edges in red
 
     graph.layout()
 
@@ -78,6 +114,9 @@ def job_depgraph(job_id, fmt):
 
     elif fmt == 'svg':
         return graph.draw(format='svg'), 200, {'content-type': 'image/svg+xml'}
+
+    elif fmt == 'dot':
+        return graph.draw(format='dot'), 200, {'content-type': 'text/plain'}
 
     return 'Unsupported format', 404
 

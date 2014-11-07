@@ -311,6 +311,7 @@
   <ul class="nav nav-tabs" role="tablist" style="margin-bottom: 10px;">
     <li role="presentation" {% if current == 'info' %}class="active"{% endif %}>
       <a href="{{ url_for('webui.job_info', job_id=job_id) }}">Info</a></li>
+    <li role="presentation"> <a href="#builds">Builds</a></li>
     <li role="presentation" {% if current == 'edit' %}class="active"{% endif %}>
       <a href="{{ url_for('webui.job_edit', job_id=job_id) }}">Edit</a></li>
     <li role="presentation" {% if current == 'run' %}class="active"{% endif %}>

@@ -46,7 +46,10 @@
   <tr>
     <th>Dependency graph</th>
     <td>
-      <img src="{{ url_for('.job_depgraph', job_id=job.id, fmt='svg') }}" alt="Dependency graph">
+      {# <img src="{{ url_for('.job_depgraph', job_id=job.id, fmt='svg') }}" alt="Dependency graph"> #}
+      <object data="{{ url_for('.job_depgraph', job_id=job.id, fmt='svg') }}" type="image/svg+xml">
+	<span>Error loading dependency graph.</span>
+      </object>
     </td>
   </tr>
 
