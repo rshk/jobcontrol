@@ -240,10 +240,13 @@ class PostgreSQLStorage(StorageBase):
 
     def _build_unpack(self, row):
         row = dict(row)
+
         if row.get('retval') is not None:
-            row['retval'] = self.unpack(row['retval'])
+            row['retval'] = self.unpack(row['retval'], safe=True)
+
         if row.get('exception') is not None:
-            row['exception'] = self.unpack(row['exception'])
+            row['exception'] = self.unpack(row['exception'], safe=True)
+
         return row
 
     # ------------------------------------------------------------

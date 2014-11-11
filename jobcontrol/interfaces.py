@@ -66,8 +66,13 @@ class StorageBase(object):
     def pack(self, obj):
         return pickle.dumps(obj)
 
-    def unpack(self, obj):
-        return pickle.loads(obj)
+    def unpack(self, obj, safe=False):
+        try:
+            return pickle.loads(obj)
+        except Exception as e:
+            if not safe:
+                raise
+            return 'Error deserializing object: {0!r}'.format(e)
 
     # ------------------------------------------------------------
     # Job CRUD methods
