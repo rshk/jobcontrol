@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from datetime import datetime, timedelta
 
 import pytest
@@ -347,6 +349,51 @@ def test_logging(storage):
     _log(logging.WARNING, 'A WARNING message')
     _log(logging.ERROR, 'A ERROR message')
     _log(logging.CRITICAL, 'A CRITICAL message')
+
+    log_messages = list(storage.iter_log_messages(
+        job_id=job_id, build_id=build_id))
+    assert len(log_messages) == 5
+
+    warning_messages = list(storage.iter_log_messages(
+        job_id=job_id, build_id=build_id, min_level=logging.WARNING))
+    assert len(warning_messages) == 3
+
+    storage.prune_log_messages(job_id=job_id, build_id=build_id,
+                               level=logging.WARNING)
+
+    log_messages = list(storage.iter_log_messages(
+        job_id=job_id, build_id=build_id))
+    assert len(log_messages) == 3
+
+    storage.prune_log_messages(job_id=job_id, build_id=build_id,
+                               level=logging.ERROR)
+
+    log_messages = list(storage.iter_log_messages(
+        job_id=job_id, build_id=build_id))
+    assert len(log_messages) == 2
+
+    # todo: test logging date filtering / pruning (+ policy pruning)
+
+
+def test_logging_unicode(storage):
+    import logging
+
+    job_id = storage.create_job('foo:bar')
+    build_id = storage.create_build(job_id)
+
+    def _make_log(level, msg):
+        return logging.makeLogRecord(
+            {'name': 'my_logger', 'levelno': level, 'msg': msg,
+             'message': msg})
+
+    def _log(level, msg):
+        storage.log_message(job_id, build_id, _make_log(level, msg))
+
+    _log(logging.DEBUG, 'A DEBUG mës§ágé')
+    _log(logging.INFO, 'A INFO mës§ágé')
+    _log(logging.WARNING, 'A WARNING mës§ágé')
+    _log(logging.ERROR, 'A ERROR mës§ágé')
+    _log(logging.CRITICAL, 'A CRITICAL mës§ágé')
 
     log_messages = list(storage.iter_log_messages(
         job_id=job_id, build_id=build_id))

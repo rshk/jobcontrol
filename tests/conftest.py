@@ -32,7 +32,7 @@ def get_postgres_conf():
     }
 
 
-@pytest.fixture(scope='module', params=['memory', 'postgresql'])
+@pytest.fixture(scope='function', params=['memory', 'postgresql'])
 def storage(request):
     def _get_storage(param):
         if param == 'memory':
@@ -61,7 +61,7 @@ def storage(request):
     return _storage
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def jc(storage):
     from jobcontrol.core import JobControl
     return JobControl(storage)
