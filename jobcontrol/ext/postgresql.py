@@ -97,9 +97,9 @@ class PostgreSQLStorage(StorageBase):
             skipped BOOLEAN DEFAULT false,
             progress_current INTEGER DEFAULT 0,
             progress_total INTEGER DEFAULT 0,
-            retval TEXT,
-            exception TEXT,
-            exception_tb TEXT
+            retval BYTEA,
+            exception BYTEA,
+            exception_tb BYTEA
         );
 
         CREATE TABLE "{prefix}log" (
@@ -108,7 +108,7 @@ class PostgreSQLStorage(StorageBase):
             build_id INTEGER REFERENCES "{prefix}build" (id),
             created TIMESTAMP WITHOUT TIME ZONE,
             level INTEGER,
-            record TEXT
+            record BYTEA
         );
         """.format(prefix=self._table_prefix)
 
@@ -478,7 +478,10 @@ class PostgreSQLStorage(StorageBase):
             'build_id': build_id,
             'created': datetime.utcfromtimestamp(record.created),
             'level': record.levelno,
-            'record': self.pack(record)
+
+            # We use a buffer here in order to have it inserted in the query
+            # as a "bytea" object.
+            'record': buffer(self.pack(record))
         })
 
     def prune_log_messages(self, job_id=None, build_id=None,
