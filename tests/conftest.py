@@ -43,7 +43,8 @@ def storage(request):
             try:
                 conf = get_postgres_conf()
             except RuntimeError:
-                pytest.skip('POSTGRESQL_URL not configured')
+                pytest.skip('{0} not configured'
+                            .format(POSTGRES_ENV_NAME))
             from jobcontrol.ext.postgresql import PostgreSQLStorage
             st = PostgreSQLStorage(conf)
             try:

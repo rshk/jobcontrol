@@ -1,7 +1,10 @@
 from datetime import datetime
-import json
-import math
 from urlparse import urlparse
+import json
+import linecache
+import math
+import sys
+import traceback
 
 _missing = object()
 
@@ -117,3 +120,103 @@ def _json_dumps_default(obj):
 
 def json_dumps(obj):
     return json.dumps(obj, default=_json_dumps_default)
+
+
+def trim_string(s, maxlen=1024, ellps='...'):
+    """Trim a string to a maximum length, adding an "ellipsis"
+    indicator if the string was trimmed"""
+
+    if len(s) > maxlen:
+        return s[:maxlen - len(ellps)] + ellps
+    return s
+
+
+class FrameInfo(object):
+    def __init__(self, filename, lineno, name, line, locs):
+        self.filename = filename
+        self.lineno = lineno
+        self.name = name
+        self.line = line
+        self.locs = self._format_locals(locs)
+        self.context = self._get_context()
+
+    def _get_context(self, size=5):
+        """Return some "context" lines from a file"""
+        _start = max(0, self.lineno - size - 1)
+        _end = self.lineno + size
+        _lines = linecache.getlines(self.filename)[_start:_end]
+        _lines = [x.rstrip() for x in _lines]
+        _lines = zip(xrange(_start + 1, _end + 1), _lines)
+        return _lines
+
+    def _format_locals(self, locs):
+        return dict(((k, trim_string(repr(v), maxlen=1024))
+                     for k, v in locs.iteritems()))
+
+
+class TracebackInfo(object):
+    """
+    Information about an error traceback; this is meant to be serialized
+    instead of the full traceback (which is *not* serializable...)
+    """
+
+    def __init__(self):
+        self.frames = []
+
+    @classmethod
+    def from_current_exc(cls):
+        return cls.from_tb(sys.exc_info()[2])
+
+    @classmethod
+    def from_tb(cls, tb):
+        obj = cls()
+        obj.frames = obj._extract_tb(tb)
+        return obj
+
+    def _extract_tb(self, tb, limit=None):
+        if limit is None:
+            if hasattr(sys, 'tracebacklimit'):
+                limit = sys.tracebacklimit
+        list = []
+        n = 0
+        while tb is not None and (limit is None or n < limit):
+            f = tb.tb_frame
+            lineno = tb.tb_lineno
+            co = f.f_code
+            filename = co.co_filename
+            name = co.co_name
+            linecache.checkcache(filename)
+            line = linecache.getline(filename, lineno, f.f_globals)
+            locs = self._dump_locals(f.f_locals)
+            if line:
+                line = line.strip()
+            else:
+                line = None
+            list.append(FrameInfo(filename, lineno, name, line, locs))
+            tb = tb.tb_next
+            n = n+1
+        return list
+
+    def format(self):
+        """Format traceback for printing"""
+
+        lst = []
+        for filename, lineno, name, line, locs in self.frames:
+            item = '  File "{0}", line {1}, in {2}\n'.format(
+                filename, lineno, name)
+            if line:
+                item = item + '    {0}\n'.format(line.strip())
+            lst.append(item)
+            for key, val in sorted(locs.iteritems()):
+                lst.append('        {0} = {1}\n'.format(key, val))
+        return lst
+
+    def _dump_locals(self, locs):
+        return dict(((k, trim_string(repr(v), maxlen=1024))
+                     for k, v in locs.iteritems()))
+
+    def __str__(self):
+        return ''.join(self.format())
+
+    def __unicode__(self):
+        return u''.join(unicode(x) for x in self.format())

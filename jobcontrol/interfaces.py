@@ -5,31 +5,97 @@ Interfaces for NEW jobcontrol objects.
 
     Job     id SERIAL
     ---     function VARCHAR
-            args TEXT (serialized)
-            kwargs TEXT (serialized)
+            [OLD] kwargs TEXT (serialized)
+            [OLD] args TEXT (serialized)
             ctime TIMESTAMP
             mtime TIMESTAMP
             dependecies INTEGER[] (references Job.id)
+            title TEXT
+            group TEXT
+                The job "group". Note: we might want to use this to build
+                a "tree-style" categorization of jobs; how to handle this?
+                (need to filter on "path" as well)
+                Maybe: http://www.postgresql.org/docs/9.3/static/ltree.html
+                although this requires an extension to be installed..
+            notes TEXT
+            arguments BINARY (PostgreSQL: "bytea")
 
     Build   id SERIAL
     -----   job_id INTEGER (references Job.id)
+            job_config BINARY (PostgreSQL: "bytea" + pickle)
+                Copy of the job configuration, as a dict.
             start_time TIMESTAMP
             end_time TIMESTAMP
             started BOOLEAN
             finished BOOLEAN
             success BOOLEAN
             skipped BOOLEAN
-            progress_current INTEGER
-            progress_total INTEGER
-            retval TEXT (serialized)
-            exception TEXT (serialized)
+            [OLD] progress_current INTEGER
+            [OLD] progress_total INTEGER
+            retval BINARY (PostgreSQL: "bytea" + pickle)
+                The return value from the build
+            exception BINARY (PostgreSQL: "bytea" + pickle)
+                The exception which caused the build to fail.
+            traceback BINARY (PostgreSQL: "bytea" + pickle)
+                Object representing a representation of the original
+                exception traceback.
 
     Log     id SERIAL
     ---     job_id INTEGER (references Job.id)
             build_id INTEGER (references Build.id)
             created TIMESTAMP
-            level TIMESTAMP
-            record TEXT (serialized)
+            level INTEGER
+            record BINARY (PostgreSQL: "bytea" + pickle)
+
+    Progress
+    --------
+            build_id INTEGER (references Build.id)
+            group_name VARCHAR(128)
+                Name of the "progress group" (dotted name)
+            current
+                Current progress value
+            total
+                Total progress value
+            PRIMARY KEY on (build_id, group_name)
+
+
+**Function arguments specification:**
+
+Arguments are specified as a string using the same syntax as normal
+function calls. In order to be able to parse it, we need to first wrap
+with ``f(`` ... ``)``.
+
+Example::
+
+    "arg1", "arg2", kw1="val1", kw2="val2"
+
+Some extra "context" may be accessed via a dict-like syntax; specifically
+the following dictionaries will appear to be in the scope:
+
+- ``RETVAL[job_id]``: return values of the selected build for each
+  dependency job
+- *(proposed)* ``CONFIG[..]``: something to hold configuration to be shared
+  or even "hidden away" (eg. passwords we don't want to have publicly visible
+  on all the administrative pages).
+
+Arguments should be stored as text (a pre-parse is done but only for form
+validation), then thay are actually parsed at runtime.
+
+
+**Exception traceback serialization**
+
+To be used both in build records and associated with log messages containing
+an exception.
+
+We want to include the following information:
+
+- Details about the call stack, as in normal tracebacks: filename, line
+  number, function name, line of code (plus some context)
+- Local variables: we are not guaranteed we can safely pickle / unpickle
+  arbitrary values; moreover this might result in huge fields, etc.
+  So our better chance is to just store a dictionary mapping names
+  to repr()s of the values (trimmed to a -- large -- maximum length,
+  just to be on the safe side).
 """
 
 import abc

@@ -78,9 +78,10 @@ class PostgreSQLStorage(StorageBase):
         CREATE TABLE "{prefix}job" (
             id SERIAL PRIMARY KEY,
             title TEXT,
+            notes TEXT,
             function TEXT,
-            args TEXT,
-            kwargs TEXT,
+            args BYTEA,
+            kwargs BYTEA,
             ctime TIMESTAMP WITHOUT TIME ZONE,
             mtime TIMESTAMP WITHOUT TIME ZONE,
             dependencies INTEGER[]
@@ -218,9 +219,9 @@ class PostgreSQLStorage(StorageBase):
 
     def _job_pack(self, job):
         if job.get('args') is not None:
-            job['args'] = self.pack(job['args'])
+            job['args'] = buffer(self.pack(job['args']))
         if job.get('kwargs') is not None:
-            job['kwargs'] = self.pack(job['kwargs'])
+            job['kwargs'] = buffer(self.pack(job['kwargs']))
         return job
 
     def _job_unpack(self, row):
@@ -233,9 +234,9 @@ class PostgreSQLStorage(StorageBase):
 
     def _build_pack(self, job):
         if job.get('retval') is not None:
-            job['retval'] = self.pack(job['retval'])
+            job['retval'] = buffer(self.pack(job['retval']))
         if job.get('exception') is not None:
-            job['exception'] = self.pack(job['exception'])
+            job['exception'] = buffer(self.pack(job['exception']))
         return job
 
     def _build_unpack(self, row):

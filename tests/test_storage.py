@@ -416,5 +416,3 @@ def test_logging_unicode(storage):
     log_messages = list(storage.iter_log_messages(
         job_id=job_id, build_id=build_id))
     assert len(log_messages) == 2
-
-    # todo: test logging date filtering / pruning (+ policy pruning)

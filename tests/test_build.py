@@ -289,3 +289,40 @@ def test_build_logs_with_deps_async(jc, request):
 
     assert msgs_3[1].msg == ('Message from job={0}, build={1}'
                              .format(job_id_3, builds_3[0]['id']))
+
+
+def test_build_with_unicode(jc):
+    job_id = jc.storage.create_job(
+        'jobcontrol.utils.testing:job_simple_echo',
+        args=(u'föö', u'bär', u'bäz'),
+        kwargs={u'spám': 100, u'éggs': 200, u'bäcon': 500})
+
+    build_id = jc.build_job(job_id)
+    build = jc.storage.get_build(build_id)
+    assert build['started']
+    assert build['finished']
+    assert build['success']
+    assert build['skipped'] is False
+    assert build['start_time'] is not None
+    assert build['end_time'] is not None
+    assert build['retval'] == (
+        (u'föö', u'bär', u'bäz'),
+        {u'spám': 100, u'éggs': 200, u'bäcon': 500})
+    assert build['exception'] is None
+
+
+def test_build_with_bytes_data(jc):
+    job_id = jc.storage.create_job(
+        'jobcontrol.utils.testing:job_simple_echo',
+        args=('\xaa\xbb\x00\xff\xff\x00ABC',))
+
+    build_id = jc.build_job(job_id)
+    build = jc.storage.get_build(build_id)
+    assert build['started']
+    assert build['finished']
+    assert build['success']
+    assert build['skipped'] is False
+    assert build['start_time'] is not None
+    assert build['end_time'] is not None
+    assert build['retval'] == (('\xaa\xbb\x00\xff\xff\x00ABC',), {})
+    assert build['exception'] is None
