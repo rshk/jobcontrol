@@ -312,9 +312,9 @@ def test_build_with_unicode(jc):
 
 
 def test_build_with_bytes_data(jc):
+    args = ('\xaa\xbb\x00\xff\xff\x00ABC',)
     job_id = jc.storage.create_job(
-        'jobcontrol.utils.testing:job_simple_echo',
-        args=('\xaa\xbb\x00\xff\xff\x00ABC',))
+        'jobcontrol.utils.testing:job_simple_echo', args=args)
 
     build_id = jc.build_job(job_id)
     build = jc.storage.get_build(build_id)
@@ -324,5 +324,5 @@ def test_build_with_bytes_data(jc):
     assert build['skipped'] is False
     assert build['start_time'] is not None
     assert build['end_time'] is not None
-    assert build['retval'] == (('\xaa\xbb\x00\xff\xff\x00ABC',), {})
+    assert build['retval'] == (args, {})
     assert build['exception'] is None
