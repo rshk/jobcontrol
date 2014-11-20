@@ -23,16 +23,18 @@ setup(
     description='Job scheduling and tracking library',
     long_description=longdesc,
     install_requires=[
+        'PrettyTable',  # For creating tables
+        'celery[redis]',  # For async tasks
         'click',  # For the CLI
         'colorama',  # For color stuff
-        'flask',  # For the webapp; utils used around
-        'nicelog',  # For colorful logging
-        'PrettyTable',  # For creating tables
-        'psycopg2',  # For postgresql storage
-        'pygments',
-        'celery[redis]',  # For async tasks
-        'docutils',
+        'docutils',  # For rendering docstings in the web UI
+        'flask',  # For the webapp; utils used around the place
         'humanize',  # For nicer display of information
+        'nicelog',  # For colorful logging
+        'psycopg2',  # For postgresql storage
+        'pygments',  # For colorizing source code in the web UI
+        'pyyaml',  # For loding YAML configuration
+        'werkzeug',  # Flask dependency, but utils used around too
     ],
     # tests_require=tests_require,
     # test_suite='tests',
