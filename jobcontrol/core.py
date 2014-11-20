@@ -14,7 +14,7 @@ from flask import escape
 
 from jobcontrol.globals import _execution_ctx_stack
 from jobcontrol.exceptions import MissingDependencies, SkipBuild
-from jobcontrol.utils import import_object
+from jobcontrol.utils import import_object, cached_property
 from jobcontrol.utils.depgraph import resolve_deps
 
 logger = logging.getLogger('jobcontrol')
@@ -267,9 +267,11 @@ class JobExecutionContext(object):
     Global context for job execution.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, app, job_id, build_id):
         # Kwargs: app, job_id, build_id
-        self.__dict__.update(kwargs)
+        self.app = app
+        self.job_id = job_id
+        self.build_id = build_id
 
     def push(self):
         _execution_ctx_stack.push(self)
@@ -285,6 +287,18 @@ class JobExecutionContext(object):
 
     def __exit__(self, exc_type, exc_value, tb):
         self.pop()
+
+    @property
+    def current_app(self):
+        return self.app
+
+    @cached_property
+    def current_job(self):
+        return self.app.get_job(self.job_id)
+
+    @cached_property
+    def current_build(self):
+        return self.app.get_build(self.build_id)
 
 
 class JobControlLogHandler(logging.Handler):
