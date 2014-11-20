@@ -55,11 +55,6 @@ class PostgreSQLStorage(StorageBase):
         if self._db is None or self._db.closed:
             self._db = self._connect()
         return self._db
-        # try:
-        #     return self._local.db
-        # except AttributeError:
-        #     self._local.db = self._connect()
-        #     return self._local.db
 
     def _connect(self):
         conn = psycopg2.connect(**self._dbconf)
@@ -74,14 +69,22 @@ class PostgreSQLStorage(StorageBase):
         self._drop_tables()
 
     def _create_tables(self):
+        # ----------------------------------------------------------------------
+        # Note: we use "TEXT" for the natural keys as there is no advantage
+        #       in PostgreSQL (actually, TEXT is faster to write due to no
+        #       need for length-constraint checking)
+        # Note: Maybe there is a way to ask for a "full match" (hash table?)
+        #       index only on the id field, thus speeding up things a bit?
+        #       Anyways, we won't have a large number of objects here, nor
+        #       complex joins, so there should be no problem at all..
+        # ----------------------------------------------------------------------
+
         query = """
         CREATE TABLE "{prefix}job" (
-            id SERIAL PRIMARY KEY,
+            id TEXT PRIMARY KEY,
             title TEXT,
             notes TEXT,
-            function TEXT,
-            args BYTEA,
-            kwargs BYTEA,
+            config TEXT,
             ctime TIMESTAMP WITHOUT TIME ZONE,
             mtime TIMESTAMP WITHOUT TIME ZONE,
             dependencies INTEGER[]
@@ -89,27 +92,43 @@ class PostgreSQLStorage(StorageBase):
 
         CREATE TABLE "{prefix}build" (
             id SERIAL PRIMARY KEY,
-            job_id INTEGER REFERENCES "{prefix}job" (id),
+            job_id TEXT REFERENCES "{prefix}job" (id)
+                ON UPDATE CASCADE,
             start_time TIMESTAMP WITHOUT TIME ZONE,
             end_time TIMESTAMP WITHOUT TIME ZONE,
             started BOOLEAN DEFAULT false,
             finished BOOLEAN DEFAULT false,
             success BOOLEAN DEFAULT false,
             skipped BOOLEAN DEFAULT false,
-            progress_current INTEGER DEFAULT 0,
-            progress_total INTEGER DEFAULT 0,
+            job_config TEXT,
+            build_config TEXT,
             retval BYTEA,
             exception BYTEA,
             exception_tb BYTEA
         );
 
+        CREATE TABLE "{prefix}build_progress" (
+            job_id TEXT REFERENCES "{prefix}job" (id)
+                ON UPDATE CASCADE,
+            build_id INTEGER REFERENCES "{prefix}build" (id)
+                ON DELETE CASCADE,
+            group_name TEXT,
+            current INTEGER NOT NULL,
+            total INTEGER NOT NULL,
+            status_line TEXT,
+            UNIQUE (build_id, group_name)
+        );
+
         CREATE TABLE "{prefix}log" (
             id SERIAL PRIMARY KEY,
-            job_id INTEGER REFERENCES "{prefix}job" (id),
-            build_id INTEGER REFERENCES "{prefix}build" (id),
+            job_id TEXT REFERENCES "{prefix}job" (id)
+                ON UPDATE CASCADE,
+            build_id INTEGER REFERENCES "{prefix}build" (id)
+                ON DELETE CASCADE,
             created TIMESTAMP WITHOUT TIME ZONE,
             level INTEGER,
-            record BYTEA
+            record BYTEA,
+            exception_tb BYTEA
         );
         """.format(prefix=self._table_prefix)
 
@@ -117,7 +136,8 @@ class PostgreSQLStorage(StorageBase):
             cur.execute(query)
 
     def _drop_tables(self):
-        table_names = [self._table_name(x) for x in ('job', 'build', 'log')]
+        names = ('job', 'build', 'build_progress', 'log')
+        table_names = [self._table_name(x) for x in names]
         with self.db, self.db.cursor() as cur:
             for table in reversed(table_names):
                 cur.execute('DROP TABLE "{name}" CASCADE;'.format(name=table))
