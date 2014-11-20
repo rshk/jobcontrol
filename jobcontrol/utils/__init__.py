@@ -1,10 +1,10 @@
+from collections import defaultdict
 from datetime import datetime
 from urlparse import urlparse
 import json
 import linecache
 import math
 import sys
-import traceback
 
 _missing = object()
 
@@ -220,3 +220,76 @@ class TracebackInfo(object):
 
     def __unicode__(self):
         return u''.join(unicode(x) for x in self.format())
+
+
+class ProgressReport(object):
+    """Class for representing progress reports"""
+
+    def __init__(self, name, current=None, total=None, status_line=None,
+                 children=None):
+        self.name = name
+        self._current = current
+        self._total = total
+        self.status_line = status_line
+        self.children = []
+        if children is not None:
+            if not all(isinstance(x, ProgressReport)
+                       for x in children):
+                raise TypeError(
+                    "Progress children must be ProgressReport instances")
+            self.children.extend(children)
+
+    @property
+    def current(self):
+        if self._current is not None:
+            return self._current
+        pass
+
+    @property
+    def total(self):
+        if self._total is not None:
+            return self._total
+        pass
+
+    @classmethod
+    def from_table(cls, table):
+        """
+        :param table:
+            a list of tuples: (name, current, total, status_line).
+
+            - If there is a tuple with ``name == None`` -> use
+              as the object's current/total report
+
+            - Find all the "namespaces" and use to build progress
+              sub-objects
+        """
+
+        root = None
+        prefixes = []  # Need to preserve order!
+        sub_tables = defaultdict(list)
+
+        for name, current, total, status_line in table:
+            if not name:
+                root = current, total, status_line
+
+            else:
+                if isinstance(name, basestring):
+                    name = tuple(x.strip() for x in name.split('::'))
+
+                prefix = name[1]
+                if prefix not in prefixes:
+                    prefixes.append(prefix)
+                sub_tables[prefix].append(
+                    (name[1:], current, total, status_line))
+
+        if root is None:
+            obj = cls()
+        else:
+            name, current, total, status_line = root  # Explicit!
+            obj = cls(name, current, total, status_line)
+
+        # Add children..
+        for pref in prefixes:
+            obj.children.append(ProgressReport.from_table(sub_tables[pref]))
+
+        return obj
