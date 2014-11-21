@@ -408,7 +408,6 @@ class JobControlLogHandler(logging.Handler):
             record.exc_info = record.exc_info[0], record.exc_info[1], tb
 
         current_app.storage.log_message(
-            job_id=execution_context.job_id,
             build_id=execution_context.build_id,
             record=record)
 
