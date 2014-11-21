@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import sys
+# import sys
 
 
 def test_simple_build(jc):
     job_id = jc.storage.create_job(
-        'jobcontrol.utils.testing:job_simple_echo',
+        function='jobcontrol.utils.testing:job_simple_echo',
         args=('foo', 'bar', 'baz'),
         kwargs={'spam': 100, 'eggs': 200, 'bacon': 500})
 
@@ -81,7 +81,7 @@ def test_build_deps(jc, request):
     job_ids = {}
     for _def in _job_defs:
         job_ids[_def[0]] = jc.storage.create_job(
-            fun, args=(_def[0],),
+            function=fun, args=(_def[0],),
             dependencies=[job_ids[x] for x in _def[1]])
 
     def cleanup():
@@ -127,7 +127,7 @@ def test_build_deps(jc, request):
 
 def test_build_logging(jc, request):
     job_id = jc.storage.create_job(
-        'jobcontrol.utils.testing:job_with_logging')
+        function='jobcontrol.utils.testing:job_with_logging')
 
     request.addfinalizer(lambda: jc.storage.delete_job(job_id))
 
@@ -185,11 +185,11 @@ def test_build_logs_with_deps(jc, request):
     # ------------------------------------------------------------
 
     job_id_1 = jc.storage.create_job(
-        'jobcontrol.utils.testing:job_with_tracer_log')
+        function='jobcontrol.utils.testing:job_with_tracer_log')
     job_id_2 = jc.storage.create_job(
-        'jobcontrol.utils.testing:job_with_tracer_log')
+        function='jobcontrol.utils.testing:job_with_tracer_log')
     job_id_3 = jc.storage.create_job(
-        'jobcontrol.utils.testing:job_with_tracer_log',
+        function='jobcontrol.utils.testing:job_with_tracer_log',
         dependencies=[job_id_1, job_id_2])
 
     assert len(list(jc.storage.get_job_builds(job_id_1))) == 0
@@ -247,11 +247,11 @@ def test_build_logs_with_deps_async(jc, request):
     # ------------------------------------------------------------
 
     job_id_1 = jc.storage.create_job(
-        'jobcontrol.utils.testing:job_with_tracer_log')
+        function='jobcontrol.utils.testing:job_with_tracer_log')
     job_id_2 = jc.storage.create_job(
-        'jobcontrol.utils.testing:job_with_tracer_log')
+        function='jobcontrol.utils.testing:job_with_tracer_log')
     job_id_3 = jc.storage.create_job(
-        'jobcontrol.utils.testing:job_with_tracer_log',
+        function='jobcontrol.utils.testing:job_with_tracer_log',
         dependencies=[job_id_1, job_id_2])
 
     assert len(list(jc.storage.get_job_builds(job_id_1))) == 0
@@ -293,7 +293,7 @@ def test_build_logs_with_deps_async(jc, request):
 
 def test_build_with_unicode(jc):
     job_id = jc.storage.create_job(
-        'jobcontrol.utils.testing:job_simple_echo',
+        function='jobcontrol.utils.testing:job_simple_echo',
         args=(u'föö', u'bär', u'bäz'),
         kwargs={u'spám': 100, u'éggs': 200, u'bäcon': 500})
 
@@ -314,7 +314,8 @@ def test_build_with_unicode(jc):
 def test_build_with_bytes_data(jc):
     args = ('\xaa\xbb\x00\xff\xff\x00ABC',)
     job_id = jc.storage.create_job(
-        'jobcontrol.utils.testing:job_simple_echo', args=args)
+        function='jobcontrol.utils.testing:job_simple_echo',
+        args=args)
 
     build_id = jc.build_job(job_id)
     build = jc.storage.get_build(build_id)

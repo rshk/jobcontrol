@@ -3,7 +3,7 @@ Objects responsible for JobControl core functionality.
 """
 
 from datetime import timedelta
-import colorsys
+# import colorsys
 import inspect
 import logging
 import sys
@@ -456,7 +456,7 @@ class JobInfo(object):
 
     def __getitem__(self, name):
         if name in self.info:  # id, ctime, mtime
-            return self.info['name']
+            return self.info[name]
         return self.config[name]
 
     def update(self, *a, **kw):

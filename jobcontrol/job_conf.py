@@ -59,8 +59,8 @@ preserving formatting / comments in other parts of the document?
 
 import io
 
-from yaml.dumper import SafeDumper
-from yaml.loader import SafeLoader
+import yaml
+from yaml import SafeDumper, SafeLoader
 
 from jobcontrol.globals import execution_context
 
@@ -87,33 +87,29 @@ class Retval(object):
 
 
 def dump(data):
-    out = io.StringIO()
-    dmpr = SafeDumper(out, default_flow_style=False)
+    class CustomDumper(SafeDumper):
+        pass
 
     def _represent_retval(dumper, data):
         return dumper.represent_scalar(
             u'!retval', value=unicode(data.job_id))
 
-    dmpr.add_representer(Retval, _represent_retval)
+    CustomDumper.add_representer(Retval, _represent_retval)
 
-    dmpr.open()
-    try:
-        dmpr.represent(data)
-    finally:
-        dmpr.close()
-
-    return out.getvalue()
+    return yaml.dump_all([data], Dumper=CustomDumper,
+                         default_flow_style=False)
 
 
 def load(stream):
-    ldr = SafeLoader(stream)
+    class CustomLoader(SafeLoader):
+        pass
 
     def _construct_retval(loader, data):
         return Retval(loader.construct_scalar(data))
 
-    ldr.add_constructor(u'!retval', _construct_retval)
+    CustomLoader.add_constructor(u'!retval', _construct_retval)
 
-    return ldr.get_single_data()
+    return yaml.load(stream, Loader=CustomLoader)
 
 
 def prepare_args(args):

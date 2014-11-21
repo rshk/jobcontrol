@@ -105,3 +105,42 @@ def test_conf_with_references():
         'site': 'http://example.com',
         'api_key': '1234abcd',
     }
+
+
+def test_dump_conf_regression_141121_01():
+    """
+    Regression test: serialization was failing on binary strings
+    """
+
+    import yaml
+
+    obj = '\xaa\xbb\x00\xff\xff\x00ABC'
+    assert yaml.load(yaml.dump(obj)) == obj
+    assert yaml.safe_load(yaml.safe_dump(obj)) == obj
+
+    obj = {'blob': '\xaa\xbb\x00\xff\xff\x00ABC'}
+    assert yaml.load(yaml.dump(obj)) == obj
+    assert yaml.safe_load(yaml.safe_dump(obj)) == obj
+
+    obj = {
+        'function': 'jobcontrol.utils.testing:job_simple_echo',
+        'title': None,
+        'notes': None,
+        # 'args': ('\xaa\xbb\x00\xff\xff\x00ABC',),
+        'args': '\xaa\xbb\x00\xff\xff\x00ABC',
+        'dependencies': [],
+        'kwargs': {},
+        'id': 'f974e89f-4ae3-40cc-8316-b78e42bd5cc8',
+    }
+    dump(obj)
+
+    # obj = {
+    #     'function': 'jobcontrol.utils.testing:job_simple_echo',
+    #     'title': None,
+    #     'notes': None,
+    #     'args': ('\xaa\xbb\x00\xff\xff\x00ABC',),
+    #     'dependencies': [],
+    #     'kwargs': {},
+    #     'id': 'f974e89f-4ae3-40cc-8316-b78e42bd5cc8',
+    # }
+    # dump(obj)
