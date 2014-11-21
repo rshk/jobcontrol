@@ -15,9 +15,6 @@ Interfaces for NEW jobcontrol objects.
 
             ctime TIMESTAMP
             mtime TIMESTAMP
-            dependecies INTEGER[] (references Job.id)
-                This is copied from config, mostly in order to
-                be able to filter for reverse dependencies.
 
     Build   id SERIAL
     -----   job_id INTEGER (references Job.id)
@@ -98,6 +95,9 @@ We want to include the following information:
 import abc
 import pickle
 
+import jobcontrol.job_conf
+from jobcontrol.exceptions import NotFound
+
 
 class StorageBase(object):
     __metaclass__ = abc.ABCMeta
@@ -137,12 +137,26 @@ class StorageBase(object):
                 raise
             return 'Error deserializing object: {0!r}'.format(e)
 
+    def yaml_pack(self, obj):
+        return jobcontrol.job_conf.dump(obj)
+
+    def yaml_unpack(self, obj):
+        return jobcontrol.job_conf.load(obj)
+
+    # ------------------------------------------------------------
+    # More helper methods
+    # ------------------------------------------------------------
+
+    def _generate_job_id(self):
+        import uuid
+        return str(uuid.uuid4())
+
     # ------------------------------------------------------------
     # Job CRUD methods
     # ------------------------------------------------------------
 
     @abc.abstractmethod
-    def create_job(self, job_id, function=None, args=None, kwargs=None,
+    def create_job(self, job_id=None, function=None, args=None, kwargs=None,
                    dependencies=None, title=None, notes=None, config=None):
         """
         Create a new job.
@@ -187,6 +201,7 @@ class StorageBase(object):
     def _make_config(self, job_id, function, args, kwargs, dependencies, title,
                      notes, config=None):
         """Utility function to merge arguments into configuration"""
+
         _config = {
             'id': None,
             'function': None,
@@ -196,22 +211,31 @@ class StorageBase(object):
             'title': None,
             'notes': None,
         }
+
         if config is not None:
             _config.update(config)
+
         if job_id is not None:
             _config['id'] = job_id
+
         if function is not None:
             _config['function'] = function
+
         if args is not None:
             _config['args'] = args
+
         if kwargs is not None:
             _config['kwargs'] = kwargs
+
         if dependencies is not None:
             _config['dependencies'] = dependencies
+
         if title is not None:
             _config['title'] = title
+
         if notes is not None:
             _config['notes'] = notes
+
         return _config
 
     @abc.abstractmethod
@@ -231,8 +255,8 @@ class StorageBase(object):
 
     def iter_jobs(self):
         """Iterate all jobs, yielding them as dicts"""
-        for id in self.job_list():
-            yield self.job_get(id)
+        for id in self.list_jobs():
+            yield self.get_job(id)
 
     def mget_jobs(self, job_ids):
         """
@@ -247,7 +271,14 @@ class StorageBase(object):
 
         :param job_ids: A list of job ids.
         """
-        return [self.job_get(x) for x in job_ids]
+        return list(self.miter_jobs(job_ids))
+
+    def miter_jobs(self, job_ids):
+        for job_id in job_ids:
+            try:
+                yield self.get_job(job_id)
+            except NotFound:
+                pass
 
     @abc.abstractmethod
     def get_job_deps(self, job_id):

@@ -57,8 +57,10 @@ class JobControl(object):
         :param config:
             A dictionary containing already (partial) configuration
             using the above keys.
-        :param title: Title to be shown on the UI
-        :param notes: Miscellaneous notes, in restructured text.
+        :param title:
+            Title to be shown on the UI
+        :param notes:
+            Miscellaneous notes, in restructured text.
 
         :return:
             a :py:class:`JobInfo` class instance associated with the
@@ -97,6 +99,10 @@ class JobControl(object):
     def build_job(self, job_id, build_deps=False, build_depending=False,
                   _depth=0):
 
+        """
+        Run a build for the selected job.
+        """
+
         if isinstance(job_id, JobInfo):
             job_id = JobInfo.id
 
@@ -106,7 +112,7 @@ class JobControl(object):
         # Get information about the job we want to build
         # ------------------------------------------------------------
 
-        job = self.storage.get_job(job_id)
+        job = self.get_job(job_id)
         if job is None:
             raise RuntimeError("No such job: {0}".format(job_id))
 
@@ -212,7 +218,7 @@ class JobControl(object):
     def _build_job(self, job_id):
         """Actually run a build for this job"""
 
-        job = self.storage.get_job(job_id)
+        job = self.get_job(job_id)
         if job is None:
             raise RuntimeError('No such job: {0}'.format(job_id))
 
@@ -226,10 +232,12 @@ class JobControl(object):
         self.storage.start_build(build_id)
 
         try:
-            function = self._get_runner_function(job['function'])
+            function = self._get_runner_function(job.config['function'])
             logger.debug(log_prefix + 'Function is {0!r}'.format(function))
 
-            retval = function(*job['args'], **job['kwargs'])
+            args = job['config']['args']
+            kwargs = job['config']['kwargs']
+            retval = function(*args, **kwargs)
 
         except SkipBuild:
             logger.info(log_prefix + 'Build SKIPPED')
@@ -267,6 +275,10 @@ class JobControl(object):
         return builds[0]['end_time']
 
     def _get_runner_function(self, name):
+        if not isinstance(name, basestring):
+            raise TypeError('Function name must be a string')
+        if not name:
+            raise ValueError('Cannot get function for empty name!')
         return import_object(name)
 
     def prune_logs(self, policy=None):
@@ -434,12 +446,19 @@ class JobInfo(object):
             self.refresh()
         return self._info
 
+    @property
+    def config(self):
+        """Return configuration about the job"""
+        return self.info['config']
+
     def refresh(self):
         """Refresh the cached job information"""
         self._info = self.app.storage.get_job(self.job_id)
 
     def __getitem__(self, name):
-        return self.info[name]
+        if name in self.info:  # id, ctime, mtime
+            return self.info['name']
+        return self.config[name]
 
     def update(self, *a, **kw):
         """
@@ -714,32 +733,34 @@ class BuildInfo(object):
         return self.info[name]
 
     def get_progress_info(self):
-        current = self.info['progress_current']
-        total = self.info['progress_total']
+        raise NotImplementedError  # todo: use new progress objects
 
-        progress_info = {
-            'current': current,
-            'total': total,
-            'percent': 0,
-            'percent_human': 'N/A',
-            'label': 'N/A',
-        }
+        # current = self.info['progress_current']
+        # total = self.info['progress_total']
 
-        if total != 0:
-            ratio = current * 1.0 / total
-            percent = ratio * 100
-            progress_info['percent'] = percent
-            progress_info['percent_human'] = format(percent, '.0f')
-            progress_info['label'] = '{0}/{1} ({2:.0f}%)'.format(
-                current, total, percent)
+        # progress_info = {
+        #     'current': current,
+        #     'total': total,
+        #     'percent': 0,
+        #     'percent_human': 'N/A',
+        #     'label': 'N/A',
+        # }
 
-            hue = ratio * 120  # todo: use logaritmic scale?
-            color = ''.join([
-                format(int(x * 255), '02X')
-                for x in colorsys.hsv_to_rgb(hue / 360.0, .8, .8)])
-            progress_info['color'] = '#' + color
+        # if total != 0:
+        #     ratio = current * 1.0 / total
+        #     percent = ratio * 100
+        #     progress_info['percent'] = percent
+        #     progress_info['percent_human'] = format(percent, '.0f')
+        #     progress_info['label'] = '{0}/{1} ({2:.0f}%)'.format(
+        #         current, total, percent)
 
-        return progress_info
+        #     hue = ratio * 120  # todo: use logaritmic scale?
+        #     color = ''.join([
+        #         format(int(x * 255), '02X')
+        #         for x in colorsys.hsv_to_rgb(hue / 360.0, .8, .8)])
+        #     progress_info['color'] = '#' + color
+
+        # return progress_info
 
     def get_job(self):
         return JobInfo(self.app, self.job_id)

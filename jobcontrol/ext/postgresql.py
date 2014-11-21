@@ -10,9 +10,7 @@ import psycopg2
 import psycopg2.extras
 
 from jobcontrol.interfaces import StorageBase
-from jobcontrol.utils import cached_property
 from jobcontrol.exceptions import NotFound
-from werkzeug.local import Local
 
 
 class PostgreSQLStorage(StorageBase):
@@ -106,8 +104,6 @@ class PostgreSQLStorage(StorageBase):
         );
 
         CREATE TABLE "{prefix}build_progress" (
-            job_id TEXT REFERENCES "{prefix}job" (id)
-                ON UPDATE CASCADE,
             build_id INTEGER REFERENCES "{prefix}build" (id)
                 ON DELETE CASCADE,
             group_name TEXT,
@@ -119,8 +115,6 @@ class PostgreSQLStorage(StorageBase):
 
         CREATE TABLE "{prefix}log" (
             id SERIAL PRIMARY KEY,
-            job_id TEXT REFERENCES "{prefix}job" (id)
-                ON UPDATE CASCADE,
             build_id INTEGER REFERENCES "{prefix}build" (id)
                 ON DELETE CASCADE,
             created TIMESTAMP WITHOUT TIME ZONE,
@@ -159,15 +153,34 @@ class PostgreSQLStorage(StorageBase):
             fields=', '.join(self._escape_name(x) for x in _fields),
             valspec=', '.join('%({0})s'.format(x) for x in _fields))
 
-    def _query_update(self, table, data):
+    def _query_update(self, table, data, keys=None):
         _fields = [x for x in sorted(data) if x != 'id']
+
+        if keys is None:
+            keys = ['id']
+
+        if isinstance(keys, basestring):
+            keys = [keys]
+
+        if not isinstance(keys, (tuple, list)):
+            raise TypeError("Keys must be a tuple or list")
+
+        if len(keys) < 1:
+            raise TypeError('You must specify at least one key for update')
+
+        where_clause = []
+        for k in keys:
+            where_clause.append('"{0}"=%({0})s'.format(k))
+        where_clause = ' AND '.join(where_clause)
+
         return """
-        UPDATE "{table}" SET {updates} WHERE "id"=%(id)s;
+        UPDATE "{table}" SET {updates} WHERE {where_clause};
         """.format(
             table=self._table_name(table),
             updates=', '.join(
                 "{0}=%({1})s".format(self._escape_name(fld), fld)
-                for fld in _fields))
+                for fld in _fields),
+            where_clause=where_clause)
 
     def _query_select_one(self, table, fields='*'):
         return """
@@ -210,8 +223,8 @@ class PostgreSQLStorage(StorageBase):
             cur.execute(query, data)
             return cur.fetchone()[0]
 
-    def _do_update(self, table, data):
-        query = self._query_update(table, data)
+    def _do_update(self, table, data, keys=None):
+        query = self._query_update(table, data, keys=keys)
         with self.db, self.db.cursor() as cur:
             cur.execute(query, data)
 
@@ -236,18 +249,15 @@ class PostgreSQLStorage(StorageBase):
     # -------------------- Object serialization --------------------
 
     def _job_pack(self, job):
-        if job.get('args') is not None:
-            job['args'] = buffer(self.pack(job['args']))
-        if job.get('kwargs') is not None:
-            job['kwargs'] = buffer(self.pack(job['kwargs']))
+        job['config'] = self.yaml_pack(job['config'])
         return job
 
     def _job_unpack(self, row):
         row = dict(row)
-        if row.get('args') is not None:
-            row['args'] = self.unpack(row['args'])
-        if row.get('kwargs') is not None:
-            row['kwargs'] = self.unpack(row['kwargs'])
+        row['config'] = self.yaml_unpack(row['config'])
+        if not isinstance(row['config']['args'], tuple):
+            # We want a tuple, not list
+            row['config']['args'] = tuple(row['config']['args'])
         return row
 
     def _build_pack(self, job):
@@ -272,47 +282,55 @@ class PostgreSQLStorage(StorageBase):
     # Job CRUD methods
     # ------------------------------------------------------------
 
-    def create_job(self, function, args=None, kwargs=None, dependencies=None,
-                   title=None):
-        data = self._job_pack({
-            'function': function,
-            'args': args or (),
-            'kwargs': kwargs or {},
-            'dependencies': dependencies or [],
-            'title': title,
-            'ctime': datetime.now(),
-            'mtime': datetime.now(),
-        })
+    def create_job(self, job_id=None, function=None, args=None, kwargs=None,
+                   dependencies=None, title=None, notes=None, config=None):
 
+        if job_id is None:
+            job_id = self._generate_job_id()
+
+        job_config = self._make_config(
+            job_id, function, args, kwargs, dependencies, title, notes,
+            config=config)
+        job = {'id': job_id, 'config': job_config}
+        job['ctime'] = job['mtime'] = datetime.now()
+        job['dependencies'] = job_config['dependencies']
+        data = self._job_pack(job)
         return self._do_insert('job', data)
 
     def update_job(self, job_id, function=None, args=None, kwargs=None,
-                   dependencies=None, title=None):
+                   dependencies=None, title=None, notes=None, config=None):
 
-        if self.get_job(job_id) is None:
+        job = self.get_job(job_id)
+        if job is None:
             raise NotFound('No such job: {0}'.format(job_id))
 
-        data = {'id': job_id}
+        job_config = job['config']
+        job_data = {
+            'id': job_id,
+            'mtime': datetime.now(),
+            'config': job_config,  # Hold reference
+        }
 
         if function is not None:
-            data['function'] = function
+            job_config['function'] = function
 
         if args is not None:
-            data['args'] = self.pack(args)
+            job_config['args'] = args
 
         if kwargs is not None:
-            data['kwargs'] = self.pack(kwargs)
+            job_config['kwargs'] = kwargs
 
         if dependencies is not None:
-            data['dependencies'] = dependencies
+            job_config['dependencies'] = dependencies
+            job_data['dependencies'] = job_config['dependencies']
 
         if title is not None:
-            data['title'] = title
+            job_config['title'] = title
 
-        if len(data) <= 1:
-            return  # nothing to update
+        if notes is not None:
+            job_config['notes'] = notes
 
-        self._do_update('job', data)
+        self._do_update('job', self._job_pack(job_data))
 
     def get_job(self, job_id):
         data = self._do_select_one('job', job_id)
@@ -323,11 +341,15 @@ class PostgreSQLStorage(StorageBase):
         return self._job_unpack(data)
 
     def delete_job(self, job_id):
-        query = 'DELETE FROM "{table}" WHERE "job_id"=%(job_id)s'.format(
-            table=self._table_name('log'))
+        # First, we need to delete all the builds
+        # Then, we can delete the job itself.
+        # Other stuff should be automatically delete-cascaded
 
-        with self.db, self.db.cursor() as cur:
-            cur.execute(query, {'job_id': job_id})
+        # query = 'DELETE FROM "{table}" WHERE "job_id"=%(job_id)s'.format(
+        #     table=self._table_name('log'))
+
+        # with self.db, self.db.cursor() as cur:
+        #     cur.execute(query, {'job_id': job_id})
 
         query = 'DELETE FROM "{table}" WHERE "job_id"=%(job_id)s'.format(
             table=self._table_name('build'))
@@ -484,16 +506,56 @@ class PostgreSQLStorage(StorageBase):
             'exception_tb': exc_trace,
         }))
 
-    def update_build_progress(self, build_id, current, total):
-        self._do_update('build', self._build_pack({
-            'id': build_id,
-            'progress_current': current,
-            'progress_total': total,
-        }))
+    def report_build_progress(self, build_id, current, total, group_name='',
+                              status_line=''):
 
-    def log_message(self, job_id, build_id, record):
+        """
+        We need to "upsert" the record in PostgreSQL build_progress table.
+        Since no deletions should happen, we can safely:
+
+        - INSERT -> on constraint violation -> UPDATE
+        """
+
+        if not isinstance(current, (int, long)):
+            raise TypeError('Progress "current" must be an integer')
+
+        if not isinstance(total, (int, long)):
+            raise TypeError('Progress "total" must be an integer')
+
+        record = {
+            'build_id': build_id,
+            'current': current,
+            'total': total,
+            'group_name': group_name,
+            'status_line': status_line,
+        }
+
+        try:
+            self._do_insert('build_progress', record)
+        except psycopg2.IntegrityError:
+            self._do_update('build_progress', record,
+                            keys=('build_id', 'group_name'))
+
+        # try:
+        #     build = self._builds[build_id]
+        # except KeyError:
+        #     raise NotFound("Build {0} not found".format(build_id))
+
+        # build['progress_info'][group_name] = {
+        #     'current': current,
+        #     'total': total,
+        #     'status_line': status_line,
+        # }
+
+    # def update_build_progress(self, build_id, current, total):
+    #     self._do_update('build', self._build_pack({
+    #         'id': build_id,
+    #         'progress_current': current,
+    #         'progress_total': total,
+    #     }))
+
+    def log_message(self, build_id, record):
         self._do_insert('log', {
-            'job_id': job_id,
             'build_id': build_id,
             'created': datetime.utcfromtimestamp(record.created),
             'level': record.levelno,
@@ -501,15 +563,13 @@ class PostgreSQLStorage(StorageBase):
             # We use a buffer here in order to have it inserted in the query
             # as a "bytea" object.
             'record': buffer(self.pack(record))
+
+            # todo: extract traceback, if any
         })
 
-    def prune_log_messages(self, job_id=None, build_id=None,
-                           max_age=None, level=None):
+    def prune_log_messages(self, build_id=None, max_age=None, level=None):
         """
         Delete old log messages.
-
-        :param job_id:
-            If specified, only delete messages for this job
 
         :param build_id:
             If specified, only delete messages for this build
@@ -525,10 +585,6 @@ class PostgreSQLStorage(StorageBase):
 
         conditions = []
         filters = {}
-
-        if job_id is not None:
-            conditions.append('"job_id"=%(job_id)s')
-            filters['job_id'] = job_id
 
         if build_id is not None:
             conditions.append('"build_id"=%(build_id)s')
@@ -553,15 +609,11 @@ class PostgreSQLStorage(StorageBase):
         with self.db, self.db.cursor() as cur:
             cur.execute(query, filters)
 
-    def iter_log_messages(self, job_id=None, build_id=None, max_date=None,
+    def iter_log_messages(self, build_id=None, max_date=None,
                           min_date=None, min_level=None):
 
         conditions = []
         filters = {}
-
-        if job_id is not None:
-            conditions.append('"job_id"=%(job_id)s')
-            filters['job_id'] = job_id
 
         if build_id is not None:
             conditions.append('"build_id"=%(build_id)s')
@@ -594,7 +646,7 @@ class PostgreSQLStorage(StorageBase):
                 record = self.unpack(item['record'])
 
                 # todo: any better way to do this?
-                record.job_id = item['job_id']
+                # record.job_id = item['job_id']
                 record.build_id = item['build_id']
 
                 # Make sure we're dealing with unicode..

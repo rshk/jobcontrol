@@ -29,7 +29,7 @@ class MemoryStorage(StorageBase):
         self._jobs = {}
         self._builds = {}
         self._log_messages = defaultdict(list)  # build: messages
-        self._jobs_seq = count()
+        # self._jobs_seq = count()
         self._builds_seq = count()
 
     # ------------------------------------------------------------
@@ -47,9 +47,12 @@ class MemoryStorage(StorageBase):
     # Job CRUD methods
     # ------------------------------------------------------------
 
-    def create_job(self, job_id, function=None, args=None, kwargs=None,
+    def create_job(self, job_id=None, function=None, args=None, kwargs=None,
                    dependencies=None, title=None, notes=None, config=None):
-        job_id = self._jobs_seq.next()
+
+        if job_id is None:
+            job_id = self._generate_job_id()
+
         job_config = self._make_config(
             job_id, function, args, kwargs, dependencies, title, notes,
             config=config)
@@ -57,13 +60,9 @@ class MemoryStorage(StorageBase):
         job = {
             'id': job_id,
             'config': job_config,
-            'title': job_config['title'],
-            'notes': job_config['notes'],
-            'dependencies': job_config['dependencies'],
         }
 
-        job['ctime'] = datetime.now()
-        job['mtime'] = job['ctime']
+        job['ctime'] = job['mtime'] = datetime.now()
 
         self._jobs[job_id] = job
         return job_id
@@ -75,22 +74,22 @@ class MemoryStorage(StorageBase):
             raise NotFound('No such job: {0}'.format(job_id))
 
         if function is not None:
-            self._jobs[job_id]['function'] = function
+            self._jobs[job_id]['config']['function'] = function
 
         if args is not None:
-            self._jobs[job_id]['args'] = args
+            self._jobs[job_id]['config']['args'] = args
 
         if kwargs is not None:
-            self._jobs[job_id]['kwargs'] = kwargs
+            self._jobs[job_id]['config']['kwargs'] = kwargs
 
         if dependencies is not None:
-            self._jobs[job_id]['dependencies'] = dependencies
+            self._jobs[job_id]['config']['dependencies'] = dependencies
 
         if title is not None:
-            self._jobs[job_id]['title'] = title
+            self._jobs[job_id]['config']['title'] = title
 
         if notes is not None:
-            self._jobs[job_id]['notes'] = notes
+            self._jobs[job_id]['config']['notes'] = notes
 
         if config is not None:
             self._jobs[job_id].update(config)
@@ -112,24 +111,14 @@ class MemoryStorage(StorageBase):
     def list_jobs(self):
         return sorted(self._jobs.iterkeys())
 
-    # def iter_jobs(self):
-    #     for job_id, job in self._jobs.iteritems():
-    #         yield copy.deepcopy(job)
-
-    # def mget_jobs(self, job_ids):
-    #     jobs = []
-    #     for job_id in job_ids:
-    #         if job_id in self._jobs:
-    #             jobs.append(copy.deepcopy(self._jobs[job_id]))
-    #     return jobs
-
     def get_job_deps(self, job_id):
-        return self.mget_jobs(self.get_job(job_id)['dependencies'])
+        deps = self.get_job(job_id)['config']['dependencies']
+        return self.mget_jobs(deps)
 
     def get_job_revdeps(self, job_id):
         deps = []
         for _job_id, job in sorted(self._jobs.iteritems()):
-            if job_id in job['dependencies']:
+            if job_id in job['config']['dependencies']:
                 deps.append(_job_id)
         return self.mget_jobs(deps)
 
@@ -211,8 +200,8 @@ class MemoryStorage(StorageBase):
         return copy.deepcopy(self._builds[build_id])
 
     def delete_build(self, build_id):
-        self._log_messages.pop(build_id)
-        self._builds.pop(build_id)
+        self._log_messages.pop(build_id, None)
+        self._builds.pop(build_id, None)
 
     def start_build(self, build_id):
         if build_id not in self._builds:
@@ -258,19 +247,16 @@ class MemoryStorage(StorageBase):
     #     self._builds[build_id]['progress_current'] = current
     #     self._builds[build_id]['progress_total'] = total
 
-    def log_message(self, job_id, build_id, record):
-        record.job_id = job_id
+    def log_message(self, build_id, record):
         record.build_id = build_id
         self._log_messages[build_id].append({
-            'job_id': job_id, 'build_id': build_id, 'record': record,
+            'build_id': build_id,
+            'record': record,
             'created': datetime.utcfromtimestamp(record.created)})
 
-    def prune_log_messages(self, job_id=None, build_id=None, max_age=None,
+    def prune_log_messages(self, build_id=None, max_age=None,
                            level=None):
         filters = []
-
-        if job_id is not None:
-            filters.append(lambda x: x['job_id'] == job_id)
 
         if build_id is not None:
             filters.append(lambda x: x['build_id'] == build_id)
@@ -287,12 +273,9 @@ class MemoryStorage(StorageBase):
             if not (all(f(msg) for f in filters))
         ]
 
-    def iter_log_messages(self, job_id=None, build_id=None, max_date=None,
+    def iter_log_messages(self, build_id=None, max_date=None,
                           min_date=None, min_level=None):
         filters = []
-
-        if job_id is not None:
-            filters.append(lambda x: x['job_id'] == job_id)
 
         if build_id is not None:
             filters.append(lambda x: x['build_id'] == build_id)
