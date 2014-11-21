@@ -1,13 +1,8 @@
 """
-PostgreSQL-backed Job control class.
+In-memory storage for JobControl state.
 
-.. warning::
-
-    This class is (currently) **not** thread-safe!
-
-    Thread-safety will be added in the future (includes storing the current
-    job-control app in a thread-local object, filtering logs by thread id,
-    etc.)
+This is mostly a reference implementation, and to be used
+for testing purposes.
 """
 
 from collections import defaultdict
@@ -52,24 +47,30 @@ class MemoryStorage(StorageBase):
     # Job CRUD methods
     # ------------------------------------------------------------
 
-    def create_job(self, function, args=None, kwargs=None, dependencies=None,
-                   title=None):
+    def create_job(self, job_id, function=None, args=None, kwargs=None,
+                   dependencies=None, title=None, notes=None, config=None):
         job_id = self._jobs_seq.next()
+        job_config = self._make_config(
+            job_id, function, args, kwargs, dependencies, title, notes,
+            config=config)
+
         job = {
             'id': job_id,
-            'function': function,
-            'args': args or (),
-            'kwargs': kwargs or {},
-            'dependencies': dependencies or [],
-            'title': title,
-            'ctime': datetime.now(),
-            'mtime': datetime.now(),
+            'config': job_config,
+            'title': job_config['title'],
+            'notes': job_config['notes'],
+            'dependencies': job_config['dependencies'],
         }
+
+        job['ctime'] = datetime.now()
+        job['mtime'] = job['ctime']
+
         self._jobs[job_id] = job
         return job_id
 
     def update_job(self, job_id, function=None, args=None, kwargs=None,
-                   dependencies=None, title=None):
+                   dependencies=None, title=None, notes=None, config=None):
+
         if job_id not in self._jobs:
             raise NotFound('No such job: {0}'.format(job_id))
 
@@ -88,6 +89,12 @@ class MemoryStorage(StorageBase):
         if title is not None:
             self._jobs[job_id]['title'] = title
 
+        if notes is not None:
+            self._jobs[job_id]['notes'] = notes
+
+        if config is not None:
+            self._jobs[job_id].update(config)
+
         self._jobs[job_id]['mtime'] = datetime.now()
 
     def get_job(self, job_id):
@@ -105,16 +112,16 @@ class MemoryStorage(StorageBase):
     def list_jobs(self):
         return sorted(self._jobs.iterkeys())
 
-    def iter_jobs(self):
-        for job_id, job in self._jobs.iteritems():
-            yield copy.deepcopy(job)
+    # def iter_jobs(self):
+    #     for job_id, job in self._jobs.iteritems():
+    #         yield copy.deepcopy(job)
 
-    def mget_jobs(self, job_ids):
-        jobs = []
-        for job_id in job_ids:
-            if job_id in self._jobs:
-                jobs.append(copy.deepcopy(self._jobs[job_id]))
-        return jobs
+    # def mget_jobs(self, job_ids):
+    #     jobs = []
+    #     for job_id in job_ids:
+    #         if job_id in self._jobs:
+    #             jobs.append(copy.deepcopy(self._jobs[job_id]))
+    #     return jobs
 
     def get_job_deps(self, job_id):
         return self.mget_jobs(self.get_job(job_id)['dependencies'])
@@ -168,22 +175,31 @@ class MemoryStorage(StorageBase):
     # Build CRUD methods
     # ------------------------------------------------------------
 
-    def create_build(self, job_id):
-        self.get_job(job_id)
+    def create_build(self, job_id, build_config=None):
+        job = self.get_job(job_id)
+
         build_id = self._builds_seq.next()
         build = {
             'id': build_id,
             'job_id': job_id,
             'start_time': None,
             'end_time': None,
+
             'started': False,
             'finished': False,
             'success': False,
             'skipped': False,
-            'progress_current': 0,
-            'progress_total': 0,
+
+            'job_config': job['config'],
+            'build_config': build_config,
+
             'retval': None,
             'exception': None,
+            'exception_tb': None,
+
+            # Progress is stored in a dict; then we'll have to rebuild it
+            # into a proper tree.
+            'progress_info': {},
         }
         self._builds[build_id] = build
         return build_id
@@ -195,7 +211,7 @@ class MemoryStorage(StorageBase):
         return copy.deepcopy(self._builds[build_id])
 
     def delete_build(self, build_id):
-        # todo: remove log messages!
+        self._log_messages.pop(build_id)
         self._builds.pop(build_id)
 
     def start_build(self, build_id):
@@ -222,11 +238,25 @@ class MemoryStorage(StorageBase):
         else:
             self._builds[build_id]['exception_tb'] = None
 
-    def update_build_progress(self, build_id, current, total):
-        if build_id not in self._builds:
-            raise NotFound('No such build: {0}'.format(build_id))
-        self._builds[build_id]['progress_current'] = current
-        self._builds[build_id]['progress_total'] = total
+    def report_build_progress(self, build_id, current, total, group_name='',
+                              status_line=''):
+
+        try:
+            build = self._builds[build_id]
+        except KeyError:
+            raise NotFound("Build {0} not found".format(build_id))
+
+        build['progress_info'][group_name] = {
+            'current': current,
+            'total': total,
+            'status_line': status_line,
+        }
+
+    # def update_build_progress(self, build_id, current, total):
+    #     if build_id not in self._builds:
+    #         raise NotFound('No such build: {0}'.format(build_id))
+    #     self._builds[build_id]['progress_current'] = current
+    #     self._builds[build_id]['progress_total'] = total
 
     def log_message(self, job_id, build_id, record):
         record.job_id = job_id

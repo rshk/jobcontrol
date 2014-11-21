@@ -4,11 +4,15 @@ Interfaces for NEW jobcontrol objects.
 **Data model**::
 
     Job     id TEXT (natural key)
-    ---     title TEXT
-            notes TEXT
-            config TEXT
-                YAML object containing the job configuration:
-                function name, arguments, ...
+    ---     config TEXT
+                YAML dictionary containing job configuration:
+
+                - function
+                - args
+                - kwargs
+                - dependencies
+                - title / notes / ...
+
             ctime TIMESTAMP
             mtime TIMESTAMP
             dependecies INTEGER[] (references Job.id)
@@ -58,27 +62,21 @@ Interfaces for NEW jobcontrol objects.
                 Pickled TracebackInfo object
 
 
-**Function arguments specification:**
+**Job configuration:**
 
-Arguments are specified as a string using the same syntax as normal
-function calls. In order to be able to parse it, we need to first wrap
-with ``f(`` ... ``)``.
+The job configuration is stored as a YAML-serialized dict.
 
-Example::
+Recognised keys are:
 
-    "arg1", "arg2", kw1="val1", kw2="val2"
+- ``function`` in ``module:function`` format, specify the function to be called
+- ``args`` a list of arguments to be passed to the function
+- ``kwargs`` a dict of keyword arguments to be passed to the function
+- ``title`` a descriptive title, to be shown on the interfaces
+- ``notes`` notes, to be shown in interfaces (in restructured text)
+- ``dependencies`` list of dependency job names
 
-Some extra "context" may be accessed via a dict-like syntax; specifically
-the following dictionaries will appear to be in the scope:
-
-- ``RETVAL[job_id]``: return values of the selected build for each
-  dependency job
-- *(proposed)* ``CONFIG[..]``: something to hold configuration to be shared
-  or even "hidden away" (eg. passwords we don't want to have publicly visible
-  on all the administrative pages).
-
-Arguments should be stored as text (a pre-parse is done but only for form
-validation), then thay are actually parsed at runtime.
+Additionally, args/kwargs may contain references to return value of dependency
+builds, by using the ``!retval <name>`` syntax.
 
 
 **Exception traceback serialization**
@@ -342,6 +340,7 @@ class StorageBase(object):
         Report progress for a build.
 
         :param build_id:
+            The build id for which to report progress
         :param current:
             The current number of "steps" done
         :param total:

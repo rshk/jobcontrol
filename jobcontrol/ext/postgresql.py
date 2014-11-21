@@ -82,12 +82,10 @@ class PostgreSQLStorage(StorageBase):
         query = """
         CREATE TABLE "{prefix}job" (
             id TEXT PRIMARY KEY,
-            title TEXT,
-            notes TEXT,
             config TEXT,
             ctime TIMESTAMP WITHOUT TIME ZONE,
             mtime TIMESTAMP WITHOUT TIME ZONE,
-            dependencies INTEGER[]
+            dependencies TEXT[]
         );
 
         CREATE TABLE "{prefix}build" (

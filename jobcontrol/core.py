@@ -1,12 +1,11 @@
 """
-Core objects
+Objects responsible for JobControl core functionality.
 """
 
 from datetime import timedelta
 import colorsys
 import inspect
 import logging
-# import pkgutil
 import sys
 import traceback
 
@@ -36,20 +35,57 @@ DEFAULT_LOG_RETENTION_POLICY = {
 
 
 class JobControl(object):
-    """The main jobcontrol class"""
+    """The main JobControl class"""
 
     def __init__(self, storage):
         self.storage = storage
 
     def create_job(self, *a, **kw):
+        """
+        Create a new job.
+
+        :param job_id:
+            Id (string) of the job to be created.
+        :param function:
+            The function to be called
+        :param args:
+            Arguments for the function
+        :param kwargs:
+            Keyword arguments for the function
+        :param dependencies:
+            list of dependency job ids
+        :param config:
+            A dictionary containing already (partial) configuration
+            using the above keys.
+        :param title: Title to be shown on the UI
+        :param notes: Miscellaneous notes, in restructured text.
+
+        :return:
+            a :py:class:`JobInfo` class instance associated with the
+            newly created job.
+        """
         return JobInfo.new(self, *a, **kw)
 
     def get_job(self, job_id):
+        """
+        Get a job, by id.
+
+        :return:
+            a :py:class:`JobInfo` class instance associated with the
+            requested job.
+        """
         job = JobInfo(self, job_id)
         job.refresh()  # To get 404 early..
         return job
 
     def iter_jobs(self):
+        """
+        Generator yielding all the jobs, one by one.
+
+        :yields:
+            for each job, a :py:class:`JobInfo` class instance associated
+            with the job.
+        """
         for job in self.storage.iter_jobs():
             yield JobInfo(self, job['id'], info=job)
 
@@ -264,7 +300,19 @@ class JobControl(object):
 
 class JobExecutionContext(object):
     """
-    Global context for job execution.
+    Class to hold "global" context during job execution.
+
+    This class can also act as a context manager for temporary
+    context:
+
+    .. code-block:: python
+
+        with JobExecutionContext(app, job_id, build_id):
+            # do stuff in an execution context
+
+    :param app: The JobControl instance running jobs
+    :param job_id: Id of the currently running job
+    :param build_id: Id of the currently running build
     """
 
     def __init__(self, app, job_id, build_id):
@@ -274,9 +322,11 @@ class JobExecutionContext(object):
         self.build_id = build_id
 
     def push(self):
+        """Push this context in the global stack"""
         _execution_ctx_stack.push(self)
 
     def pop(self):
+        """Pop this context from the global stack"""
         rv = _execution_ctx_stack.pop()
         assert rv is self, \
             'Popped wrong context: {0!r} instead of {1!r}'.format(rv, self)
@@ -290,14 +340,23 @@ class JobExecutionContext(object):
 
     @property
     def current_app(self):
+        """Returns the currently running app"""
         return self.app
 
     @cached_property
     def current_job(self):
+        """
+        Returns a :py:class:`JobInfo` instance associated with the
+        currently running job.
+        """
         return self.app.get_job(self.job_id)
 
     @cached_property
     def current_build(self):
+        """
+        Returns a :py:class:`BuildInfo` instance associated with the
+        currently running build.
+        """
         return self.app.get_build(self.build_id)
 
 
@@ -311,9 +370,14 @@ class JobControlLogHandler(logging.Handler):
         super(JobControlLogHandler, self).__init__()
 
     def flush(self):
+        """No-op, as we don't need to flush anything"""
         pass  # Nothing to flush!
 
     def emit(self, record):
+        """
+        "Emit" the log record (if there is an execution context, store
+        the log record appropriately; otherwise, just ignore it).
+        """
         from jobcontrol.globals import current_app, execution_context
 
         try:
@@ -352,6 +416,10 @@ class JobInfo(object):
 
     @classmethod
     def new(cls, app, *w, **kw):
+        """
+        Create a new job. Accepts the same arguments as
+        :py:meth:`jobcontrol.interfaces.StorageBase.create_job`
+        """
         job_id = app.storage.create_job(*w, **kw)
         return cls(app, job_id)
 
@@ -361,32 +429,48 @@ class JobInfo(object):
 
     @property
     def info(self):
+        """Property returning the (cached) job information"""
         if getattr(self, '_info') is None:
             self.refresh()
         return self._info
 
     def refresh(self):
+        """Refresh the cached job information"""
         self._info = self.app.storage.get_job(self.job_id)
 
     def __getitem__(self, name):
         return self.info[name]
 
     def update(self, *a, **kw):
+        """
+        Update the job configuration.
+        Accepts the same arguments as
+        :py:meth:`jobcontrol.interfaces.StorageBase.update_job`
+        """
         self.app.storage.update_job(self.job_id, *a, **kw)
         self.refresh()
 
     def delete(self):
+        """Delete this job entirely."""
         self.app.storage.delete_job(self.job_id)
 
     def get_deps(self):
+        """Iterate over dependency jobs of this job"""
         for dep in self.app.storage.get_job_deps(self.job_id):
             yield JobInfo(self.app, dep['id'], info=dep)
 
     def get_revdeps(self):
+        """Iterate over jobs depending on this one"""
         for revdep in self.app.storage.get_job_revdeps(self.job_id):
             yield JobInfo(self.app, revdep['id'], info=revdep)
 
     def get_builds(self, *a, **kw):
+        """
+        Iterate builds for this job.
+
+        Accepts the same arguments as
+        :py:meth:`jobcontrol.interfaces.StorageBase.get_job_builds`
+        """
         for build in self.app.storage.get_job_builds(self.job_id, *a, **kw):
             yield BuildInfo(self.app, build['id'], info=build)
 
@@ -396,29 +480,50 @@ class JobInfo(object):
     #     return BuildInfo(self.app, build_id)
 
     def run(self):
+        """
+        Trigger run for this job (will automatically create
+        a build, etc.)
+        """
         return self.app.build_job(self.job_id)
 
     def get_latest_successful_build(self):
+        """
+        Get latest successful build for this job, if any.
+        Otherwise, returns ``None``.
+        """
         build = self.app.storage.get_latest_successful_build(self.job_id)
         if build is None:
-            return
+            return None
         return BuildInfo(self.app, build['id'], info=build)
 
     def get_docs(self):
+        """
+        Get documentation for this job.
+        """
         return self._get_job_docs()
 
     def has_builds(self):
+        """
+        Check whether this job has any build.
+        """
         builds = list(self.get_builds(
             started=True, finished=True, order='desc', limit=1))
         return len(builds) >= 1
 
     def has_successful_builds(self):
+        """
+        Check whether this job has any successful build.
+        """
         builds = list(self.get_builds(
             started=True, finished=True, success=True, skipped=False,
             order='desc', limit=1))
         return len(builds) >= 1
 
     def is_outdated(self):
+        """
+        Check whether any dependency has builds more recent than the latest
+        build for this job.
+        """
         latest_build = self.get_latest_successful_build()
 
         if not latest_build:
