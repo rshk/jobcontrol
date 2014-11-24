@@ -1,7 +1,7 @@
 from __future__ import division
 
-from collections import defaultdict
-import ast
+# from collections import defaultdict
+# import ast
 # import colorsys
 
 from flask import (Blueprint, render_template, redirect, url_for,
@@ -36,7 +36,7 @@ def jobs_list():
                            jobs=list(get_jc().iter_jobs()))
 
 
-@html_views.route('/job/<int:job_id>', methods=['GET'])
+@html_views.route('/job/<string:job_id>', methods=['GET'])
 def job_info(job_id):
     jc = get_jc()
     job = jc.get_job(job_id)
@@ -44,7 +44,8 @@ def job_info(job_id):
     return render_template('job-info.jinja', job=job, builds=builds)
 
 
-@html_views.route('/job/<int:job_id>/depgraph.<string:fmt>', methods=['GET'])
+@html_views.route('/job/<string:job_id>/depgraph.<string:fmt>',
+                  methods=['GET'])
 def job_depgraph(job_id, fmt):
     # todo: add reverse dependencies
     # todo: add colors to indicate job status (has builds, outdated, ..)
@@ -64,14 +65,14 @@ def job_depgraph(job_id, fmt):
     graph.graph_attr['dpi'] = '70'  # Other values make things go wrong
     graph.graph_attr['splines'] = 'curved'
 
-    graph.node_attr['fontsize'] = '14'
+    graph.node_attr['fontsize'] = '12'
     graph.node_attr['fontname'] = 'monospace'
 
-    graph.edge_attr['minlen'] = '1'
-    graph.edge_attr['len'] = '1.5'  # Inches
+    # graph.edge_attr['minlen'] = '1'
+    # graph.edge_attr['len'] = '1.5'  # Inches
 
     node = graph.get_node(job_id)
-    node.attr['fontsize'] = '16'
+    node.attr['fontsize'] = '14'
     node.attr['penwidth'] = '3'
     # node.attr['color'] = '#ff0000'
     # node.attr['label'] = 'Job {0}'.format(job_id)
@@ -84,10 +85,10 @@ def job_depgraph(job_id, fmt):
 
         node.attr['fontcolor'] = '#ffffff'
         node.attr['style'] = 'filled'
-        node.attr['shape'] = 'circle'
+        node.attr['shape'] = 'rectangle'
         # node.attr['width'] = '.5'
 
-        if int(node) == job_id:
+        if node == job_id:
             node.attr['penwidth'] = '3'
             node.attr['color'] = '#000000'
         else:
@@ -123,141 +124,7 @@ def job_depgraph(job_id, fmt):
     return 'Unsupported format', 404
 
 
-@html_views.route('/job/create', methods=['GET'])
-def job_create():
-    return render_template(
-        'job-edit.jinja', job=None,
-        form_data={},
-        form_errors={})
-
-
-@html_views.route('/job/create', methods=['POST'])
-def job_create_submit():
-    jc = get_jc()
-
-    read_data = {
-        'title': request.form['title'],
-        'function': request.form['function'],
-        'args': request.form['args'],
-        'kwargs': request.form['kwargs'],
-        'dependencies': request.form['dependencies'],
-    }
-
-    data, errors = _job_edit_form_process(read_data)
-
-    if len(errors):
-        flash("The form contains errors!", 'error')
-        return render_template(
-            'job-edit.jinja', job=None,
-            form_data=read_data,
-            form_errors=errors)
-
-    job = jc.create_job(**data)
-    flash('Job {0} created'.format(job.id), 'success')
-    return redirect(url_for('.job_info', job_id=job.id))
-
-
-@html_views.route('/job/<int:job_id>/edit', methods=['GET'])
-def job_edit(job_id):
-    job = get_jc().get_job(job_id)
-    return render_template(
-        'job-edit.jinja', job=job,
-        form_data=_job_edit_form_prepare_values(job),
-        form_errors={})
-
-
-@html_views.route('/job/<int:job_id>/edit', methods=['POST'])
-def job_edit_submit(job_id):
-    jc = get_jc()
-    job = jc.get_job(job_id)
-
-    read_data = {
-        'title': request.form['title'],
-        'function': request.form['function'],
-        'args': request.form['args'],
-        'kwargs': request.form['kwargs'],
-        'dependencies': request.form['dependencies'],
-    }
-
-    data, errors = _job_edit_form_process(read_data)
-
-    if len(errors):
-        flash("The form contains errors!", 'error')
-        return render_template(
-            'job-edit.jinja', job=job,
-            form_data=read_data,
-            form_errors=errors)
-
-    job.update(**data)
-    flash('Job {0} updated'.format(job_id), 'success')
-    return redirect(url_for('.job_info', job_id=job_id))
-
-
-def _job_edit_form_prepare_values(job):
-    return {
-        'title': job['title'],
-        'function': job['function'],
-        'args': repr(job['args']),
-        'kwargs': repr(job['kwargs']),
-        'dependencies': ', '.join(str(x) for x in job['dependencies']),
-    }
-
-
-def _job_edit_form_process(form_data):
-    data = {}
-    errors = defaultdict(list)
-
-    data['title'] = form_data['title'].strip()
-
-    # todo: check for function existence? (maybe just warning..)
-    data['function'] = form_data['function'].strip()
-
-    # ---------- args
-
-    _args = form_data['args'].strip()
-    if not _args:
-        _args = '()'
-
-    try:
-        args = ast.literal_eval(_args)
-    except:
-        errors['args'].append('Parse failed for arguments (check syntax)')
-    else:
-        if isinstance(args, tuple):
-            data['args'] = args
-        else:
-            errors['args'].append('Arguments must be a tuple')
-
-    # ---------- kwargs
-
-    _kwargs = form_data['kwargs'].strip()
-    if not _kwargs:
-        _kwargs = '{}'
-
-    try:
-        kwargs = ast.literal_eval(_kwargs)
-    except:
-        errors['kwargs'].append(
-            'Parse failed for Keyword arguments (check syntax)')
-    else:
-        if isinstance(kwargs, dict):
-            data['kwargs'] = kwargs
-        else:
-            errors['kwargs'].append('Keyword arguments must be a dict')
-
-    # ---------- dependencies
-
-    try:
-        _deps = [x.strip() for x in form_data['dependencies'].split(',')]
-        data['dependencies'] = [int(x) for x in _deps if x]
-
-    except Exception as e:
-        errors['dependencies'].append(str(e))
-
-    return data, errors
-
-
-@html_views.route('/job/<int:job_id>/run', methods=['GET'])
+@html_views.route('/job/<string:job_id>/run', methods=['GET'])
 def job_run(job_id):
     # Todo: return confirmation form
     jc = get_jc()
@@ -265,7 +132,7 @@ def job_run(job_id):
     return render_template('job-run-form.jinja', job=job)
 
 
-@html_views.route('/job/<int:job_id>/run/submit', methods=['POST'])
+@html_views.route('/job/<string:job_id>/run/submit', methods=['POST'])
 def job_run_submit(job_id):
     # todo: CSRF protection!
 
@@ -282,12 +149,6 @@ def job_run_submit(job_id):
     return redirect(url_for('.job_info', job_id=job_id))
 
 
-@html_views.route('/job/<int:job_id>/delete', methods=['GET'])
-def job_delete(job_id):
-    job = get_jc().get_job(job_id)
-    return render_template('job-delete.jinja', job=job)
-
-
 @html_views.route('/build/<int:build_id>', methods=['GET'])
 def build_info(build_id):
     jc = get_jc()
@@ -295,9 +156,7 @@ def build_info(build_id):
 
     job = jc.get_job(build.job_id)
 
-    messages = jc.storage.iter_log_messages(
-        job_id=build.job_id,
-        build_id=build_id)
+    messages = jc.storage.iter_log_messages(build_id=build_id)
 
     return render_template(
         'build-info.jinja',
@@ -316,7 +175,7 @@ def autocomplete_function_name(function_name):
     pass
 
 
-@html_views.route('/job/<int:job_id>/action', methods=['POST'])
+@html_views.route('/job/<string:job_id>/action', methods=['POST'])
 def job_action(job_id):
     action = request.form['action']
     jc = get_jc()

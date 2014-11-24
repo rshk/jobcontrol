@@ -79,7 +79,10 @@ def get_storage_from_url(url):
 
     # NOTE: We should improve this, as the standard format for
     #       describing imported objects is **not** compatible with the URL
-    #       scheme format..
+    #       scheme format.
+
+    # TODO: Use stevedore to register / load storage plugins in place
+    #       of the dict above.
 
     parsed = urlparse(url)
     if '+' in parsed.scheme:

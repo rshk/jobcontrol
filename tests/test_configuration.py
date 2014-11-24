@@ -1,4 +1,12 @@
-from jobcontrol.job_conf import dump, load, prepare_args, Retval
+from textwrap import dedent
+
+from jobcontrol.job_conf import (
+    dump, load, Retval, JobControlConfigMgr)
+from jobcontrol.interfaces import StorageBase
+from jobcontrol.ext.postgresql import PostgreSQLStorage
+
+
+# todo: test arguments replacement -> requires an execution context!
 
 
 def test_simple_conf_loading():
@@ -107,7 +115,7 @@ def test_conf_with_references():
     }
 
 
-def test_dump_conf_regression_141121_01():
+def test_configuration_with_binary_strings():
     """
     Regression test: serialization was failing on binary strings
     """
@@ -134,13 +142,74 @@ def test_dump_conf_regression_141121_01():
     }
     dump(obj)
 
-    # obj = {
-    #     'function': 'jobcontrol.utils.testing:job_simple_echo',
-    #     'title': None,
-    #     'notes': None,
-    #     'args': ('\xaa\xbb\x00\xff\xff\x00ABC',),
-    #     'dependencies': [],
-    #     'kwargs': {},
-    #     'id': 'f974e89f-4ae3-40cc-8316-b78e42bd5cc8',
-    # }
-    # dump(obj)
+
+def test_config_manager():
+    config = dedent("""\
+    storage: postgresql://user:pass@localhost:5432/mydb
+    jobs:
+        - id: job-1
+          function: jobcontrol.utils.testing:job_simple_echo
+          args:
+              - one
+              - 123
+    webapp:
+        PORT: 5050
+        DEBUG: True
+
+    secret:
+        foo: "A Foo!"
+        bar: 1234
+    """)
+
+    cfgmgr = JobControlConfigMgr.from_string(config)
+    assert cfgmgr.config['storage'] == 'postgresql://user:pass@localhost:5432/mydb'  # noqa
+    assert isinstance(cfgmgr.config['jobs'], list)
+    assert len(cfgmgr.config['jobs']) == 1
+    assert cfgmgr.config['jobs'][0]['id'] == 'job-1'
+    assert cfgmgr.config['jobs'][0]['args'] == ['one', 123]
+    assert cfgmgr.config['webapp'] == {'PORT': 5050, 'DEBUG': True}
+
+    jobs = list(cfgmgr.iter_jobs())
+    assert len(jobs) == 1
+    assert jobs[0]['id'] == 'job-1'
+
+    assert cfgmgr.get_job('job-1') == jobs[0]
+    assert cfgmgr.get_job('does-not-exist') is None
+
+    assert cfgmgr.get_webapp_config() == {'PORT': 5050, 'DEBUG': True}
+
+    assert cfgmgr.get_secret('foo') == 'A Foo!'
+    assert cfgmgr.get_secret('bar') == 1234
+
+    storage = cfgmgr.get_storage()
+    assert isinstance(storage, StorageBase)
+    assert isinstance(storage, PostgreSQLStorage)
+
+    # todo: test error cases too..
+
+
+def test_config_manager_job_deps():
+    config = dedent("""\
+    storage: postgresql://user:pass@localhost:5432/mydb
+    jobs:
+        - id: job-1
+          function: jobcontrol.utils.testing:job_simple_echo
+
+        - id: job-2
+          function: jobcontrol.utils.testing:job_simple_echo
+          dependencies: [job-1]
+
+        - id: job-3
+          function: jobcontrol.utils.testing:job_simple_echo
+          dependencies: [job-2, job-1]
+    """)
+
+    cfgmgr = JobControlConfigMgr.from_string(config)
+
+    assert list(cfgmgr.get_job_deps('job-1')) == []
+    assert list(cfgmgr.get_job_deps('job-2')) == ['job-1']
+    assert list(cfgmgr.get_job_deps('job-3')) == ['job-2', 'job-1']
+
+    assert list(cfgmgr.get_job_revdeps('job-1')) == ['job-2', 'job-3']
+    assert list(cfgmgr.get_job_revdeps('job-2')) == ['job-3']
+    assert list(cfgmgr.get_job_revdeps('job-3')) == []

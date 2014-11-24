@@ -57,12 +57,14 @@ preserving formatting / comments in other parts of the document?
 """
 
 
-import io
+from collections import Mapping
 
 import yaml
 from yaml import SafeDumper, SafeLoader
 
 from jobcontrol.globals import execution_context
+from jobcontrol.utils import get_storage_from_url
+from jobcontrol.exceptions import NotFound
 
 
 class Retval(object):
@@ -145,3 +147,103 @@ def prepare_args(args):
         return args
 
     raise TypeError("Unsupported type: {0}".format(type(args).__name__))
+
+
+class JobControlConfigMgr(Mapping):
+    def __init__(self):
+        self._data = {}
+
+    @classmethod
+    def from_file(cls, filename):
+        with open(filename, 'r') as fp:
+            return cls.from_string(fp.read())
+
+    @classmethod
+    def from_string(cls, s):
+        return cls.from_object(load(s))
+
+    @classmethod
+    def from_object(cls, data):
+        obj = cls()
+        obj.validate(data)
+        obj._data = {}
+        obj._data.update(data)
+        return obj
+
+    @property
+    def config(self):
+        return self._data
+
+    def __getitem__(self, name):
+        return self.config[name]
+
+    def __iter__(self):
+        return iter(self.config)
+
+    def __len__(self):
+        return len(self.config)
+
+    # ------------------------------------------------------------
+    # Configuration validation
+    # ------------------------------------------------------------
+
+    def validate(self, data):
+        data.setdefault('jobs', [])
+        data.setdefault('webapp', {})
+        data.setdefault('secret', {})
+
+        if not isinstance(data['jobs'], list):
+            raise TypeError('Jobs must be a list')
+
+        for job in data['jobs']:
+            if 'id' not in job:
+                raise ValueError('Jobs must have an Id')
+
+    # ------------------------------------------------------------
+    # High-level interface
+    # ------------------------------------------------------------
+
+    def iter_jobs(self):
+        for job in self._data['jobs']:
+            yield job
+
+    def get_job(self, job_id):
+        for job in self._data['jobs']:
+            if job['id'] == job_id:
+                return job
+        raise NotFound('Job not found: {0!r}'.format(job_id))
+
+    def get_job_deps(self, job_id):
+        job = self.get_job(job_id)
+        if 'dependencies' not in job:
+            return
+        for dep in job['dependencies']:
+            yield dep
+
+    def get_job_revdeps(self, job_id):
+        for job in self._data['jobs']:
+            if ('dependencies' in job) and (
+                    job_id in job['dependencies']):
+                yield job['id']
+
+    def get_webapp_config(self):
+        """
+        Returns a dict containing configuration for the Flask app
+        """
+
+        if 'webapp' not in self._data:
+            return {}
+
+        return self._data['webapp']
+
+    def get_secret(self, name):
+        return self._data['secret'].get(name)
+
+    def get_storage(self):
+        if 'storage' not in self._data:
+            raise ValueError('Configuration must specify a storage')
+
+        if not isinstance(self._data['storage'], basestring):
+            raise TypeError('Storage must be a string (URL)')
+
+        return get_storage_from_url(self._data['storage'])

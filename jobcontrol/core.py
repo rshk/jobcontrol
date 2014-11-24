@@ -12,9 +12,10 @@ import traceback
 from flask import escape
 
 from jobcontrol.globals import _execution_ctx_stack
-from jobcontrol.exceptions import MissingDependencies, SkipBuild
+from jobcontrol.exceptions import MissingDependencies, SkipBuild, NotFound
 from jobcontrol.utils import import_object, cached_property
 from jobcontrol.utils.depgraph import resolve_deps
+from jobcontrol.job_conf import JobControlConfigMgr
 
 logger = logging.getLogger('jobcontrol')
 
@@ -37,36 +38,15 @@ DEFAULT_LOG_RETENTION_POLICY = {
 class JobControl(object):
     """The main JobControl class"""
 
-    def __init__(self, storage):
+    def __init__(self, storage, config):
         self.storage = storage
+        self.config = config
 
-    def create_job(self, *a, **kw):
-        """
-        Create a new job.
-
-        :param job_id:
-            Id (string) of the job to be created.
-        :param function:
-            The function to be called
-        :param args:
-            Arguments for the function
-        :param kwargs:
-            Keyword arguments for the function
-        :param dependencies:
-            list of dependency job ids
-        :param config:
-            A dictionary containing already (partial) configuration
-            using the above keys.
-        :param title:
-            Title to be shown on the UI
-        :param notes:
-            Miscellaneous notes, in restructured text.
-
-        :return:
-            a :py:class:`JobInfo` class instance associated with the
-            newly created job.
-        """
-        return JobInfo.new(self, *a, **kw)
+    @classmethod
+    def from_config_file(cls, config_file):
+        config = JobControlConfigMgr.from_file(config_file)
+        obj = cls(storage=config.get_storage(), config=config)
+        return obj
 
     def get_job(self, job_id):
         """
@@ -76,9 +56,10 @@ class JobControl(object):
             a :py:class:`JobInfo` class instance associated with the
             requested job.
         """
-        job = JobInfo(self, job_id)
-        job.refresh()  # To get 404 early..
-        return job
+        job_cfg = self.config.get_job(job_id)
+        if job_cfg is None:
+            raise NotFound('No such job: {0!r}'.format(job_id))
+        return JobInfo(self, job_id, config=job_cfg)
 
     def iter_jobs(self):
         """
@@ -88,8 +69,8 @@ class JobControl(object):
             for each job, a :py:class:`JobInfo` class instance associated
             with the job.
         """
-        for job in self.storage.iter_jobs():
-            yield JobInfo(self, job['id'], info=job)
+        for job in self.config.iter_jobs():
+            yield JobInfo(self, job['id'], config=job)
 
     def get_build(self, build_id):
         build = BuildInfo(self, build_id)
@@ -191,14 +172,14 @@ class JobControl(object):
             # Early, to prevent infinite recursion
             processed.add(jid)
 
-            deps = self.storage.get_job_deps(jid)
-            DEPGRAPH[jid] = deps = [d['id'] for d in deps]
+            DEPGRAPH[jid] = deps = list(self.config.get_job_deps(jid))
+
             for dep in deps:
                 _explore_deps(dep)
 
             if complete:
-                revdeps = self.storage.get_job_revdeps(jid)
-                revdeps = [d['id'] for d in revdeps]
+                revdeps = list(self.config.get_job_revdeps(jid))
+
                 for rdid in revdeps:
                     if rdid not in DEPGRAPH:
                         DEPGRAPH[rdid] = []
@@ -415,72 +396,36 @@ class JobControlLogHandler(logging.Handler):
 class JobInfo(object):
     """High-level interface to jobs"""
 
-    def __init__(self, app, job_id, info=None):
+    def __init__(self, app, job_id, config):
         self.app = app
-        self.job_id = job_id
-        if info is not None:
-            self._info = {}
-            self._info.update(info)
+        self._job_id = job_id
+        self._config = config
 
     def __repr__(self):
-        return '<Job {0}>'.format(self.job_id)
-
-    @classmethod
-    def new(cls, app, *w, **kw):
-        """
-        Create a new job. Accepts the same arguments as
-        :py:meth:`jobcontrol.interfaces.StorageBase.create_job`
-        """
-        job_id = app.storage.create_job(*w, **kw)
-        return cls(app, job_id)
+        return '<Job {0!r}>'.format(self.id)
 
     @property
     def id(self):
-        return self.job_id
-
-    @property
-    def info(self):
-        """Property returning the (cached) job information"""
-        if getattr(self, '_info') is None:
-            self.refresh()
-        return self._info
+        return self._job_id
 
     @property
     def config(self):
-        """Return configuration about the job"""
-        return self.info['config']
-
-    def refresh(self):
-        """Refresh the cached job information"""
-        self._info = self.app.storage.get_job(self.job_id)
+        return self._config
 
     def __getitem__(self, name):
-        if name in self.info:  # id, ctime, mtime
-            return self.info[name]
-        return self.config[name]
-
-    def update(self, *a, **kw):
-        """
-        Update the job configuration.
-        Accepts the same arguments as
-        :py:meth:`jobcontrol.interfaces.StorageBase.update_job`
-        """
-        self.app.storage.update_job(self.job_id, *a, **kw)
-        self.refresh()
-
-    def delete(self):
-        """Delete this job entirely."""
-        self.app.storage.delete_job(self.job_id)
+        return self._config[name]
 
     def get_deps(self):
         """Iterate over dependency jobs of this job"""
-        for dep in self.app.storage.get_job_deps(self.job_id):
-            yield JobInfo(self.app, dep['id'], info=dep)
+        for dep_id in self.app.config.get_job_deps(self.id):
+            dep = self.app.config.get_job(dep_id)
+            yield JobInfo(self.app, dep['id'], config=dep)
 
     def get_revdeps(self):
         """Iterate over jobs depending on this one"""
-        for revdep in self.app.storage.get_job_revdeps(self.job_id):
-            yield JobInfo(self.app, revdep['id'], info=revdep)
+        for revdep_id in self.app.config.get_job_revdeps(self.id):
+            revdep = self.app.config.get_job(revdep_id)
+            yield JobInfo(self.app, revdep['id'], config=revdep)
 
     def get_builds(self, *a, **kw):
         """
@@ -489,7 +434,7 @@ class JobInfo(object):
         Accepts the same arguments as
         :py:meth:`jobcontrol.interfaces.StorageBase.get_job_builds`
         """
-        for build in self.app.storage.get_job_builds(self.job_id, *a, **kw):
+        for build in self.app.storage.get_job_builds(self.id, *a, **kw):
             yield BuildInfo(self.app, build['id'], info=build)
 
     # def create_build(self):
@@ -502,14 +447,14 @@ class JobInfo(object):
         Trigger run for this job (will automatically create
         a build, etc.)
         """
-        return self.app.build_job(self.job_id)
+        return self.app.build_job(self.id)
 
     def get_latest_successful_build(self):
         """
         Get latest successful build for this job, if any.
         Otherwise, returns ``None``.
         """
-        build = self.app.storage.get_latest_successful_build(self.job_id)
+        build = self.app.storage.get_latest_successful_build(self.id)
         if build is None:
             return None
         return BuildInfo(self.app, build['id'], info=build)
@@ -732,6 +677,7 @@ class BuildInfo(object):
         return self.info[name]
 
     def get_progress_info(self):
+        return None
         raise NotImplementedError  # todo: use new progress objects
 
         # current = self.info['progress_current']

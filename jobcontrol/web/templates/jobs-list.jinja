@@ -6,12 +6,12 @@
 
   <div class="container-fluid">
 
-    <div class="btn-group pull-right">
-      <a href="{{ url_for('webui.job_create') }}" class="btn btn-success btn-lg">
-	<i class="fa fa-plus-square"></i>
-	Create job
-      </a>
-    </div>
+    {# <div class="btn-group pull-right"> #}
+    {#   <a href="{{ url_for('webui.job_create') }}" class="btn btn-success btn-lg"> #}
+    {#	<i class="fa fa-plus-square"></i> #}
+    {#	Create job #}
+    {#   </a> #}
+    {# </div> #}
 
     <h1>All Jobs</h1>
 
@@ -40,63 +40,48 @@
 
 	  <div class="media-left">
 	    <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
-	      {{ macros.status_badge(top='Job', middle=job.id, bottom=badge_status, class='compact ' + badge_class) }}
+	      {{ macros.status_badge(top='Job', bottom=badge_status, class='compact ' + badge_class) }}
 	    </a>
 	  </div>
 
 	  <div class="media-body" style="width: 100%">
-	    <div class="btn-group pull-right">
-	      <a href="{{ url_for('webui.job_info', job_id=job.id) }}" class="btn btn-default">
-		<span class="fa fa-info-circle"></span>
-		Info</a>
-		<a href="{{ url_for('webui.job_edit', job_id=job.id) }}" class="btn btn-default">
-		  <span class="fa fa-pencil-square-o"></span>
-		  Edit</a>
-		  <a href="{{ url_for('webui.job_delete', job_id=job.id) }}" class="btn btn-default">
-		    <span class="fa fa-trash"></span>
-		    Delete</a>
-	    </div>
-
-	    <h2 class="media-heading">
-	      <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
-		{{ job.title or 'Untitled' }}
-	      </a>
-	      {% if latest_build %}
-		<small>Latest built <abbr title="{{ latest_build.end_time }}">
-		    {{ latest_build.end_time|humanize_timestamp }}</abbr></small>
-	      {% else %}
-		<small>No successful builds.</small>
-	      {% endif %}
-	    </h2>
-
-	    {% set job_docs = job.get_docs() %}
-	    <div style="font-size: 120%;margin-bottom: 1em;">
-
-	      <em>{{ job_docs.function_module -}}</em>{{ '' -}}
-	      .<strong>{{ job_docs.function_name -}}</strong>{{ '' -}}
-	      ({{ job_docs.function_argspec_human }})
-
-	    </div>
-
-	    {# todo: allow toggling this #}
-	    {# {{ job_docs.call_code_html }} #}
-
 	    <div class="row row-fluid">
-	      <div class="col-md-6">
+	      <div class="col-md-8">
+
+		<h2 class="media-heading">
+		  <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
+		    {{ job.title or 'Untitled' }}
+		  </a>
+		  {% if latest_build %}
+		    <small>Latest built <abbr title="{{ latest_build.end_time }}">
+			{{ latest_build.end_time|humanize_timestamp }}</abbr></small>
+		      {% else %}
+			<small>No successful builds.</small>
+		      {% endif %}
+		</h2>
+		<div><strong>Job id:</strong> {{ job.id }}</div>
+
+		{% set job_docs = job.get_docs() %}
+		<div style="font-size: 120%;margin-bottom: 1em;">
+		  <em>{{ job_docs.function_module -}}</em>{{ '' -}}
+		  .<strong>{{ job_docs.function_name -}}</strong>{{ '' -}}
+		  ({{ job_docs.function_argspec_human }})
+		</div>
+
+	      </div>
+	      <div class="col-md-4">
+
 		<strong>Dependencies:</strong>
 		{{ macros.jobs_list(job.get_deps()|list, emptymsg='No dependencies') }}
-	      </div>
-	      <div class="col-md-6">
+
 		<strong>Reverse dependencies:</strong>
 		{{ macros.jobs_list(job.get_revdeps()|list, emptymsg='No reverse dependencies') }}
+
 	      </div>
 	    </div>
-
-
 	  </div>
 	</div>
       {% endfor %}
     </div>
-
   </div>
 {% endblock %}

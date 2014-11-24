@@ -241,7 +241,7 @@
 	    {% set label_class='default' %}
 	  {% endif %}
 
-	    <div class="label label-{{ label_class }}">Job #{{ job.id }}</div>
+	    <div class="label label-{{ label_class }}">{{ job.id }}</div>
 
             <strong>{{ job.title or 'untitled' }}</strong>
             {# <code>{{ job.function }}</code> #}
@@ -278,7 +278,7 @@
 
   <div class="media" style="margin-bottom: 20px;width:100%">
     <div class="media-left">
-      {{ status_badge(top='Job', middle=job.id, bottom=badge_status, class='compact ' + badge_class) }}
+      {{ status_badge(top='Job', bottom=badge_status, class='compact ' + badge_class) }}
     </div>
     <div class="media-body">
       <h1>{{ job.title or 'Untitled' }}</h1>
@@ -312,12 +312,12 @@
     <li role="presentation" {% if current == 'info' %}class="active"{% endif %}>
       <a href="{{ url_for('webui.job_info', job_id=job_id) }}">Info</a></li>
     <li role="presentation"> <a href="#builds">Builds</a></li>
-    <li role="presentation" {% if current == 'edit' %}class="active"{% endif %}>
-      <a href="{{ url_for('webui.job_edit', job_id=job_id) }}">Edit</a></li>
+    {# <li role="presentation" {% if current == 'edit' %}class="active"{% endif %}> #}
+    {#   <a href="{{ url_for('webui.job_edit', job_id=job_id) }}">Edit</a></li> #}
     <li role="presentation" {% if current == 'run' %}class="active"{% endif %}>
       <a href="{{ url_for('webui.job_run', job_id=job_id) }}">Run</a></li>
-    <li role="presentation" {% if current == 'delete' %}class="active"{% endif %}>
-      <a href="{{ url_for('webui.job_delete', job_id=job_id) }}">Delete</a></li>
+    {# <li role="presentation" {% if current == 'delete' %}class="active"{% endif %}> #}
+    {#   <a href="{{ url_for('webui.job_delete', job_id=job_id) }}">Delete</a></li> #}
   </ul>
 {% endmacro %}
 

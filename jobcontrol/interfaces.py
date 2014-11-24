@@ -3,21 +3,8 @@ Interfaces for NEW jobcontrol objects.
 
 **Data model**::
 
-    Job     id TEXT (natural key)
-    ---     config TEXT
-                YAML dictionary containing job configuration:
-
-                - function
-                - args
-                - kwargs
-                - dependencies
-                - title / notes / ...
-
-            ctime TIMESTAMP
-            mtime TIMESTAMP
-
     Build   id SERIAL
-    -----   job_id INTEGER (references Job.id)
+    -----   job_id TEXT
             start_time TIMESTAMP
             end_time TIMESTAMP
             started BOOLEAN
@@ -36,7 +23,6 @@ Interfaces for NEW jobcontrol objects.
 
     Build progress
     --------------
-            job_id INTEGER (references Job.id)
             build_id INTEGER (references Build.id)
             group_name VARCHAR(128)
                 Name of the "progress group" (separated by '::')
@@ -49,8 +35,7 @@ Interfaces for NEW jobcontrol objects.
             UNIQUE constraint on (build_id, group_name)
 
     Log     id SERIAL
-    ---     job_id INTEGER (references Job.id)
-            build_id INTEGER (references Build.id)
+    ---     build_id INTEGER (references Build.id)
             created TIMESTAMP
             level INTEGER
             record BINARY
@@ -96,7 +81,7 @@ import abc
 import pickle
 
 import jobcontrol.job_conf
-from jobcontrol.exceptions import NotFound
+# from jobcontrol.exceptions import NotFound
 
 
 class StorageBase(object):
@@ -155,140 +140,140 @@ class StorageBase(object):
     # Job CRUD methods
     # ------------------------------------------------------------
 
-    @abc.abstractmethod
-    def create_job(self, job_id=None, function=None, args=None, kwargs=None,
-                   dependencies=None, title=None, notes=None, config=None):
-        """
-        Create a new job.
+    # @abc.abstractmethod
+    # def create_job(self, job_id=None, function=None, args=None, kwargs=None,
+    #                dependencies=None, title=None, notes=None, config=None):
+    #     """
+    #     Create a new job.
 
-        :param job_id:
-            (mandatory) the job "name" (natural key identifier; must be unique;
-            avoid exceeding a "reasonable" length).
-        :param function:
-            Function to be called to run the job
-        :param args:
-            A tuple containing positional arguments.
-            :py:class:`jobcontrol.job_config.Retval` objects may be used
-            to indicate references to dependency job builds return values.
-        :param kwargs:
-            A dictionary containing keyword arguments. Can use Retvals as well.
-        :param dependencies:
-            A list of dependency job names.
-        :param title:
-            An optional title for the job.
-        :param notes:
-            Optional notes for the job.
-        :param config:
-            Optionally, a configuration block (dict), reflecting the
-            structure to be stored in the database.
-            It must be possible to serialize this as YAML, of course.
-        :return:
-            The id of the newly created job
-        """
-        pass
+    #     :param job_id:
+    #         (mandatory) the job "name" (natural key identifier; must be unique;
+    #         avoid exceeding a "reasonable" length).
+    #     :param function:
+    #         Function to be called to run the job
+    #     :param args:
+    #         A tuple containing positional arguments.
+    #         :py:class:`jobcontrol.job_config.Retval` objects may be used
+    #         to indicate references to dependency job builds return values.
+    #     :param kwargs:
+    #         A dictionary containing keyword arguments. Can use Retvals as well.
+    #     :param dependencies:
+    #         A list of dependency job names.
+    #     :param title:
+    #         An optional title for the job.
+    #     :param notes:
+    #         Optional notes for the job.
+    #     :param config:
+    #         Optionally, a configuration block (dict), reflecting the
+    #         structure to be stored in the database.
+    #         It must be possible to serialize this as YAML, of course.
+    #     :return:
+    #         The id of the newly created job
+    #     """
+    #     pass
 
-    @abc.abstractmethod
-    def update_job(self, job_id, function=None, args=None, kwargs=None,
-                   dependencies=None, title=None, notes=None, config=None):
-        """
-        Update a job definition.
+    # @abc.abstractmethod
+    # def update_job(self, job_id, function=None, args=None, kwargs=None,
+    #                dependencies=None, title=None, notes=None, config=None):
+    #     """
+    #     Update a job definition.
 
-        Arguments meanings are the same of ``create_job()``.
-        Returns nothing.
-        """
-        pass
+    #     Arguments meanings are the same of ``create_job()``.
+    #     Returns nothing.
+    #     """
+    #     pass
 
-    def _make_config(self, job_id, function, args, kwargs, dependencies, title,
-                     notes, config=None):
-        """Utility function to merge arguments into configuration"""
+    # def _make_config(self, job_id, function, args, kwargs, dependencies, title,
+    #                  notes, config=None):
+    #     """Utility function to merge arguments into configuration"""
 
-        _config = {
-            'id': None,
-            'function': None,
-            'args': (),
-            'kwargs': {},
-            'dependencies': [],
-            'title': None,
-            'notes': None,
-        }
+    #     _config = {
+    #         'id': None,
+    #         'function': None,
+    #         'args': (),
+    #         'kwargs': {},
+    #         'dependencies': [],
+    #         'title': None,
+    #         'notes': None,
+    #     }
 
-        if config is not None:
-            _config.update(config)
+    #     if config is not None:
+    #         _config.update(config)
 
-        if job_id is not None:
-            _config['id'] = job_id
+    #     if job_id is not None:
+    #         _config['id'] = job_id
 
-        if function is not None:
-            _config['function'] = function
+    #     if function is not None:
+    #         _config['function'] = function
 
-        if args is not None:
-            _config['args'] = args
+    #     if args is not None:
+    #         _config['args'] = args
 
-        if kwargs is not None:
-            _config['kwargs'] = kwargs
+    #     if kwargs is not None:
+    #         _config['kwargs'] = kwargs
 
-        if dependencies is not None:
-            _config['dependencies'] = dependencies
+    #     if dependencies is not None:
+    #         _config['dependencies'] = dependencies
 
-        if title is not None:
-            _config['title'] = title
+    #     if title is not None:
+    #         _config['title'] = title
 
-        if notes is not None:
-            _config['notes'] = notes
+    #     if notes is not None:
+    #         _config['notes'] = notes
 
-        return _config
+    #     return _config
 
-    @abc.abstractmethod
-    def get_job(self, job_id):
-        """Get a job definition, as a dict, by id"""
-        pass
+    # @abc.abstractmethod
+    # def get_job(self, job_id):
+    #     """Get a job definition, as a dict, by id"""
+    #     pass
 
-    @abc.abstractmethod
-    def delete_job(self, job_id):
-        """Delete a job definition, by id"""
-        pass
+    # @abc.abstractmethod
+    # def delete_job(self, job_id):
+    #     """Delete a job definition, by id"""
+    #     pass
 
-    @abc.abstractmethod
-    def list_jobs(self):
-        """List IDs of all jobs"""
-        pass
+    # @abc.abstractmethod
+    # def list_jobs(self):
+    #     """List IDs of all jobs"""
+    #     pass
 
-    def iter_jobs(self):
-        """Iterate all jobs, yielding them as dicts"""
-        for id in self.list_jobs():
-            yield self.get_job(id)
+    # def iter_jobs(self):
+    #     """Iterate all jobs, yielding them as dicts"""
+    #     for id in self.list_jobs():
+    #         yield self.get_job(id)
 
-    def mget_jobs(self, job_ids):
-        """
-        Get multiple job definitions, by id(s).
+    # def mget_jobs(self, job_ids):
+    #     """
+    #     Get multiple job definitions, by id(s).
 
-        Especially useful for getting dependencies.
+    #     Especially useful for getting dependencies.
 
-        .. note::
+    #     .. note::
 
-            The default implementation just falls back to getting the jobs
-            one by one, which will work, but will usually be sub-optimal.
+    #         The default implementation just falls back to getting the jobs
+    #         one by one, which will work, but will usually be sub-optimal.
 
-        :param job_ids: A list of job ids.
-        """
-        return list(self.miter_jobs(job_ids))
+    #     :param job_ids: A list of job ids.
+    #     """
+    #     return list(self.miter_jobs(job_ids))
 
-    def miter_jobs(self, job_ids):
-        for job_id in job_ids:
-            try:
-                yield self.get_job(job_id)
-            except NotFound:
-                pass
+    # def miter_jobs(self, job_ids):
+    #     for job_id in job_ids:
+    #         try:
+    #             yield self.get_job(job_id)
+    #         except NotFound:
+    #             pass
 
-    @abc.abstractmethod
-    def get_job_deps(self, job_id):
-        """Get ids of direct job dependencies"""
-        pass
+    # @abc.abstractmethod
+    # def get_job_deps(self, job_id):
+    #     """Get ids of direct job dependencies"""
+    #     pass
 
-    @abc.abstractmethod
-    def get_job_revdeps(self, job_id):
-        """Get ids of jobs directly depending on this one"""
-        pass
+    # @abc.abstractmethod
+    # def get_job_revdeps(self, job_id):
+    #     """Get ids of jobs directly depending on this one"""
+    #     pass
 
     @abc.abstractmethod
     def get_job_builds(self, job_id, started=None, finished=None,

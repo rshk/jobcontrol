@@ -13,7 +13,7 @@
     {% call macros.navbar(inverse=True, static="top", brand="JobControl") %}
         <ul class="nav navbar-nav">
           <li><a href="{{ url_for('webui.jobs_list') }}">Jobs</a></li>
-          <li><a href="{{ url_for('webui.job_create') }}">New Job</a></li>
+          {# <li><a href="{{ url_for('webui.job_create') }}">New Job</a></li> #}
         </ul>
     {% endcall %}
 

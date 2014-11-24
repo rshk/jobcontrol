@@ -56,28 +56,22 @@ def _fmt_progress(cur, tot):
 
 @click.group()
 @click.option('--config-file', metavar='FILE',
-              help='Path to configuration file')
-@click.option('--storage', metavar='FILE', help='Storage URL')
-@click.option('--format', default='human',
+              help='Path to YAML configuration file')
+# @click.option('--storage', metavar='FILE', help='Storage URL')
+@click.option('--format', 'outfmt', default='human',
               help='Output format. "human" or "json" (default: "human").',
               type=click.Choice(('json', 'human')))
-def cli_main_grp(config_file, storage, format):
+def cli_main_grp(config_file, outfmt):
+    # todo: use pass_context for passing context instead of global objects?
 
-    global jc, config, output_fmt
+    global jc, output_fmt
 
-    output_fmt = format
+    output_fmt = outfmt
 
-    config = Config(__name__)
-    if config_file is not None:
-        config.from_pyfile(config_file)
+    if config_file is None:
+        raise ValueError('Configuration file missing')
 
-    if storage:
-        storage_obj = get_storage_from_url(storage)
-
-    else:
-        storage_obj = get_storage_from_config(config)
-
-    jc = JobControl(storage_obj)
+    jc = JobControl.from_config_file(config_file)
 
 
 @cli_main_grp.command()
@@ -271,12 +265,23 @@ def build_job(job_id):
 @cli_main_grp.command()
 @click.option('--port', type=click.INT, help='Server port',
               default=5000)
-def web(port):
+@click.option('--debug/--no-debug',
+              help='Whether to enable debug mode (reloader, etc.)',
+              default=False)
+def web(port, debug):
     """Run the web API service"""
 
     from jobcontrol.web.app import app
+
+    if 'webapp' in jc.config:
+        app.config.update(jc.config['webapp'])
+
+    server_port = port or app.config.get('PORT') or 5000
+
+    # todo: figure out a better way to pass context..
     app.config['JOBCONTROL'] = jc
-    app.run(debug=True, port=port)
+
+    app.run(port=server_port, debug=debug)
 
 
 @cli_main_grp.command()

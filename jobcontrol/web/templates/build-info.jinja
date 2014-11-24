@@ -1,6 +1,6 @@
 {% extends 'base.jinja' %}
 
-{% block page_title %}Job {{ job.id }}{% endblock %}
+{% block page_title %}Job {{ job.title or job.id }}{% endblock %}
 
 {% block page_body %}
 <div class="container-fluid">
@@ -31,7 +31,9 @@
     </div>
     <div class="media-body">
       <h1>
-	<a href="{{ url_for('webui.job_info', job_id=job.id) }}">Job {{ job.id }}</a>
+	<a href="{{ url_for('webui.job_info', job_id=job.id) }}" title="{{ job.id }}">
+	  {{ job.title or job.id }}
+	</a>
 	&raquo;
 	Build {{ build.id }}
       </h1>
