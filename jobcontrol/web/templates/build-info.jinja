@@ -58,10 +58,15 @@
   </div>
 
 
-  <h2>Job Information</h2>
-  {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
+  <h2 data-toggle="#job-configuration" data-toggle-default="hidden">
+    <span class="toggle-indicator"></span>
+    Job configuration
+  </h2>
+  <div id="job-configuration">
+    {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
+  </div>
 
-  <h2>Build information</h2>
+  <h2>Build status</h2>
 
   {{ macros.progress_bar(cur=build.progress_current, total=build.progress_total, color=build.progress_info.color) }}
 

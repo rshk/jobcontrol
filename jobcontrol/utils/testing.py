@@ -165,8 +165,7 @@ def job_dep_C():
 
 
 def job_debug_echo(*args, **kwargs):
-    from jobcontrol.globals import current_app, job_id
-    # todo: return information on job + deps..
+    # todo: return more detailed information on context (via logging?)
     return (args, kwargs)
 
 

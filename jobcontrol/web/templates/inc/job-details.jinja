@@ -1,20 +1,29 @@
 {%- import "inc/macros.jinja" as macros -%}
 
+{% set job_docs = job.get_docs() %}
+
+<div>
+  <h3>Documentation</h3>
+
+  <div style="font-size: 120%;margin-bottom: 1em;">
+    <em>{{ job_docs.function_module -}}</em>{{ '' -}}
+    .<strong>{{ job_docs.function_name -}}</strong>{{ '' -}}
+    ({{ job_docs.function_argspec_human }})
+  </div>
+
+  {% if job_docs.function_doc %}
+    <div>{{ job_docs.function_doc }}</div>
+  {% endif %}
+</div>
 
 <div class="row row-fluid">
   <div class="col-md-6">
-    <h3>Documentation</h3>
+    <h3>Configuration</h3>
+    {{ job.get_conf_as_yaml()|highlight(lexer='yaml') }}
+    {{ job.config|pprint|highlight(lexer='python') }}
 
-    {% set job_docs = job.get_docs() %}
-    <div style="font-size: 120%;margin-bottom: 1em;">
-      <em>{{ job_docs.function_module -}}</em>{{ '' -}}
-      .<strong>{{ job_docs.function_name -}}</strong>{{ '' -}}
-      ({{ job_docs.function_argspec_human }})
-    </div>
-
-    {% if job_docs.function_doc %}
-      <div>{{ job_docs.function_doc }}</div>
-    {% endif %}
+    <h3>Code that will be executed</h3>
+    {{ job_docs.call_code_html }}
 
   </div>
   <div class="col-md-6">
@@ -32,16 +41,5 @@
     {% set revdeps = job.get_revdeps()|list %}
     {{ macros.jobs_list(revdeps, emptymsg='No reverse dependencies') }}
 
-  </div>
-</div>
-
-<div class="row row-fluid">
-  <div class="col-md-6">
-    <h3>Configuration</h3>
-    {{ job.config|pprint|highlight(lexer='python') }}
-  </div>
-  <div class="col-md-6">
-    <h3>Code that will be executed</h3>
-    {{ job_docs.call_code_html }}
   </div>
 </div>

@@ -216,8 +216,8 @@ class JobControl(object):
             function = self._get_runner_function(job.config['function'])
             logger.debug(log_prefix + 'Function is {0!r}'.format(function))
 
-            args = job['config']['args']
-            kwargs = job['config']['kwargs']
+            args = job['args']
+            kwargs = job['kwargs']
             retval = function(*args, **kwargs)
 
         except SkipBuild:
@@ -464,6 +464,10 @@ class JobInfo(object):
         Get documentation for this job.
         """
         return self._get_job_docs()
+
+    def get_conf_as_yaml(self):
+        from jobcontrol.job_conf import dump
+        return dump(self.config)
 
     def has_builds(self):
         """

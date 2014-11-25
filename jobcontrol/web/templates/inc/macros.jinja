@@ -43,11 +43,12 @@
 {% endmacro %}
 
 
-{% macro status_badge(top='', middle='', bottom='', class='') -%}
+{% macro status_badge(class='', top='', middle='', bottom='', main='') -%}
     <div class="status-badge {{ class }}">
-      <div class="line-top">{{ top }}</div>
-      <div class="line-middle">{{ middle }}</div>
-      <div class="line-bottom">{{ bottom }}</div>
+      {% if top %}<div class="line-top">{{ top }}</div>{% endif %}
+      {% if middle %}<div class="line-middle">{{ middle }}</div>{% endif %}
+      {% if bottom %}<div class="line-bottom">{{ bottom }}</div>{% endif %}
+      {% if main %}<div class="line-main">{{ main }}</div>{% endif %}
     </div>
 {%- endmacro %}
 
@@ -278,7 +279,8 @@
 
   <div class="media" style="margin-bottom: 20px;width:100%">
     <div class="media-left">
-      {{ status_badge(top='Job', bottom=badge_status, class='compact ' + badge_class) }}
+      {# {{ status_badge(top='Job', bottom=badge_status, class='compact ' + badge_class) }} #}
+      {{ status_badge(main=badge_status, class='compact ' + badge_class) }}
     </div>
     <div class="media-body">
       <h1>{{ job.title or 'Untitled' }}</h1>

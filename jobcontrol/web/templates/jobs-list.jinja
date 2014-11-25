@@ -40,7 +40,7 @@
 
 	  <div class="media-left">
 	    <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
-	      {{ macros.status_badge(top='Job', bottom=badge_status, class='compact ' + badge_class) }}
+	      {{ macros.status_badge(main=badge_status, class='compact ' + badge_class) }}
 	    </a>
 	  </div>
 

@@ -189,10 +189,17 @@ body {
     line-height: 30px;
     text-transform: uppercase;
 }
+.status-badge .line-main {
+    bottom: 30px;
+    font-size: 28px;
+    line-height: 30px;
+    text-transform: uppercase;
+}
 
 .status-badge .line-top,
 .status-badge .line-middle,
-.status-badge .line-bottom {
+.status-badge .line-bottom,
+.status-badge .line-main {
     text-align: center;
     font-family: 'Roboto Condensed', sans-serif;
     position: absolute;
@@ -219,10 +226,18 @@ body {
     line-height: 40px;
     height: 40px;
 }
-.status-badge .line-bottom {
+.status-badge.compact .line-bottom {
     bottom: 15px;
     font-size: 14px;
     line-height: 15px;
+}
+.status-badge.compact .line-main {
+    top: 30px;
+    font-size: 20px;
+    line-height: 40px;
+    text-transform: uppercase;
+    height: 40px;
+    vertical-align: middle;
 }
 
 /* $brand-primary: #428bca !default; */
@@ -274,4 +289,9 @@ body {
 }
 .media-list-striped .media:nth-child(odd) {
     background: #f0f0f0;
+}
+
+[data-toggle] {
+    color: #428bca;
+    cursor: pointer;
 }

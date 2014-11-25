@@ -21,3 +21,32 @@ JobControl.FunctionAutocomplete = function(input, docs_container){
     // });
 
 };
+
+
+// Collapsible things
+$(function(){
+    $('[data-toggle]').each(function(){
+        var $this = $(this),
+            selector = $this.data('toggle'),
+            elem = $(selector),
+            default_ = $this.data('toggle-default'),
+            icon_up = 'fa fa-toggle-right',
+            icon_down = 'fa fa-toggle-down';
+
+        $this.click(function(){
+            elem.toggle();
+            if (elem.is(':hidden')) {
+                $($this.find('.toggle-indicator')).attr('class', 'toggle-indicator ' + icon_up);
+            }
+            else {
+                $($this.find('.toggle-indicator')).attr('class', 'toggle-indicator ' + icon_down);
+            }
+        });
+
+        $($this.find('.toggle-indicator')).attr('class', 'toggle-indicator ' + icon_down);
+        if (default_ === 'hidden') {
+            elem.hide();
+            $($this.find('.toggle-indicator')).attr('class', 'toggle-indicator ' + icon_up);
+        }
+    });
+});
