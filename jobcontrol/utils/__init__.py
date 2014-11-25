@@ -173,32 +173,8 @@ class TracebackInfo(object):
     @classmethod
     def from_tb(cls, tb):
         obj = cls()
-        obj.frames = obj._extract_tb(tb)
+        obj.frames = cls._extract_tb(tb)
         return obj
-
-    def _extract_tb(self, tb, limit=None):
-        if limit is None:
-            if hasattr(sys, 'tracebacklimit'):
-                limit = sys.tracebacklimit
-        list = []
-        n = 0
-        while tb is not None and (limit is None or n < limit):
-            f = tb.tb_frame
-            lineno = tb.tb_lineno
-            co = f.f_code
-            filename = co.co_filename
-            name = co.co_name
-            linecache.checkcache(filename)
-            line = linecache.getline(filename, lineno, f.f_globals)
-            locs = self._dump_locals(f.f_locals)
-            if line:
-                line = line.strip()
-            else:
-                line = None
-            list.append(FrameInfo(filename, lineno, name, line, locs))
-            tb = tb.tb_next
-            n = n+1
-        return list
 
     def format(self):
         """Format traceback for printing"""
@@ -214,7 +190,33 @@ class TracebackInfo(object):
                 lst.append('        {0} = {1}\n'.format(key, val))
         return lst
 
-    def _dump_locals(self, locs):
+    @classmethod
+    def _extract_tb(cls, tb, limit=None):
+        if limit is None:
+            if hasattr(sys, 'tracebacklimit'):
+                limit = sys.tracebacklimit
+        list = []
+        n = 0
+        while tb is not None and (limit is None or n < limit):
+            f = tb.tb_frame
+            lineno = tb.tb_lineno
+            co = f.f_code
+            filename = co.co_filename
+            name = co.co_name
+            linecache.checkcache(filename)
+            line = linecache.getline(filename, lineno, f.f_globals)
+            locs = cls._dump_locals(f.f_locals)
+            if line:
+                line = line.strip()
+            else:
+                line = None
+            list.append(FrameInfo(filename, lineno, name, line, locs))
+            tb = tb.tb_next
+            n = n+1
+        return list
+
+    @classmethod
+    def _dump_locals(cls, locs):
         return dict(((k, trim_string(repr(v), maxlen=1024))
                      for k, v in locs.iteritems()))
 

@@ -269,3 +269,36 @@ def test_storage_logging_internals(storage):
         build_id, min_level=logging.ERROR))) == 2
     assert len(list(storage.iter_log_messages(
         build_id, min_level=logging.CRITICAL))) == 0
+
+
+def test_logging_with_context(storage):
+    import logging
+    from jobcontrol.core import JobExecutionContext, JobControl
+    from jobcontrol.job_conf import JobControlConfigMgr
+
+    logger = logging.getLogger('foo_logger')
+
+    build_id = storage.create_build('foo', {}, {})
+    jc = JobControl(storage=storage, config=JobControlConfigMgr())
+
+    jc._install_log_handler()
+
+    logger.debug('This will be ignored')
+    logger.info('This will be ignored')
+    logger.error('This will be ignored')
+
+    with JobExecutionContext(app=jc, job_id='foo', build_id=build_id):
+        logger.debug('This is a log message [D]')
+        logger.info('This is a log message [I]')
+        logger.warning('This is a log message [W]')
+        logger.error('This is a log message [E]')
+        try:
+            raise ValueError('foobar')
+        except:
+            logger.exception('Shit happens')
+
+    logger.info('This will get ignored as well')
+
+    # ------------------------------------------------------------
+
+    assert len(list(storage.iter_log_messages(build_id))) == 5

@@ -80,6 +80,7 @@ We want to include the following information:
 from datetime import datetime
 import abc
 import pickle
+import types
 import warnings
 
 import jobcontrol.job_conf
@@ -387,6 +388,7 @@ class StorageBase(object):
         if record.exc_info:
             etype, exc, tb = record.exc_info
             record.exc_info = (etype, exc, None)
+            assert isinstance(tb, types.TracebackType)
             row['exception_tb'] = TracebackInfo.from_tb(tb)
 
         return row

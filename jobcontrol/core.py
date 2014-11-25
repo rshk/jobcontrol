@@ -386,9 +386,11 @@ class JobControlLogHandler(logging.Handler):
 
         # Replace traceback with text representation, as traceback
         # objects cannot be pickled
-        if record.exc_info is not None:
-            tb = traceback.format_exception(*record.exc_info)
-            record.exc_info = record.exc_info[0], record.exc_info[1], tb
+        # if record.exc_info is not None:
+        #     tb = traceback.format_exception(*record.exc_info)
+        #     record.exc_info = record.exc_info[0], record.exc_info[1], tb
+
+        # NOTE: This will be done by the storage!
 
         current_app.storage.log_message(
             build_id=execution_context.build_id,
