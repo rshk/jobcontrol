@@ -23,6 +23,7 @@ class MemoryStorage(StorageBase):
 
     @classmethod
     def from_url(cls, url):
+        # No need for an URL -- it's just an in-memory storage!
         return cls()
 
     def _init_vars(self):
@@ -88,28 +89,17 @@ class MemoryStorage(StorageBase):
     def create_build(self, job_id, job_config, build_config):
         build_id = self._builds_seq.next()
 
-        build = {
+        build = self._normalize_build_info({
             'id': build_id,
             'job_id': job_id,
-            'start_time': None,
-            'end_time': None,
-
-            'started': False,
-            'finished': False,
-            'success': False,
-            'skipped': False,
-
             'job_config': job_config,
             'build_config': build_config,
-
-            'retval': None,
-            'exception': None,
-            'exception_tb': None,
 
             # Progress is stored in a dict; then we'll have to rebuild it
             # into a proper tree.
             'progress_info': {},
-        }
+        })
+
         self._builds[build_id] = build
         return build_id
 

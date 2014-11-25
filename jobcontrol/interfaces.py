@@ -106,29 +106,6 @@ class StorageBase(object):
         pass
 
     # ------------------------------------------------------------
-    # Helper methods for serialization
-    # Todo: should we create custom methods to serialize
-    #       args, kwargs, exceptions, log records, ... ?
-    # ------------------------------------------------------------
-
-    def pack(self, obj):
-        return pickle.dumps(obj)
-
-    def unpack(self, obj, safe=False):
-        try:
-            return pickle.loads(obj)
-        except Exception as e:
-            if not safe:
-                raise
-            return 'Error deserializing object: {0!r}'.format(e)
-
-    def yaml_pack(self, obj):
-        return jobcontrol.job_conf.dump(obj)
-
-    def yaml_unpack(self, obj):
-        return jobcontrol.job_conf.load(obj)
-
-    # ------------------------------------------------------------
     # Build CRUD methods
     # ------------------------------------------------------------
 
@@ -136,7 +113,7 @@ class StorageBase(object):
     def get_job_builds(self, job_id, started=None, finished=None,
                        success=None, skipped=None, order='asc', limit=100):
         """
-        Get all the builds for a job, sorted by date, according
+        Iterate over all the builds for a job, sorted by date, according
         to the order specified by ``order``.
 
         :param job_id:
@@ -153,6 +130,8 @@ class StorageBase(object):
             'asc' (default) or 'desc'
         :param limit:
             only return the first ``limit`` builds
+
+        :yield: Dictionaries representing build information
         """
         pass
 
@@ -307,3 +286,81 @@ class StorageBase(object):
             equal to this one
         """
         pass
+
+    # ------------------------------------------------------------
+    # Helper methods for serialization
+    # ------------------------------------------------------------
+
+    def pack(self, obj):
+        return pickle.dumps(obj)
+
+    def unpack(self, obj, safe=False):
+        try:
+            return pickle.loads(obj)
+        except Exception as e:
+            if not safe:
+                raise
+            return 'Error deserializing object: {0!r}'.format(e)
+
+    def yaml_pack(self, obj):
+        return jobcontrol.job_conf.dump(obj)
+
+    def yaml_unpack(self, obj):
+        return jobcontrol.job_conf.load(obj)
+
+    # ------------------------------------------------------------
+    # Generic helper methods
+    # ------------------------------------------------------------
+
+    def _normalize_job_config(self, job_conf):
+        if not isinstance(job_conf, dict):
+            raise TypeError('job_conf must be a dict')
+
+        job_conf.setdefault('function', None)
+        job_conf.setdefault('args', ())
+        job_conf.setdefault('kwargs', {})
+
+        if isinstance(job_conf['args'], list):
+            job_conf['args'] = tuple(job_conf['args'])
+
+        if not isinstance(job_conf['args'], tuple):
+            raise TypeError('args must be a tuple')
+
+        if not isinstance(job_conf['kwargs'], dict):
+            raise TypeError('kwargs must be a dict')
+
+        job_conf.setdefault('dependencies', [])
+        if not isinstance(job_conf['dependencies'], (list, tuple)):
+            raise TypeError('dependencies must be a list (or tuple)')
+
+        return job_conf
+
+    def _normalize_build_config(self, build_conf):
+        if not isinstance(build_conf, dict):
+            raise TypeError('build_conf must be a dict')
+
+        build_conf.setdefault('dependency_builds', {})
+
+        return build_conf
+
+    def _normalize_build_info(self, build_info):
+        if not isinstance(build_info, dict):
+            raise TypeError('build_info must be a dict')
+
+        build_info.setdefault('job_id', None)
+        build_info.setdefault('start_time', None)
+        build_info.setdefault('end_time', None)
+        build_info.setdefault('started', False)
+        build_info.setdefault('finished', False)
+        build_info.setdefault('success', False)
+        build_info.setdefault('skipped', False)
+        build_info.setdefault('job_config', {})
+        build_info['job_config'] = \
+            self._normalize_job_config(build_info['job_config'])
+        build_info.setdefault('build_config', {})
+        build_info['build_config'] = \
+            self._normalize_build_config(build_info['build_config'])
+        build_info.setdefault('retval', None)
+        build_info.setdefault('exception', None)
+        build_info.setdefault('exception_tb', None)
+        return build_info

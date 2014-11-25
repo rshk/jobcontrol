@@ -7,6 +7,20 @@ import pytest
 from jobcontrol.exceptions import NotFound
 
 
+def test_build_crud(storage):
+    assert list(storage.get_job_builds('foobar')) == []
+
+    build_id = storage.create_build(
+        'foobar', {'function': 'mymod:myfunction'}, {})
+
+    build = storage.get_build(build_id)
+
+    assert build['job_config']['function'] == 'mymod:myfunction'
+    assert build['job_config']['args'] == ()
+
+    assert list(storage.get_job_builds('foobar')) == [build]
+
+
 # def test_job_build_crud(storage):
 #     job_id = 'my-job-id'
 

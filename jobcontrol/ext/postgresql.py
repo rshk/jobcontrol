@@ -119,7 +119,7 @@ class PostgreSQLStorage(StorageBase):
             cur.execute(query)
 
     def _drop_tables(self):
-        names = ('job', 'build', 'build_progress', 'log')
+        names = ('build', 'build_progress', 'log')
         table_names = [self._table_name(x) for x in names]
         with self.db, self.db.cursor() as cur:
             for table in reversed(table_names):
@@ -267,8 +267,9 @@ class PostgreSQLStorage(StorageBase):
             'exception_tb': lambda x: self.unpack(x, safe=True),
             'job_config': self.yaml_unpack,
             'build_config': self.yaml_unpack,
+            'args': tuple,
         }
-        return self._convert_object(row, mapping)
+        return self._normalize_build_info(self._convert_object(row, mapping))
 
     def get_job_builds(self, job_id, started=None, finished=None,
                        success=None, skipped=None, order='asc', limit=100):
