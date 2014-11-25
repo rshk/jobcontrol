@@ -410,17 +410,12 @@ class PostgreSQLStorage(StorageBase):
                             keys=('build_id', 'group_name'))
 
     def log_message(self, build_id, record):
-        self._do_insert('log', {
-            'build_id': build_id,
-            'created': datetime.utcfromtimestamp(record.created),
-            'level': record.levelno,
-
-            # We use a buffer here in order to have it inserted in the query
-            # as a "bytea" object.
-            'record': buffer(self.pack(record))
-
-            # todo: extract traceback, if any
-        })
+        row = self._serialize_log_record(record)
+        row['build_id'] = build_id
+        row['level'] = record.levelno
+        row['record'] = buffer(self.pack(row['record']))
+        row['exception_tb'] = buffer(self.pack(row['exception_tb']))
+        self._do_insert('log', row)
 
     def prune_log_messages(self, build_id=None, max_age=None, level=None):
         """
@@ -503,6 +498,7 @@ class PostgreSQLStorage(StorageBase):
                 # todo: any better way to do this?
                 # record.job_id = item['job_id']
                 record.build_id = item['build_id']
+                record.traceback_info = self.unpack(item['exception_tb'])
 
                 # Make sure we're dealing with unicode..
                 if not hasattr(record, 'message'):

@@ -159,10 +159,9 @@ class MemoryStorage(StorageBase):
 
     def log_message(self, build_id, record):
         record.build_id = build_id
-        self._log_messages[build_id].append({
-            'build_id': build_id,
-            'record': record,
-            'created': datetime.utcfromtimestamp(record.created)})
+        row = self._serialize_log_record(record)
+        row['build_id'] = build_id
+        self._log_messages[build_id].append(row)
 
     def prune_log_messages(self, build_id=None, max_age=None,
                            level=None):

@@ -194,3 +194,78 @@ def test_build_iteration(storage):
 
     # Latest two, in reverse order
     assert _get_builds(order='desc', limit=2) == list(reversed(builds))[:2]
+
+
+def test_logrecord_objects():
+    import logging
+
+    record = logging.LogRecord(**{
+        'name': 'mylogger', 'level': logging.DEBUG,
+        'pathname': '/tmp/foo.py', 'lineno': 1,
+        'msg': 'A debug message', 'args': (),
+        'exc_info': None, 'func': 'myfunction',
+    })
+
+    assert record.levelno == logging.DEBUG
+
+
+def test_storage_logging_internals(storage):
+    import logging
+    import sys
+
+    job_id = 'job-test-storage-logging'
+    build_id = storage.create_build(job_id, {}, {})
+
+    storage.log_message(build_id, logging.LogRecord(**{
+        'name': 'mylogger', 'level': logging.DEBUG,
+        'pathname': '/tmp/foo.py', 'lineno': 1,
+        'msg': 'A debug message', 'args': (),
+        'exc_info': None, 'func': 'myfunction',
+    }))
+
+    storage.log_message(build_id, logging.LogRecord(**{
+        'name': 'mylogger', 'level': logging.INFO,
+        'pathname': '/tmp/foo.py', 'lineno': 1,
+        'msg': 'An info message', 'args': (),
+        'exc_info': None, 'func': 'myfunction',
+    }))
+
+    storage.log_message(build_id, logging.LogRecord(**{
+        'name': 'mylogger', 'level': logging.WARNING,
+        'pathname': '/tmp/foo.py', 'lineno': 1,
+        'msg': 'A warning message', 'args': (),
+        'exc_info': None, 'func': 'myfunction',
+    }))
+
+    storage.log_message(build_id, logging.LogRecord(**{
+        'name': 'mylogger', 'level': logging.ERROR,
+        'pathname': '/tmp/foo.py', 'lineno': 1,
+        'msg': 'An error message', 'args': (),
+        'exc_info': None, 'func': 'myfunction',
+    }))
+
+    try:
+        raise ValueError("This is an exception")
+
+    except:
+        storage.log_message(build_id, logging.LogRecord(**{
+            'name': 'mylogger', 'level': logging.ERROR,
+            'pathname': '/tmp/foo.py', 'lineno': 1,
+            'msg': 'An error message', 'args': (),
+            'exc_info': sys.exc_info(),
+            'func': 'myfunction',
+        }))
+
+    # ------------------------------------------------------------
+
+    assert len(list(storage.iter_log_messages(build_id))) == 5
+    assert len(list(storage.iter_log_messages(
+        build_id, min_level=logging.DEBUG))) == 5
+    assert len(list(storage.iter_log_messages(
+        build_id, min_level=logging.INFO))) == 4
+    assert len(list(storage.iter_log_messages(
+        build_id, min_level=logging.WARNING))) == 3
+    assert len(list(storage.iter_log_messages(
+        build_id, min_level=logging.ERROR))) == 2
+    assert len(list(storage.iter_log_messages(
+        build_id, min_level=logging.CRITICAL))) == 0

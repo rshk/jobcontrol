@@ -77,6 +77,7 @@ We want to include the following information:
   just to be on the safe side).
 """
 
+from datetime import datetime
 import abc
 import pickle
 import warnings
@@ -237,13 +238,14 @@ class StorageBase(object):
         return builds[0]
 
     @abc.abstractmethod
-    def log_message(self, job_id, build_id, record):
+    def log_message(self, build_id, record):
         """
         Store a log record associated with a build.
         """
-        # Todo: provide "shortcut" methods to convert the traceback to
-        #       a serializable object, and to clean up the record
-        #       object for decent serialization in the database.
+        # Todo: provide "shortcut" methods to convert the traceback
+        #       (from exc_info) to a serializable object, and to clean
+        #       up the record object for decent serialization in the
+        #       database.
         pass
 
     @abc.abstractmethod
@@ -269,13 +271,10 @@ class StorageBase(object):
         pass
 
     @abc.abstractmethod
-    def iter_log_messages(self, job_id=None, build_id=None, max_date=None,
+    def iter_log_messages(self, build_id=None, max_date=None,
                           min_date=None, min_level=None):
         """
         Iterate over log messages, applying some filters.
-
-        :param job_id:
-            If specified, only return messages for this job
 
         :param build_id:
             If specified, only return messages for this build
@@ -375,3 +374,19 @@ class StorageBase(object):
             build_info.setdefault(key, None)
 
         return build_info
+
+    def _serialize_log_record(self, record):
+        from jobcontrol.utils import TracebackInfo
+
+        row = {
+            'record': record,
+            'created': datetime.utcfromtimestamp(record.created),
+            'exception_tb': None,
+        }
+
+        if record.exc_info:
+            etype, exc, tb = record.exc_info
+            record.exc_info = (etype, exc, None)
+            row['exception_tb'] = TracebackInfo.from_tb(tb)
+
+        return row
