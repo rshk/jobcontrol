@@ -189,6 +189,11 @@ class StorageBase(object):
         """
         pass
 
+    def finish_build_with_exception(self, build_id):
+        # todo: build a tracebackinfo object
+        # todo: return finish_build() with failure + exception trace
+        raise NotImplementedError
+
     def update_build_progress(self, build_id, current, total):
         warnings.warn(DeprecationWarning(
             'The update_build_progress() method is deprecated. '
@@ -348,19 +353,25 @@ class StorageBase(object):
             raise TypeError('build_info must be a dict')
 
         build_info.setdefault('job_id', None)
-        build_info.setdefault('start_time', None)
-        build_info.setdefault('end_time', None)
-        build_info.setdefault('started', False)
-        build_info.setdefault('finished', False)
-        build_info.setdefault('success', False)
-        build_info.setdefault('skipped', False)
+
+        for key in ('start_time', 'end_time'):
+            build_info.setdefault(key, None)
+
+        for key in ('started', 'finished', 'success', 'skipped'):
+            build_info.setdefault(key, False)
+
         build_info.setdefault('job_config', {})
         build_info['job_config'] = \
             self._normalize_job_config(build_info['job_config'])
+
         build_info.setdefault('build_config', {})
         build_info['build_config'] = \
             self._normalize_build_config(build_info['build_config'])
-        build_info.setdefault('retval', None)
-        build_info.setdefault('exception', None)
-        build_info.setdefault('exception_tb', None)
+
+        for key in ('retval', 'exception', 'exception_tb'):
+            build_info.setdefault(key, None)
+
+        for key in ('title', 'notes'):
+            build_info.setdefault(key, None)
+
         return build_info

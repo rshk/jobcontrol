@@ -15,300 +15,182 @@ def test_build_crud(storage):
 
     build = storage.get_build(build_id)
 
+    assert build['id'] == build_id
+    assert build['job_id'] == 'foobar'
+
     assert build['job_config']['function'] == 'mymod:myfunction'
     assert build['job_config']['args'] == ()
+    assert build['job_config']['kwargs'] == {}
+    assert build['job_config']['dependencies'] == []
+
+    assert build['build_config']['dependency_builds'] == {}
+
+    assert build['start_time'] is None
+    assert build['end_time'] is None
+
+    assert build['started'] is False
+    assert build['finished'] is False
+    assert build['success'] is False
+    assert build['skipped'] is False
+
+    assert build['retval'] is None
+    assert build['exception'] is None
+    assert build['exception_tb'] is None
+
+    assert build['title'] is None
+    assert build['notes'] is None
 
     assert list(storage.get_job_builds('foobar')) == [build]
 
+    storage.delete_build(build_id)
+
+    assert list(storage.get_job_builds('foobar')) == []
 
-# def test_job_build_crud(storage):
-#     job_id = 'my-job-id'
-
-#     build_id = storage.create_build(job_id)
-#     assert isinstance(build_id, int)
-
-#     build = build_v0 = storage.get_build(build_id)
-#     assert build['id'] == build_id
-#     assert build['job_id'] == job_id
-#     assert build['start_time'] is None
-#     assert build['end_time'] is None
-#     assert build['started'] is False
-#     assert build['finished'] is False
-#     assert build['success'] is False
-#     assert build['skipped'] is False
-#     assert build['retval'] is None
-#     assert build['exception'] is None
-#     # assert build['progress_current'] == 0
-#     # assert build['progress_total'] == 0
-
-#     storage.start_build(build_id)
-
-#     build = build_v1 = storage.get_build(build_id)
-#     assert build['id'] == build_id
-#     assert build['job_id'] == job_id
-#     assert isinstance(build['start_time'], datetime)
-#     assert datetime.now() - build['start_time'] < timedelta(seconds=2)
-#     assert build['end_time'] is None
-#     assert build['started'] is True
-#     assert build['finished'] is False
-#     assert build['success'] is False
-#     assert build['skipped'] is False
-#     assert build['retval'] is None
-#     assert build['exception'] is None
-#     # assert build['progress_current'] == 0
-#     # assert build['progress_total'] == 0
-
-#     storage.finish_build(build_id)
-
-#     build = build_v2 = storage.get_build(build_id)
-#     assert build['id'] == build_id
-#     assert build['job_id'] == job_id
-#     assert build['start_time'] == build_v1['start_time']
-#     assert isinstance(build['end_time'], datetime)
-#     assert datetime.now() - build['end_time'] < timedelta(seconds=2)
-#     assert build['started'] is True
-#     assert build['finished'] is True
-#     assert build['success'] is True
-#     assert build['skipped'] is False
-#     assert build['retval'] is None
-#     assert build['exception'] is None
-#     # assert build['progress_current'] == 0
-#     # assert build['progress_total'] == 0
-
-#     storage.finish_build(build_id, success=False, skipped=True,
-#                          retval="Something", exception=ValueError('Foo'))
-
-#     build = build_v3 = storage.get_build(build_id)
-#     assert build['id'] == build_id
-#     assert build['job_id'] == job_id
-#     assert build['start_time'] == build_v2['start_time']
-#     # end time will be changed..
-#     assert isinstance(build['end_time'], datetime)
-#     assert datetime.now() - build['end_time'] < timedelta(seconds=2)
-#     assert build['started'] is True
-#     assert build['finished'] is True
-#     assert build['success'] is False
-#     assert build['skipped'] is True
-#     assert build['retval'] == 'Something'
-#     assert isinstance(build['exception'], ValueError)
-#     # assert build['progress_current'] == 0
-#     # assert build['progress_total'] == 0
-
-#     # TODO: Use new build progress reporting
-#     # storage.update_build_progress(build_id, 50, 100)
-
-#     # build = build_v4 = storage.get_build(build_id)
-#     # assert build['id'] == build_id
-#     # assert build['job_id'] == job_id
-#     # assert build['start_time'] == build_v3['start_time']
-#     # assert build['end_time'] == build_v3['end_time']
-#     # assert build['started'] == build_v3['started']
-#     # assert build['finished'] == build_v3['finished']
-#     # assert build['success'] == build_v3['success']
-#     # assert build['skipped'] == build_v3['skipped']
-#     # assert build['retval'] == build_v3['retval']
-#     # assert isinstance(build['exception'], ValueError)
-#     # # assert build['progress_current'] == 50
-#     # # assert build['progress_total'] == 100
-
-#     storage.delete_build(build_id)
-#     with pytest.raises(Exception):
-#         storage.get_build(build_id)
-
-#     storage.delete_job(job_id)
-
-
-# def test_job_multiple_builds(storage):
-#     job_id = 'my-job-id'
-
-#     def _get_build_ids(**kw):
-#         return [x['id'] for x in storage.get_job_builds(job_id, **kw)]
-
-#     assert _get_build_ids() == []
-
-#     b1id = storage.create_build(job_id)
-#     b2id = storage.create_build(job_id)
-#     b3id = storage.create_build(job_id)
-#     b4id = storage.create_build(job_id)
-
-#     assert _get_build_ids() == [b1id, b2id, b3id, b4id]
-#     assert _get_build_ids(started=False) == [b1id, b2id, b3id, b4id]
-#     assert _get_build_ids(started=True) == []
-#     assert _get_build_ids(finished=True) == []
-#     assert _get_build_ids(skipped=True) == []
-#     assert _get_build_ids(skipped=False) == [b1id, b2id, b3id, b4id]
-
-#     assert _get_build_ids(order='asc', limit=2) == [b1id, b2id]
-#     assert _get_build_ids(order='desc', limit=2) == [b4id, b3id]
-
-#     storage.start_build(b1id)
-
-#     assert _get_build_ids() == [b1id, b2id, b3id, b4id]
-#     assert _get_build_ids(started=False) == [b2id, b3id, b4id]
-#     assert _get_build_ids(started=True) == [b1id]
-#     assert _get_build_ids(finished=True) == []
-#     assert _get_build_ids(skipped=True) == []
-#     assert _get_build_ids(skipped=False) == [b1id, b2id, b3id, b4id]
-
-#     storage.start_build(b2id)
-
-#     assert _get_build_ids() == [b1id, b2id, b3id, b4id]
-#     assert _get_build_ids(started=False) == [b3id, b4id]
-#     assert _get_build_ids(started=True) == [b1id, b2id]
-#     assert _get_build_ids(finished=True) == []
-#     assert _get_build_ids(skipped=True) == []
-#     assert _get_build_ids(skipped=False) == [b1id, b2id, b3id, b4id]
-
-#     storage.start_build(b3id)
-#     storage.finish_build(b1id, success=True, retval='B1-RET')
-
-#     assert _get_build_ids() == [b1id, b2id, b3id, b4id]
-#     assert _get_build_ids(started=False) == [b4id]
-#     assert _get_build_ids(started=True) == [b1id, b2id, b3id]
-#     assert _get_build_ids(finished=True) == [b1id]
-#     assert _get_build_ids(finished=True, success=True) == [b1id]
-#     assert _get_build_ids(finished=True, success=False) == []
-#     assert _get_build_ids(skipped=True) == []
-#     assert _get_build_ids(skipped=False) == [b1id, b2id, b3id, b4id]
+    with pytest.raises(NotFound):
+        storage.get_build(build_id)
 
-#     storage.finish_build(b2id, success=False,
-#                          exception=ValueError('Simulated failure'))
 
-#     assert _get_build_ids() == [b1id, b2id, b3id, b4id]
-#     assert _get_build_ids(started=False) == [b4id]
-#     assert _get_build_ids(started=True) == [b1id, b2id, b3id]
-#     assert _get_build_ids(finished=True) == [b1id, b2id]
-#     assert _get_build_ids(finished=True, success=True) == [b1id]
-#     assert _get_build_ids(finished=True, success=False) == [b2id]
-#     assert _get_build_ids(skipped=True) == []
-#     assert _get_build_ids(skipped=False) == [b1id, b2id, b3id, b4id]
+def test_build_actions(storage):
+    build_id = storage.create_build('job-build-actions', {}, {})
 
-#     storage.finish_build(b3id, success=True, skipped=True)
+    build = storage.get_build(build_id)
+    assert build['start_time'] is None
+    assert build['end_time'] is None
+    assert build['started'] is False
+    assert build['finished'] is False
+    assert build['success'] is False
+    assert build['skipped'] is False
+    assert build['retval'] is None
+    assert build['exception'] is None
+    assert build['exception_tb'] is None
 
-#     assert _get_build_ids() == [b1id, b2id, b3id, b4id]
-#     assert _get_build_ids(started=False) == [b4id]
-#     assert _get_build_ids(started=True) == [b1id, b2id, b3id]
-#     assert _get_build_ids(finished=True) == [b1id, b2id, b3id]
-#     assert _get_build_ids(finished=True, success=True) == [b1id, b3id]
-#     assert _get_build_ids(finished=True, success=False) == [b2id]
-#     assert _get_build_ids(skipped=True) == [b3id]
-#     assert _get_build_ids(skipped=False) == [b1id, b2id, b4id]
+    storage.start_build(build_id)
 
-#     assert _get_build_ids(finished=True, success=True, skipped=False,
-#                           order='desc', limit=1) == [b1id]
+    build = storage.get_build(build_id)
+    assert build['start_time'] is not None
+    assert build['end_time'] is None
+    assert build['started'] is True
+    assert build['finished'] is False
+    assert build['success'] is False
+    assert build['skipped'] is False
+    assert build['retval'] is None
+    assert build['exception'] is None
+    assert build['exception_tb'] is None
 
-#     storage.start_build(b4id)
-#     storage.finish_build(b4id, success=True, retval='B4-RET')
+    storage.finish_build(build_id, retval='foobar')
 
-#     # ------------------------------------------------------------
-#     # Get build reports
+    build = storage.get_build(build_id)
+    assert build['start_time'] is not None
+    assert build['end_time'] is not None
+    assert build['started'] is True
+    assert build['finished'] is True
+    assert build['success'] is True
+    assert build['skipped'] is False
+    assert build['retval'] == 'foobar'
+    assert build['exception'] is None
+    assert build['exception_tb'] is None
 
-#     build1 = storage.get_build(b1id)
-#     assert build1['success'] is True
-#     assert build1['retval'] == 'B1-RET'
+    storage.delete_build(build_id)
 
-#     build2 = storage.get_build(b2id)
-#     assert build2['success'] is False
-#     assert isinstance(build2['exception'], ValueError)
 
-#     build3 = storage.get_build(b3id)
-#     assert build3['success'] is True
-#     assert build3['skipped'] is True
+def test_build_finish_failure(storage):
+    build_id = storage.create_build('job-build-actions', {}, {})
 
-#     build4 = storage.get_build(b4id)
-#     assert build4['success'] is True
-#     assert build4['retval'] == 'B4-RET'
+    build = storage.get_build(build_id)
+    storage.start_build(build_id)
+    storage.finish_build(build_id, success=False, exception=ValueError('foo'))
 
+    build = storage.get_build(build_id)
+    assert build['start_time'] is not None
+    assert build['end_time'] is not None
+    assert build['started'] is True
+    assert build['finished'] is True
+    assert build['success'] is False
+    assert build['skipped'] is False
+    assert build['retval'] is None
+    assert isinstance(build['exception'], ValueError)
+    assert build['exception_tb'] is None
 
-# def test_job_deletion(storage):
-#     job_id = 'my-job-id'
-#     b1id = storage.create_build(job_id)
-#     b2id = storage.create_build(job_id)
+    storage.delete_build(build_id)
 
-#     storage.delete_job(job_id)
 
-#     with pytest.raises(NotFound):
-#         storage.get_build(b1id)
-#     with pytest.raises(NotFound):
-#         storage.get_build(b2id)
-#     with pytest.raises(NotFound):
-#         storage.get_job(job_id)
+def test_build_iteration(storage):
+    job_id = 'job-test-build-iteration'
 
+    builds = [
+        storage.create_build(job_id, {}, {}),
+        storage.create_build(job_id, {}, {}),
+        storage.create_build(job_id, {}, {}),
+        storage.create_build(job_id, {}, {}),
+    ]
 
-# def test_logging(storage):
-#     import logging
+    def _get_builds(**kw):
+        retr_builds = list(storage.get_job_builds(job_id, **kw))
+        return [x['id'] for x in retr_builds]
 
-#     job_id = 'my-job-id'
-#     build_id = storage.create_build(job_id)
+    assert _get_builds(started=False) == builds
 
-#     def _make_log(level, msg):
-#         return logging.makeLogRecord(
-#             {'name': 'my_logger', 'levelno': level, 'msg': msg,
-#              'message': msg})
+    assert _get_builds(started=True) == []
+    assert _get_builds(started=False) == builds
+    assert _get_builds(finished=False) == builds
 
-#     def _log(level, msg):
-#         storage.log_message(build_id, _make_log(level, msg))
+    # ------------------------------------------------------------
 
-#     _log(logging.DEBUG, 'A DEBUG message')
-#     _log(logging.INFO, 'A INFO message')
-#     _log(logging.WARNING, 'A WARNING message')
-#     _log(logging.ERROR, 'A ERROR message')
-#     _log(logging.CRITICAL, 'A CRITICAL message')
+    storage.start_build(builds[0])
 
-#     log_messages = list(storage.iter_log_messages(build_id=build_id))
-#     assert len(log_messages) == 5
+    assert _get_builds(started=True) == [builds[0]]
+    assert _get_builds(started=False) == builds[1:]
+    assert _get_builds(finished=False) == builds
 
-#     warning_messages = list(storage.iter_log_messages(
-#         build_id=build_id, min_level=logging.WARNING))
-#     assert len(warning_messages) == 3
+    # ------------------------------------------------------------
 
-#     storage.prune_log_messages(build_id=build_id, level=logging.WARNING)
+    storage.finish_build(builds[0])
+    storage.start_build(builds[1])
 
-#     log_messages = list(storage.iter_log_messages(build_id=build_id))
-#     assert len(log_messages) == 3
+    assert _get_builds(started=True) == [builds[0], builds[1]]
+    assert _get_builds(started=False) == [builds[2], builds[3]]
+    assert _get_builds(started=True, finished=True) == [builds[0]]
+    assert _get_builds(started=True, finished=False) == [builds[1]]
 
-#     storage.prune_log_messages(build_id=build_id, level=logging.ERROR)
+    assert storage.get_latest_successful_build(job_id)['id'] == builds[0]
 
-#     log_messages = list(storage.iter_log_messages(build_id=build_id))
-#     assert len(log_messages) == 2
+    # ------------------------------------------------------------
 
-#     # todo: test logging date filtering / pruning (+ policy pruning)
+    storage.finish_build(builds[1], success=False)
 
+    assert _get_builds(started=True) == [builds[0], builds[1]]
+    assert _get_builds(started=False) == [builds[2], builds[3]]
+    assert _get_builds(started=True, finished=True) == [builds[0], builds[1]]
+    assert _get_builds(started=True, finished=False) == []
+    assert _get_builds(started=True, finished=True, success=True) == [builds[0]]  # noqa
+    assert _get_builds(started=True, finished=True, success=False) == [builds[1]]  # noqa
 
-# def test_logging_unicode(storage):
-#     import logging
+    assert storage.get_latest_successful_build(job_id)['id'] == builds[0]
 
-#     job_id = 'my-job-id'
-#     build_id = storage.create_build(job_id)
+    # ------------------------------------------------------------
 
-#     def _make_log(level, msg):
-#         return logging.makeLogRecord(
-#             {'name': 'my_logger', 'levelno': level, 'msg': msg,
-#              'message': msg})
+    storage.start_build(builds[2])
+    storage.finish_build(builds[2], success=True)
 
-#     def _log(level, msg):
-#         storage.log_message(build_id, _make_log(level, msg))
+    assert _get_builds(started=True) == [builds[0], builds[1], builds[2]]
+    assert _get_builds(started=False) == [builds[3]]
+    assert _get_builds(started=True, finished=True) \
+        == [builds[0], builds[1], builds[2]]
+    assert _get_builds(started=True, finished=False) == []
+    assert _get_builds(started=True, finished=True, success=True) \
+        == [builds[0], builds[2]]
+    assert _get_builds(started=True, finished=True, success=False) \
+        == [builds[1]]
 
-#     _log(logging.DEBUG, 'A DEBUG mës§ágé')
-#     _log(logging.INFO, 'A INFO mës§ágé')
-#     _log(logging.WARNING, 'A WARNING mës§ágé')
-#     _log(logging.ERROR, 'A ERROR mës§ágé')
-#     _log(logging.CRITICAL, 'A CRITICAL mës§ágé')
+    assert storage.get_latest_successful_build(job_id)['id'] == builds[2]
 
-#     log_messages = list(storage.iter_log_messages(build_id=build_id))
-#     assert len(log_messages) == 5
+    # ------------------------------------------------------------
 
-#     warning_messages = list(storage.iter_log_messages(
-#         build_id=build_id, min_level=logging.WARNING))
-#     assert len(warning_messages) == 3
+    # All builds, in reversed order
+    assert _get_builds(order='desc') == list(reversed(builds))
 
-#     storage.prune_log_messages(build_id=build_id, level=logging.WARNING)
+    # First two, in normal order
+    assert _get_builds(limit=2) == builds[:2]
 
-#     log_messages = list(storage.iter_log_messages(build_id=build_id))
-#     assert len(log_messages) == 3
-
-#     storage.prune_log_messages(build_id=build_id, level=logging.ERROR)
-
-#     log_messages = list(storage.iter_log_messages(
-#         build_id=build_id))
-#     assert len(log_messages) == 2
+    # Latest two, in reverse order
+    assert _get_builds(order='desc', limit=2) == list(reversed(builds))[:2]
