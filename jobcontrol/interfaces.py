@@ -349,6 +349,9 @@ class StorageBase(object):
         """
         pass
 
+    def update_build_progress(self, build_id, current, total):
+        return self.report_build_progress(build_id, current, total)
+
     @abc.abstractmethod
     def report_build_progress(self, build_id, current, total, group_name='',
                               status_line=''):

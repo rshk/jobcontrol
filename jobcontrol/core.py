@@ -199,6 +199,8 @@ class JobControl(object):
     def _build_job(self, job_id):
         """Actually run a build for this job"""
 
+        from jobcontrol.job_conf import prepare_args
+
         job = self.get_job(job_id)
         if job is None:
             raise RuntimeError('No such job: {0}'.format(job_id))
@@ -216,8 +218,8 @@ class JobControl(object):
             function = self._get_runner_function(job.config['function'])
             logger.debug(log_prefix + 'Function is {0!r}'.format(function))
 
-            args = job['args']
-            kwargs = job['kwargs']
+            args = prepare_args(job['args'])
+            kwargs = prepare_args(job['kwargs'])
             retval = function(*args, **kwargs)
 
         except SkipBuild:
@@ -399,7 +401,13 @@ class JobInfo(object):
     def __init__(self, app, job_id, config):
         self.app = app
         self._job_id = job_id
-        self._config = config
+        self._config = {
+            'args': (),
+            'kwargs': {},
+            'function': None,
+            'dependencies': [],
+        }
+        self._config.update(config)
 
     def __repr__(self):
         return '<Job {0!r}>'.format(self.id)

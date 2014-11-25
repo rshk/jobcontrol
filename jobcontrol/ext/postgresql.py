@@ -134,15 +134,18 @@ class PostgreSQLStorage(StorageBase):
 
     # -------------------- Query building --------------------
 
-    def _query_insert(self, table, data):
+    def _query_insert(self, table, data, returning='id'):
         _fields = sorted(data)
-        return """
-        INSERT INTO "{table}" ({fields})
-        VALUES ({valspec}) RETURNING id;
+        query = """
+        INSERT INTO "{table}" ({fields}) VALUES ({valspec})
         """.format(
             table=self._table_name(table),
             fields=', '.join(self._escape_name(x) for x in _fields),
             valspec=', '.join('%({0})s'.format(x) for x in _fields))
+        if returning:
+            query += ' RETURNING ' + returning
+        query += ";"
+        return query
 
     def _query_update(self, table, data, keys=None):
         _fields = [x for x in sorted(data) if x != 'id']
@@ -208,11 +211,12 @@ class PostgreSQLStorage(StorageBase):
 
     # -------------------- Query running --------------------
 
-    def _do_insert(self, table, data):
-        query = self._query_insert(table, data)
+    def _do_insert(self, table, data, returning='id'):
+        query = self._query_insert(table, data, returning=returning)
         with self.db, self.db.cursor() as cur:
             cur.execute(query, data)
-            return cur.fetchone()[0]
+            if returning:
+                return cur.fetchone()[0]
 
     def _do_update(self, table, data, keys=None):
         query = self._query_update(table, data, keys=keys)
@@ -522,28 +526,10 @@ class PostgreSQLStorage(StorageBase):
         }
 
         try:
-            self._do_insert('build_progress', record)
+            self._do_insert('build_progress', record, returning=None)
         except psycopg2.IntegrityError:
             self._do_update('build_progress', record,
                             keys=('build_id', 'group_name'))
-
-        # try:
-        #     build = self._builds[build_id]
-        # except KeyError:
-        #     raise NotFound("Build {0} not found".format(build_id))
-
-        # build['progress_info'][group_name] = {
-        #     'current': current,
-        #     'total': total,
-        #     'status_line': status_line,
-        # }
-
-    # def update_build_progress(self, build_id, current, total):
-    #     self._do_update('build', self._build_pack({
-    #         'id': build_id,
-    #         'progress_current': current,
-    #         'progress_total': total,
-    #     }))
 
     def log_message(self, build_id, record):
         self._do_insert('log', {
