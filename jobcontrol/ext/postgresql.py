@@ -243,159 +243,32 @@ class PostgreSQLStorage(StorageBase):
 
     # -------------------- Object serialization --------------------
 
-    # def _job_pack(self, job):
-    #     job['config'] = self.yaml_pack(job['config'])
-    #     return job
+    def _convert_object(self, obj, mapping):
+        for key, val in mapping.iteritems():
+            if obj.get(key) is not None:
+                obj[key] = val(obj[key])
+        return obj
 
-    # def _job_unpack(self, row):
-    #     row = dict(row)
-    #     row['config'] = self.yaml_unpack(row['config'])
-    #     if not isinstance(row['config']['args'], tuple):
-    #         # We want a tuple, not list
-    #         row['config']['args'] = tuple(row['config']['args'])
-    #     return row
-
-    def _build_pack(self, job):
-        if job.get('retval') is not None:
-            job['retval'] = buffer(self.pack(job['retval']))
-        if job.get('exception') is not None:
-            job['exception'] = buffer(self.pack(job['exception']))
-        return job
+    def _build_pack(self, build):
+        mapping = {
+            'retval': lambda x: buffer(self.pack(x)),
+            'exception': lambda x: buffer(self.pack(x)),
+            'exception_tb': lambda x: buffer(self.pack(x)),
+            'job_config': self.yaml_pack,
+            'build_config': self.yaml_pack,
+        }
+        return self._convert_object(build, mapping)
 
     def _build_unpack(self, row):
         row = dict(row)
-
-        if row.get('retval') is not None:
-            row['retval'] = self.unpack(row['retval'], safe=True)
-
-        if row.get('exception') is not None:
-            row['exception'] = self.unpack(row['exception'], safe=True)
-
-        return row
-
-    # ------------------------------------------------------------
-    # Job CRUD methods
-    # ------------------------------------------------------------
-
-    # def create_job(self, job_id=None, function=None, args=None, kwargs=None,
-    #                dependencies=None, title=None, notes=None, config=None):
-
-    #     if job_id is None:
-    #         job_id = self._generate_job_id()
-
-    #     job_config = self._make_config(
-    #         job_id, function, args, kwargs, dependencies, title, notes,
-    #         config=config)
-    #     job = {'id': job_id, 'config': job_config}
-    #     job['ctime'] = job['mtime'] = datetime.now()
-    #     job['dependencies'] = job_config['dependencies']
-    #     data = self._job_pack(job)
-    #     return self._do_insert('job', data)
-
-    # def update_job(self, job_id, function=None, args=None, kwargs=None,
-    #                dependencies=None, title=None, notes=None, config=None):
-
-    #     job = self.get_job(job_id)
-    #     if job is None:
-    #         raise NotFound('No such job: {0}'.format(job_id))
-
-    #     job_config = job['config']
-    #     job_data = {
-    #         'id': job_id,
-    #         'mtime': datetime.now(),
-    #         'config': job_config,  # Hold reference
-    #     }
-
-    #     if function is not None:
-    #         job_config['function'] = function
-
-    #     if args is not None:
-    #         job_config['args'] = args
-
-    #     if kwargs is not None:
-    #         job_config['kwargs'] = kwargs
-
-    #     if dependencies is not None:
-    #         job_config['dependencies'] = dependencies
-    #         job_data['dependencies'] = job_config['dependencies']
-
-    #     if title is not None:
-    #         job_config['title'] = title
-
-    #     if notes is not None:
-    #         job_config['notes'] = notes
-
-    #     self._do_update('job', self._job_pack(job_data))
-
-    # def get_job(self, job_id):
-    #     data = self._do_select_one('job', job_id)
-
-    #     if data is None:
-    #         raise NotFound('No such job: {0}'.format(job_id))
-
-    #     return self._job_unpack(data)
-
-    # def delete_job(self, job_id):
-    #     # First, we need to delete all the builds
-    #     # Then, we can delete the job itself.
-    #     # Other stuff should be automatically delete-cascaded
-
-    #     # query = 'DELETE FROM "{table}" WHERE "job_id"=%(job_id)s'.format(
-    #     #     table=self._table_name('log'))
-
-    #     # with self.db, self.db.cursor() as cur:
-    #     #     cur.execute(query, {'job_id': job_id})
-
-    #     query = 'DELETE FROM "{table}" WHERE "job_id"=%(job_id)s'.format(
-    #         table=self._table_name('build'))
-
-    #     with self.db, self.db.cursor() as cur:
-    #         cur.execute(query, {'job_id': job_id})
-
-    #     self._do_delete_one('job', job_id)
-
-    # def list_jobs(self):
-    #     query = 'SELECT id FROM "{table}" ORDER BY id ASC;'.format(
-    #         table=self._table_name('job'))
-
-    #     with self.db, self.db.cursor() as cur:
-    #         cur.execute(query)
-    #         return [r['id'] for r in cur.fetchall()]
-
-    # def iter_jobs(self):
-    #     for item in self._do_select('job', order='id ASC'):
-    #         yield self._job_unpack(item)
-
-    # def mget_jobs(self, job_ids):
-    #     # todo: there should be a better way to do this!
-    #     jobs = []
-    #     for j in job_ids:
-    #         try:
-    #             jobs.append(self.get_job(j))
-    #         except NotFound:
-    #             pass
-    #     return jobs
-
-    # def get_job_deps(self, job_id):
-    #     """Get direct job dependencies"""
-    #     query = """
-    #     SELECT * FROM "{table}" WHERE id IN (
-    #         SELECT unnest(dependencies) FROM "{table}"
-    #         WHERE id=%(id)s) ORDER BY id ASC;
-    #     """.format(table=self._table_name('job'))
-    #     with self.db, self.db.cursor() as cur:
-    #         cur.execute(query, {'id': job_id})
-    #         return [self._job_unpack(x) for x in cur.fetchall()]
-
-    # def get_job_revdeps(self, job_id):
-    #     query = """
-    #     SELECT * FROM "{table}"
-    #     WHERE dependencies @> ARRAY[%(id)s]
-    #     ORDER BY id ASC;
-    #     """.format(table=self._table_name('job'))
-    #     with self.db, self.db.cursor() as cur:
-    #         cur.execute(query, {'id': job_id})
-    #         return [self._job_unpack(x) for x in cur.fetchall()]
+        mapping = {
+            'retval': lambda x: self.unpack(x, safe=True),
+            'exception': lambda x: self.unpack(x, safe=True),
+            'exception_tb': lambda x: self.unpack(x, safe=True),
+            'job_config': self.yaml_unpack,
+            'build_config': self.yaml_unpack,
+        }
+        return self._convert_object(row, mapping)
 
     def get_job_builds(self, job_id, started=None, finished=None,
                        success=None, skipped=None, order='asc', limit=100):
@@ -464,8 +337,12 @@ class PostgreSQLStorage(StorageBase):
     # Build CRUD methods
     # ------------------------------------------------------------
 
-    def create_build(self, job_id):
-        return self._do_insert('build', {'job_id': job_id})
+    def create_build(self, job_id, job_config, build_config):
+        return self._do_insert('build', self._build_pack({
+            'job_id': job_id,
+            'job_config': job_config,
+            'build_config': build_config,
+        }))
 
     def get_build(self, build_id):
         build = self._do_select_one('build', build_id)

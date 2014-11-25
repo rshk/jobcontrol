@@ -1,9 +1,12 @@
 from textwrap import dedent
 
+import pytest
+
 from jobcontrol.job_conf import (
     dump, load, Retval, JobControlConfigMgr)
 from jobcontrol.interfaces import StorageBase
 from jobcontrol.ext.postgresql import PostgreSQLStorage
+from jobcontrol.exceptions import NotFound
 
 
 # todo: test arguments replacement -> requires an execution context!
@@ -174,7 +177,9 @@ def test_config_manager():
     assert jobs[0]['id'] == 'job-1'
 
     assert cfgmgr.get_job('job-1') == jobs[0]
-    assert cfgmgr.get_job('does-not-exist') is None
+
+    with pytest.raises(NotFound):
+        cfgmgr.get_job('does-not-exist')
 
     assert cfgmgr.get_webapp_config() == {'PORT': 5050, 'DEBUG': True}
 

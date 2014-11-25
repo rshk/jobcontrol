@@ -85,10 +85,9 @@ class MemoryStorage(StorageBase):
     # Build CRUD methods
     # ------------------------------------------------------------
 
-    def create_build(self, job_id, build_config=None):
-        job = self.get_job(job_id)
-
+    def create_build(self, job_id, job_config, build_config):
         build_id = self._builds_seq.next()
+
         build = {
             'id': build_id,
             'job_id': job_id,
@@ -100,7 +99,7 @@ class MemoryStorage(StorageBase):
             'success': False,
             'skipped': False,
 
-            'job_config': job['config'],
+            'job_config': job_config,
             'build_config': build_config,
 
             'retval': None,
