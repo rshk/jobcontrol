@@ -20,6 +20,7 @@
 	<div class="media">
 	  {% set latest_build = job.get_latest_successful_build() %}
 
+          {% set icon='' %}
 	  {% if job.has_builds() %}
 	    {% if job.has_successful_builds() %}
 	      {% if job.is_outdated() %}
@@ -28,6 +29,7 @@
 	      {% else %}
 		{% set badge_class='success' %}
 		{% set badge_status='Success' %}
+                {% set icon='check' %}
 	      {% endif %}
 	    {% else %}
 	      {% set badge_class='danger' %}
@@ -36,11 +38,12 @@
 	  {% else %}
 	    {% set badge_class='default' %}
 	    {% set badge_status='No builds' %}
+            {% set icon='cog fa-spin' %}
 	  {% endif %}
 
 	  <div class="media-left">
 	    <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
-	      {{ macros.status_badge(main=badge_status, class='compact ' + badge_class) }}
+	      {{ macros.status_badge(main=badge_status, class='compact ' + badge_class, icon=icon) }}
 	    </a>
 	  </div>
 

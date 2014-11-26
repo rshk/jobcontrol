@@ -206,7 +206,7 @@ class JobControl(object):
             raise RuntimeError('No such job: {0}'.format(job_id))
 
         logger.info('Starting build for job: {0}'.format(job_id))
-        build_id = self.storage.create_build(job_id)
+        build_id = self.storage.create_build(job_id, job.config, {})
 
         log_prefix = '[job: {0}, build: {1}] '.format(job_id, build_id)
 

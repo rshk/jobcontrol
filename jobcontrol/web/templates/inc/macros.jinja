@@ -43,13 +43,14 @@
 {% endmacro %}
 
 
-{% macro status_badge(class='', top='', middle='', bottom='', main='') -%}
-    <div class="status-badge {{ class }}">
-      {% if top %}<div class="line-top">{{ top }}</div>{% endif %}
-      {% if middle %}<div class="line-middle">{{ middle }}</div>{% endif %}
-      {% if bottom %}<div class="line-bottom">{{ bottom }}</div>{% endif %}
-      {% if main %}<div class="line-main">{{ main }}</div>{% endif %}
-    </div>
+{% macro status_badge(class='', top='', middle='', bottom='', main='', icon=None) -%}
+  <div class="status-badge {{ class }}">
+    {% if icon %}<div class="line-bg"><span class="fa fa-{{ icon }}"></span></div>{% endif %}
+    {% if top %}<div class="line-top">{{ top }}</div>{% endif %}
+    {% if middle %}<div class="line-middle">{{ middle }}</div>{% endif %}
+    {% if bottom %}<div class="line-bottom">{{ bottom }}</div>{% endif %}
+    {% if main %}<div class="line-main">{{ main }}</div>{% endif %}
+  </div>
 {%- endmacro %}
 
 

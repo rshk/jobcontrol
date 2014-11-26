@@ -318,8 +318,12 @@ class StorageBase(object):
     # ------------------------------------------------------------
 
     def _normalize_job_config(self, job_conf):
+        if job_conf is None:
+            job_conf = {}
+
         if not isinstance(job_conf, dict):
-            raise TypeError('job_conf must be a dict')
+            raise TypeError('job_conf must be a dict, got {0} instead'
+                            .format(type(job_conf).__name__))
 
         job_conf.setdefault('function', None)
         job_conf.setdefault('args', ())
@@ -341,8 +345,12 @@ class StorageBase(object):
         return job_conf
 
     def _normalize_build_config(self, build_conf):
+        if build_conf is None:
+            build_conf = {}
+
         if not isinstance(build_conf, dict):
-            raise TypeError('build_conf must be a dict')
+            raise TypeError('build_conf must be a dict, got {0} instead'
+                            .format(type(build_conf).__name__))
 
         build_conf.setdefault('dependency_builds', {})
 
