@@ -248,16 +248,18 @@ class ProgressReport(object):
     def current(self):
         if self._current is not None:
             return self._current
-        pass
+
+        return sum(x.current for x in self.children)
 
     @property
     def total(self):
         if self._total is not None:
             return self._total
-        pass
+
+        return sum(x.total for x in self.children)
 
     @classmethod
-    def from_table(cls, table):
+    def from_table(cls, table, base_name=None):
         """
         :param table:
             a list of tuples: (name, current, total, status_line).
@@ -271,30 +273,35 @@ class ProgressReport(object):
 
         root = None
         prefixes = []  # Need to preserve order!
+
+        # For each prefix, build a table with prefix stripped from names
         sub_tables = defaultdict(list)
 
         for name, current, total, status_line in table:
+            if not (name is None or isinstance(name, tuple)):
+                raise TypeError('name must be a tuple (or None)')
+
             if not name:
-                root = current, total, status_line
+                root = (base_name, current, total, status_line)
 
             else:
-                if isinstance(name, basestring):
-                    name = tuple(x.strip() for x in name.split('::'))
-
-                prefix = name[1]
+                prefix = name[0]
                 if prefix not in prefixes:
                     prefixes.append(prefix)
                 sub_tables[prefix].append(
                     (name[1:], current, total, status_line))
 
         if root is None:
-            obj = cls()
+            # the root is indefined -- should be guessed!
+            obj = cls(base_name)
+
         else:
             name, current, total, status_line = root  # Explicit!
             obj = cls(name, current, total, status_line)
 
         # Add children..
         for pref in prefixes:
-            obj.children.append(ProgressReport.from_table(sub_tables[pref]))
+            obj.children.append(ProgressReport.from_table(
+                sub_tables[pref], base_name=pref))
 
         return obj
