@@ -315,6 +315,36 @@ class ProgressReport(object):
 
         return sum(x.total for x in self.children)
 
+    @property
+    def percent(self):
+        if self.total == 0:
+            return 0.0
+        return float(self.current) / self.total
+
+    @property
+    def percent_human(self):
+        return format(self.percent * 100, '.0f') + '%'
+
+    @property
+    def progress_label(self):
+        return '{0}/{1} ({2:.0f}%)'.format(
+            self.current, self.total, self.percent)
+
+    @property
+    def color_css_rgb(self):
+        import colorsys
+
+        # todo: use a logarithmic scale to calculate hue?
+        #       we want the bar to stay "yellower" up to
+        #       "almost done"..
+        hue = self.percent * 120  # in degrees
+
+        color = ''.join([
+            format(int(x * 255), '02X')
+            for x in colorsys.hsv_to_rgb(hue / 360.0, .8, .8)])
+
+        return '#' + color
+
     @classmethod
     def from_table(cls, table, base_name=None):
         """

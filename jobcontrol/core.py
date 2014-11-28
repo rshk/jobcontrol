@@ -872,35 +872,6 @@ class BuildInfo(object):
         data = self.app.storage.get_build_progress_info(self.build_id)
         return ProgressReport.from_table(data)
 
-        # TODO: Move the code below to ProgressReport class!
-
-        # current = self.info['progress_current']
-        # total = self.info['progress_total']
-
-        # progress_info = {
-        #     'current': current,
-        #     'total': total,
-        #     'percent': 0,
-        #     'percent_human': 'N/A',
-        #     'label': 'N/A',
-        # }
-
-        # if total != 0:
-        #     ratio = current * 1.0 / total
-        #     percent = ratio * 100
-        #     progress_info['percent'] = percent
-        #     progress_info['percent_human'] = format(percent, '.0f')
-        #     progress_info['label'] = '{0}/{1} ({2:.0f}%)'.format(
-        #         current, total, percent)
-
-        #     hue = ratio * 120  # todo: use logaritmic scale?
-        #     color = ''.join([
-        #         format(int(x * 255), '02X')
-        #         for x in colorsys.hsv_to_rgb(hue / 360.0, .8, .8)])
-        #     progress_info['color'] = '#' + color
-
-        # return progress_info
-
     def get_job(self):
         """Get a :py:class:`JobInfo` associated with this build's job"""
         return JobInfo(self.app, self.job_id)

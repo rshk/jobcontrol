@@ -35,7 +35,10 @@
 	  {{ job.title or job.id }}
 	</a>
 	&raquo;
-	Build {{ build.id }}
+	Build #{{ build.id }}
+        <a href="javascript:location.reload()">
+          <span class="fa fa-refresh"></span>
+        </a>
       </h1>
       <div>
 

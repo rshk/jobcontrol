@@ -336,7 +336,7 @@
       <strong>{{ report.name or 'Top level' }}</strong>
       {{ report.status_line or '' }}
     </div>
-    {{ progress_bar(cur=report.current, total=report.total, color='#a0a') }}
+    {{ progress_bar(cur=report.current, total=report.total, color=report.color_css_rgb) }}
     {% for child in report.children %}
       {{ build_progress_report(child, level + 1) }}
     {% endfor %}
