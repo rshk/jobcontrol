@@ -60,3 +60,4 @@ coverage.xml
 docs/_build/
 .coverage.*
 .coverage
+website/docs
