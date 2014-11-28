@@ -137,7 +137,7 @@ class MemoryStorage(StorageBase):
         else:
             self._builds[build_id]['exception_tb'] = None
 
-    def report_build_progress(self, build_id, current, total, group_name='',
+    def report_build_progress(self, build_id, current, total, group_name=None,
                               status_line=''):
 
         try:
@@ -145,17 +145,30 @@ class MemoryStorage(StorageBase):
         except KeyError:
             raise NotFound("Build {0} not found".format(build_id))
 
+        if not group_name:
+            group_name = None
+
+        if group_name is not None:
+            if isinstance(group_name, list):
+                group_name = tuple(group_name)
+
+            if not isinstance(group_name, tuple):
+                raise TypeError('group_name must be a tuple (or None)')
+
         build['progress_info'][group_name] = {
             'current': current,
             'total': total,
             'status_line': status_line,
         }
 
-    # def update_build_progress(self, build_id, current, total):
-    #     if build_id not in self._builds:
-    #         raise NotFound('No such build: {0}'.format(build_id))
-    #     self._builds[build_id]['progress_current'] = current
-    #     self._builds[build_id]['progress_total'] = total
+    def get_build_progress_info(self, build_id):
+        items = []
+        build = self.get_build(build_id)
+        for group_name, item in build['progress_info'].iteritems():
+            _item = item.copy()
+            _item['group_name'] = group_name
+            items.append(_item)
+        return items
 
     def log_message(self, build_id, record):
         record.build_id = build_id

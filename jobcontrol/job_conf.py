@@ -114,11 +114,13 @@ def load(stream):
     return yaml.load(stream, Loader=CustomLoader)
 
 
-def prepare_args(args):
+def prepare_args(args, build):
     """
     Prepare arguments / kwargs by replacing placeholders with actual
     values from the context.
     """
+
+    # todo: important! we want to use return values from the *pinned* builds!
 
     if isinstance(args, Retval):
         current_job = execution_context.current_job
@@ -134,13 +136,13 @@ def prepare_args(args):
         return build['retval']
 
     if isinstance(args, list):
-        return [prepare_args(x) for x in args]
+        return [prepare_args(x, build) for x in args]
 
     if isinstance(args, tuple):
-        return tuple(prepare_args(x) for x in args)
+        return tuple(prepare_args(x, build) for x in args)
 
     if isinstance(args, dict):
-        return dict((prepare_args(k), prepare_args(v))
+        return dict((prepare_args(k, build), prepare_args(v, build))
                     for k, v in args.iteritems())
 
     if isinstance(args, (basestring, int, float, long, bool)):
@@ -150,8 +152,10 @@ def prepare_args(args):
 
 
 class JobControlConfigMgr(Mapping):
-    def __init__(self):
+    def __init__(self, initial=None):
         self._data = {}
+        if initial is not None:
+            self._data.update(initial)
 
     @classmethod
     def from_file(cls, filename):

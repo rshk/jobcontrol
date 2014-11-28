@@ -51,6 +51,13 @@ class cached_property(object):
 
 
 def import_object(name):
+    """
+    Import an object from a module, by name.
+
+    :param name: The object name, in the ``package.module:name`` format.
+    :return: The imported object
+    """
+
     if name.count(':') != 1:
         raise ValueError("Invalid object name: {0!r}. "
                          "Expected format: '<module>:<name>'."
@@ -99,10 +106,22 @@ def get_storage_from_url(url):
 
 
 def get_storage_from_config(config):
+    """Not implemented yet"""
     raise NotImplementedError('')
 
 
 def short_repr(obj, maxlen=50):
+    """
+    Returns a "shortened representation" of an object; that is, the
+    return value of ``repr(obj)`` limited to a certain length,
+    with a trailing ellipsis ``'...'`` if text was truncated.
+
+    This function is mainly used in order to provide a nice representation
+    of local variables in :py:class:`TracebackInfo` objects
+    """
+
+    # todo: unify curring with ``trim_string()``
+
     rep = repr(obj)
     if len(rep) <= maxlen:
         return rep
@@ -126,8 +145,13 @@ def json_dumps(obj):
 
 
 def trim_string(s, maxlen=1024, ellps='...'):
-    """Trim a string to a maximum length, adding an "ellipsis"
-    indicator if the string was trimmed"""
+    """
+    Trim a string to a maximum length, adding an "ellipsis"
+    indicator if the string was trimmed
+    """
+
+    # todo: allow cutting in the middle of the string,
+    #       instead of just on the right end..?
 
     if len(s) > maxlen:
         return s[:maxlen - len(ellps)] + ellps
@@ -159,8 +183,21 @@ class FrameInfo(object):
 
 class TracebackInfo(object):
     """
-    Information about an error traceback; this is meant to be serialized
-    instead of the full traceback (which is *not* serializable...)
+    Class used to hold information about an error traceback.
+
+    This is meant to be serialized & stored in the database, instead
+    of a full traceback object, which is *not* serializable.
+
+    It holds information about:
+
+    - the exception that caused the thing to fail
+    - the stack frames (with file / line number, function and exact code
+      around the point in which the exception occurred)
+    - a representation of the local variables for each frame.
+
+    A textual representation of the traceback information may be
+    retrieved by using ``str()`` or ``unicode()`` on the object
+    instance.
     """
 
     def __init__(self):
@@ -168,10 +205,16 @@ class TracebackInfo(object):
 
     @classmethod
     def from_current_exc(cls):
+        """
+        Instantiate with traceback from ``sys.exc_info()``.
+        """
         return cls.from_tb(sys.exc_info()[2])
 
     @classmethod
     def from_tb(cls, tb):
+        """
+        Instantiate from a traceback object.
+        """
         obj = cls()
         obj.frames = cls._extract_tb(tb)
         return obj
@@ -221,14 +264,28 @@ class TracebackInfo(object):
                      for k, v in locs.iteritems()))
 
     def __str__(self):
+        """
+        Returns a printable representation of the traceback information,
+        as a binary string.
+        """
         return ''.join(self.format())
 
     def __unicode__(self):
+        """
+        Returns a printable representation of the traceback information,
+        as a unicode string.
+        """
         return u''.join(unicode(x) for x in self.format())
 
 
 class ProgressReport(object):
-    """Class for representing progress reports"""
+    """
+    Class used to represent progress reports.
+
+    It supports progress reporting on a multi-level "tree" structure;
+    each level can have its own progress status, or it will generate
+    it automatically by summing up values from children.
+    """
 
     def __init__(self, name, current=None, total=None, status_line=None,
                  children=None):

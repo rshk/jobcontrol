@@ -1,13 +1,18 @@
 """
 Objects responsible for JobControl core functionality.
+
+.. note::
+
+    Important objects from this module should be imported in
+    main __init___, in order to "abstract away" the namespace
+    and have them in a more nicely accessible place.
 """
 
 from datetime import timedelta
-# import colorsys
 import inspect
 import logging
 import sys
-import traceback
+import warnings
 
 from flask import escape
 
@@ -40,11 +45,37 @@ class JobControl(object):
 
     def __init__(self, storage, config):
         self.storage = storage
+
+        if not isinstance(config, JobControlConfigMgr):
+            config = JobControlConfigMgr(config)
         self.config = config
 
     @classmethod
     def from_config_file(cls, config_file):
+        """
+        Initialize JobControl by loading configuration from a file.
+        Will also initialize storage taking values from the configuration.
+        """
+
         config = JobControlConfigMgr.from_file(config_file)
+        obj = cls(storage=config.get_storage(), config=config)
+        return obj
+
+    @classmethod
+    def from_config(cls, config):
+        """
+        Initialize JobControl from some configuration.
+
+        :param config:
+            Either a :py:class:`jobcontrol.job_conf.JobControlConfigMgr`
+            instance, or a dict to be passed as argument to constructor.
+
+        :return:
+            a :py:class:`JobControl` instance
+        """
+
+        if not isinstance(config, JobControlConfigMgr):
+            config = JobControlConfigMgr(config)
         obj = cls(storage=config.get_storage(), config=config)
         return obj
 
@@ -52,10 +83,12 @@ class JobControl(object):
         """
         Get a job, by id.
 
+        :param job_id: The job id
         :return:
             a :py:class:`JobInfo` class instance associated with the
             requested job.
         """
+
         job_cfg = self.config.get_job(job_id)
         if job_cfg is None:
             raise NotFound('No such job: {0!r}'.format(job_id))
@@ -69,96 +102,154 @@ class JobControl(object):
             for each job, a :py:class:`JobInfo` class instance associated
             with the job.
         """
+
         for job in self.config.iter_jobs():
             yield JobInfo(self, job['id'], config=job)
 
     def get_build(self, build_id):
+        """
+        Get a build, by id.
+
+        :return: a :py:class:`BuildInfo` instance.
+        """
+
         build = BuildInfo(self, build_id)
         build.refresh()  # To get 404 early..
         return build
 
-    def build_job(self, job_id, build_deps=False, build_depending=False,
-                  _depth=0):
-
+    def create_build(self, job_id):
         """
-        Run a build for the selected job.
+        Create a build from a job configuration.
+
+        Currently, we require that all the dependencies have already
+        been built; in the future, it will be possible to build them
+        automatically.
+
+        Also, current implementation doesn't allow for customizations
+        to either the job configuration nor the build one (pinning,
+        dep/revdep building, ...).
+
+        :param job_id:
+            Id of the job for which to start a build
+        :return: a :py:class:`BuildInfo` instance.
         """
-
-        if isinstance(job_id, JobInfo):
-            job_id = JobInfo.id
-
-        self._install_log_handler()
-
-        # ------------------------------------------------------------
-        # Get information about the job we want to build
-        # ------------------------------------------------------------
 
         job = self.get_job(job_id)
-        if job is None:
-            raise RuntimeError("No such job: {0}".format(job_id))
+        build_config = {
+            'build_deps': False,
+            'build_revdeps': False,
+            'dependency_builds': {},
+        }
 
-        # ------------------------------------------------------------
-        # Build dependency graph for this job
-        # ------------------------------------------------------------
+        # Make sure all dependencies have a successful build.
+        # Otherwise, raise an exception to abort everything.
 
-        DEPGRAPH = self._create_job_depgraph(job_id)
+        for dep in job.get_deps():
+            assert isinstance(dep, JobInfo)
 
-        logger.debug('Resolving dependencies for job {0}'.format(job_id))
-        ORDERED_DEPS = self._resolve_deps(DEPGRAPH, job_id)
-
-        SUCCESSFUL_BUILT_JOBS = []
-
-        # ------------------------------------------------------------
-        # Build jobs in order
-        # ------------------------------------------------------------
-
-        main_build_id = None
-
-        logger.debug('We need to build {0} targets'.format(len(ORDERED_DEPS)))
-        for jid in ORDERED_DEPS:
-            if (jid != job_id) and (
-                    self.storage.get_latest_successful_build(jid) is not None):
-                # No need to rebuild this..
-                logger.info('Dependency {0} already built'
-                            .format(jid))
-                continue
-
-            bid = self._build_job(jid)
-            build = self.storage.get_build(bid)
-
-            if jid == job_id:
-                main_build_id = bid
-
-            if build['success']:
-                SUCCESSFUL_BUILT_JOBS.append((jid, bid))
-
-            elif jid != job_id:
+            dep_build = dep.get_latest_successful_build()
+            if not dep_build:
                 raise MissingDependencies(
-                    'Dependency build failed: job {0}, build {1}'
-                    .format(jid, bid))
+                    'Dependency job {0!r} has no successful builds!')
 
-        # ------------------------------------------------------------
-        # Rebuild reverse dependencies, if asked to do so
-        # ------------------------------------------------------------
-        # Todo: we need some way to detect infinite loops here as well!
+            build_config['dependency_builds'][dep.id] = dep_build.id
 
-        if build_depending:
-            REVDEPS = set()
+        # Actually create a record for this build
+        build_id = self.storage.create_build(
+            job_id=job_id, job_config=job.config, build_config=build_config)
 
-            for jid, bid in SUCCESSFUL_BUILT_JOBS:
-                for item in self.storage.get_job_revdeps(jid):
-                    REVDEPS.add(item['id'])
+        return self.get_build(build_id)
 
-            REVDEPS = REVDEPS.difference(x[0] for x in SUCCESSFUL_BUILT_JOBS)
+    def build_job(self, job_id):
+        build = self.create_build(job_id)
+        return self.run_build(build)
 
-            logger.info('Building {0} reverse dependencies'
-                        .format(len(REVDEPS)))
+    def run_build(self, build_id):
+        """
+        Actually run a build.
 
-            for jid in REVDEPS:
-                self.build_job(jid, build_deps=build_deps,
-                               build_depending=build_depending)
+        - take the build configuration
+        - make sure all the dependencies are built
+        - take return values from the dependencies -> pass as arguments
+        - run the build
+        - build the reverse dependencies as well, if required to do so
 
-        return main_build_id
+        :param build_id: either a :py:class:`BuildInfo` instance, or a build id
+        """
+
+        if isinstance(build_id, BuildInfo):
+            build = build_id
+            build_id = build_id.id
+
+        else:
+            build = BuildInfo(app=self, build_id=build_id)
+
+        build.refresh()  # Make sure we have up-to-date information
+
+        # Make sure the log handler is installed
+        self._install_log_handler()
+
+        # Actually run the build
+        self._run_build(build)
+
+    def _run_build(self, build):
+        from jobcontrol.job_conf import prepare_args
+
+        logger.info('Starting execution of job {0} / build {1}'
+                    .format(build.job_id, build.id))
+
+        log_prefix = '[job: {0}, build: {1}] '.format(build.job_id, build.id)
+
+        # Mark the build as started
+        self.storage.start_build(build.id)
+
+        # Create and push the global context
+        ctx = JobExecutionContext(
+            app=self, job_id=build.job_id, build_id=build.id)
+        ctx.push()
+
+        # note: from now on, we must make sure the context is popped
+        #       no matter what -> no risky code must be executed outside
+        #       the "try" block below.
+
+        try:
+            function = self._get_runner_function(build.job_config['function'])
+            logger.debug(log_prefix + 'Function is {0!r}'.format(function))
+
+            args = prepare_args(build.job_config['args'], build)
+            kwargs = prepare_args(build.job_config['kwargs'], build)
+
+            # Run!
+            retval = function(*args, **kwargs)
+
+            # todo: what if the function is a generator? Should we iterate it
+            #       or just leave it alone?
+
+        except SkipBuild:
+            logger.info(log_prefix + 'Build SKIPPED')
+
+            # Indicates no need to build this..
+            self.storage.finish_build(
+                build.id, success=True, skipped=True, retval=None,
+                exception=None)
+
+        except Exception as exc:
+            logger.exception(log_prefix + 'Build FAILED')
+
+            self.storage.finish_build(
+                build.id, success=False, skipped=False, retval=None,
+                exception=exc, exc_info=sys.exc_info())
+
+        else:
+            logger.info(log_prefix + 'Build SUCCESSFUL')
+
+            self.storage.finish_build(
+                build.id, success=True, skipped=False, retval=retval,
+                exception=None)
+
+        finally:
+            # POP context from the stack
+            ctx.pop()
 
     def _create_job_depgraph(self, job_id, complete=False):
         processed = set()
@@ -196,59 +287,6 @@ class JobControl(object):
         # Allow changing dependency resolution function
         return resolve_deps(depgraph, job_id)
 
-    def _build_job(self, job_id):
-        """Actually run a build for this job"""
-
-        from jobcontrol.job_conf import prepare_args
-
-        job = self.get_job(job_id)
-        if job is None:
-            raise RuntimeError('No such job: {0}'.format(job_id))
-
-        logger.info('Starting build for job: {0}'.format(job_id))
-        build_id = self.storage.create_build(job_id, job.config, {})
-
-        log_prefix = '[job: {0}, build: {1}] '.format(job_id, build_id)
-
-        ctx = JobExecutionContext(app=self, job_id=job_id, build_id=build_id)
-        ctx.push()
-        self.storage.start_build(build_id)
-
-        try:
-            function = self._get_runner_function(job.config['function'])
-            logger.debug(log_prefix + 'Function is {0!r}'.format(function))
-
-            args = prepare_args(job['args'])
-            kwargs = prepare_args(job['kwargs'])
-            retval = function(*args, **kwargs)
-
-        except SkipBuild:
-            logger.info(log_prefix + 'Build SKIPPED')
-
-            # Indicates no need to build this..
-            self.storage.finish_build(
-                build_id, success=True, skipped=True, retval=None,
-                exception=None)
-
-        except Exception as exc:
-            logger.exception(log_prefix + 'Build FAILED')
-
-            self.storage.finish_build(
-                build_id, success=False, skipped=False, retval=None,
-                exception=exc, exc_info=sys.exc_info())
-
-        else:
-            logger.info(log_prefix + 'Build SUCCESSFUL')
-
-            self.storage.finish_build(
-                build_id, success=True, skipped=False, retval=retval,
-                exception=None)
-
-        finally:
-            ctx.pop()
-
-        return build_id
-
     def _latest_successful_build_date(self, job_id):
         builds = list(self.storage.get_job_builds(
             job_id, started=True, finished=True, success=True, skipped=False,
@@ -279,18 +317,36 @@ class JobControl(object):
             _root_logger.addHandler(_log_handler)
 
     # ------------------------------------------------------------
-    # Job function selection / sandboxing / ... functions
+    # Reporting methods, which require an execution context
+    # to be active.
     # ------------------------------------------------------------
 
-    def is_function_allowed(self, name):
-        return True  # Allow everything in default implementation
+    def report_progress(self, group_name, current, total, status_line=''):
+        """
+        Report progress for the currently running build.
 
-    def get_function(self, name):
-        pass
+        :param group_name:
+            The report "group name": either a tuple representing
+            the "path", or None for the top-level.
 
-    def autocomplete_function(self, name_prefix):
-        # Autocomplete function name
-        pass
+        :param current:
+            Current progress
+
+        :param total:
+            Total progress
+
+        :param status_line:
+            An optional line of text, describing the currently running
+            operation.
+        """
+        from jobcontrol.globals import execution_context as ctx
+
+        self.storage.report_build_progress(
+            build_id=ctx.build_id,
+            group_name=group_name,
+            current=current,
+            total=total,
+            status_line=status_line)
 
 
 class JobExecutionContext(object):
@@ -426,26 +482,43 @@ class JobInfo(object):
         return self._config[name]
 
     def get_deps(self):
-        """Iterate over dependency jobs of this job"""
+        """
+        Iterate over jobs this job depends upon.
+
+        :yields: :py:class:`JobInfo` instances
+        """
         for dep_id in self.app.config.get_job_deps(self.id):
             dep = self.app.config.get_job(dep_id)
             yield JobInfo(self.app, dep['id'], config=dep)
 
     def get_revdeps(self):
-        """Iterate over jobs depending on this one"""
+        """
+        Iterate over jobs depending on this one
+
+        :yields: :py:class:`JobInfo` instances
+        """
         for revdep_id in self.app.config.get_job_revdeps(self.id):
             revdep = self.app.config.get_job(revdep_id)
             yield JobInfo(self.app, revdep['id'], config=revdep)
 
-    def get_builds(self, *a, **kw):
+    def iter_builds(self, *a, **kw):
         """
-        Iterate builds for this job.
+        Iterate over builds for this job.
 
         Accepts the same arguments as
         :py:meth:`jobcontrol.interfaces.StorageBase.get_job_builds`
+
+        :yields: :py:class:`BuildInfo` instances
         """
         for build in self.app.storage.get_job_builds(self.id, *a, **kw):
             yield BuildInfo(self.app, build['id'], info=build)
+
+    def get_builds(self, *a, **kw):
+        """DEPRECATED alias for iter_builds()"""
+        warnings.warn(DeprecationWarning(
+            'The get_builds() method is deprecated. '
+            'Use iter_builds() instead.'))
+        return self.iter_builds(*a, **kw)
 
     # def create_build(self):
     #     # Meant for future usage, when builds will support .run()
@@ -476,6 +549,10 @@ class JobInfo(object):
         return self._get_job_docs()
 
     def get_conf_as_yaml(self):
+        """
+        Return the job configuration as serialized YAML, mostly
+        for displaying on user interfaces.
+        """
         from jobcontrol.job_conf import dump
         return dump(self.config)
 
@@ -498,7 +575,7 @@ class JobInfo(object):
 
     def is_outdated(self):
         """
-        Check whether any dependency has builds more recent than the latest
+        Check whether any dependency has builds more recent than the newest
         build for this job.
         """
         latest_build = self.get_latest_successful_build()
@@ -516,6 +593,10 @@ class JobInfo(object):
                 return True
 
         return False
+
+    # todo: move all the docs / ... utilities outside this class
+    #       -> maybe move to some "job config" class?
+    #       -> we need them for the job_config in the build as well!
 
     def _get_job_docs(self):
         call_code = self._get_call_code()
@@ -640,11 +721,23 @@ class JobInfo(object):
 
 
 class BuildInfo(object):
-    """High-level interface to builds"""
+    """
+    High-level interface to builds.
+
+    :param app:
+        The JobControl instance this build was retrieved from
+    :param build_id:
+        The build id
+    :param info:
+        Optionally, this can be used to pre-populate the build
+        information (useful, eg. if we are retrieving a bunch
+        of builds from the database at once).
+    """
 
     def __init__(self, app, build_id, info=None):
         self.app = app
         self.build_id = build_id
+        self._info = None
         if info is not None:
             self._info = {}
             self._info.update(info)
@@ -655,20 +748,65 @@ class BuildInfo(object):
 
     @property
     def id(self):
+        """The build id"""
         return self.build_id
 
     @property
     def job_id(self):
+        """The job id"""
         return self.info['job_id']
 
     @property
     def info(self):
+        """
+        Property used to lazily access the build attributes.
+
+        Returns a dict with the following keys:
+
+        - ``'id'``
+        - ``'job_id'``
+        - ``'start_time'``
+        - ``'end_time'``
+        - ``'started'``
+        - ``'finished'``
+        - ``'success'``
+        - ``'skipped'``
+        - ``'job_config'``
+        - ``'build_config'``
+        - ``'retval'``
+        - ``'exception'``
+        - ``'exception_tb'``
+        """
         if getattr(self, '_info') is None:
             self.refresh()
         return self._info
 
     @property
+    def job_config(self):
+        """
+        Property to access the job configuration.
+        """
+        return self.info['job_config']
+
+    @property
+    def build_config(self):
+        """
+        Property to access the build configuration.
+        """
+        return self.info['build_config']
+
+    @property
     def descriptive_status(self):
+        """
+        Return a label describing the current status of the build.
+
+        :returns:
+          - ``'CREATED'`` if the build was not started yet
+          - ``'RUNNING'`` if the build was started but did not finish
+          - ``'SUCCESSFUL'`` if the build run with success
+          - ``'SKIPPED'`` if the build was skipped
+          - ``'FAILED'`` if the build execution failed
+        """
         if not self['started']:
             return 'CREATED'
         if not self['finished']:
@@ -680,17 +818,20 @@ class BuildInfo(object):
         return 'FAILED'
 
     def refresh(self):
+        """Refresh the build status information from database"""
         self._info = self.app.storage.get_build(self.build_id)
 
     def __getitem__(self, name):
-        if name not in self.info:
-            if name == 'progress_info':
-                self._info['progress_info'] = self.get_progress_info()
-                return self._info['progress_info']
+        # if name not in self.info:
+        #     if name == 'progress_info':
+        #         self._info['progress_info'] = self.get_progress_info()
+        #         return self._info['progress_info']
 
         return self.info[name]
 
     def get_progress_info(self):
+        """Get information about the build progress"""
+        # ---------------------------------------------------------------- HERE
         return None
         raise NotImplementedError  # todo: use new progress objects
 
@@ -722,16 +863,25 @@ class BuildInfo(object):
         # return progress_info
 
     def get_job(self):
+        """Get a :py:class:`JobInfo` associated with this build's job"""
         return JobInfo(self.app, self.job_id)
 
     def delete(self):
+        """Delete all information related to this build from database"""
         self.app.storage.delete_build(self.build_id)
 
     def run(self):
-        raise NotImplementedError("Cannot run a build directly")
+        """Calls run_build() on the main app for this build"""
+        return self.app.run_build(self)
 
-    def iter_log_messages(self):
-        return self.app.storage.iter_log_messages(build_id=self.build_id)
+    def iter_log_messages(self, **kw):
+        """
+        Iterate over log messages for this build.
+
+        Keywords are passed directly to the underlying ``iter_log_messages()``
+        method of the storage.
+        """
+        return self.app.storage.iter_log_messages(build_id=self.build_id, **kw)
 
 
 # We need just *one* handler -> create here

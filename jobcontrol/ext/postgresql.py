@@ -97,7 +97,7 @@ class PostgreSQLStorage(StorageBase):
         CREATE TABLE "{prefix}build_progress" (
             build_id INTEGER REFERENCES "{prefix}build" (id)
                 ON DELETE CASCADE,
-            group_name TEXT,
+            group_name TEXT[],
             current INTEGER NOT NULL,
             total INTEGER NOT NULL,
             status_line TEXT,
@@ -379,7 +379,7 @@ class PostgreSQLStorage(StorageBase):
             'exception_tb': exc_trace,
         }))
 
-    def report_build_progress(self, build_id, current, total, group_name='',
+    def report_build_progress(self, build_id, current, total, group_name=None,
                               status_line=''):
 
         """
@@ -395,6 +395,16 @@ class PostgreSQLStorage(StorageBase):
         if not isinstance(total, (int, long)):
             raise TypeError('Progress "total" must be an integer')
 
+        if not group_name:
+            group_name = None
+
+        if group_name is not None:
+            if isinstance(group_name, list):
+                group_name = tuple(group_name)
+
+            if not isinstance(group_name, tuple):
+                raise TypeError('group_name must be a tuple (or None)')
+
         record = {
             'build_id': build_id,
             'current': current,
@@ -408,6 +418,20 @@ class PostgreSQLStorage(StorageBase):
         except psycopg2.IntegrityError:
             self._do_update('build_progress', record,
                             keys=('build_id', 'group_name'))
+
+    def get_build_progress_info(self, build_id):
+        query = 'SELECT * FROM "{0}" WHERE build_id = %(id)s;'.format(
+            self._table_name('build_progress'))
+
+        items = []
+        with self.db, self.db.cursor() as cur:
+            cur.execute(query, {'id': build_id})
+            for row in cur.fetchall():
+                items.append((
+                    row['group_name'],
+                    row['current'], row['total'],
+                    row['status_line']))
+        return items
 
     def log_message(self, build_id, record):
         row = self._serialize_log_record(record)

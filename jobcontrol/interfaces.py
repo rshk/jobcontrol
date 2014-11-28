@@ -87,6 +87,7 @@ import jobcontrol.job_conf
 
 
 class StorageBase(object):
+
     __metaclass__ = abc.ABCMeta
 
     def __init__(self):
@@ -220,6 +221,15 @@ class StorageBase(object):
             multiple "nesting" levels)
         :param status_line:
             Optionally, a line of text indicating the current build status.
+        """
+        pass
+
+    @abc.abstractmethod
+    def get_build_progress_info(self, build_id):
+        """
+        Return progress information for a build.
+
+        :return: a list of tuples: ``(name, current, total, status_line)``
         """
         pass
 

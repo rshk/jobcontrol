@@ -164,9 +164,56 @@ def job_dep_C():
     return res + 'C'
 
 
-def job_debug_echo(*args, **kwargs):
-    # todo: return more detailed information on context (via logging?)
-    return (args, kwargs)
+def job_echo_config(*args, **kwargs):
+    """
+    Simple job, "echoing" back the current configuration.
+    """
+
+    from jobcontrol.globals import current_job, current_build
+    return {
+        'args': args,
+        'kwargs': kwargs,
+        'build_id': current_build.id,
+        'job_id': current_job.id,
+        'dependencies': current_build['job_config']['dependencies'],
+        'job_config': current_build['job_config'],
+        'build_config': current_build['build_config'],
+    }
+
+
+def job_with_progress(config):
+    """
+    Job to be used for testing purposes.
+
+    The configuration is a list of tuples: ``(name, steps)``
+    Progress will be reported in a random order.
+    """
+
+    from jobcontrol.globals import execution_context
+    import random
+
+    totals = {}
+    counters = {}
+
+    progress_report_items = []
+    for name, steps in config:
+        for i in xrange(steps):
+            progress_report_items.append(name)
+        totals[name] = steps
+        counters[name] = 0
+
+    random.shuffle(progress_report_items)
+
+    def report_progress(name, cur, tot, status=None):
+        execution_context.report_build_progress(
+            group_name=name, current=cur, total=tot,
+            status_line=status)
+
+    for item in progress_report_items:
+        counters[item] += 1
+        report_progress(item, counters[item], totals[item],
+                        'Doing action {0} [{1}/{2}]'
+                        .format(item, counters[item], totals[item]))
 
 
 class RecordingLogHandler(logging.Handler):
