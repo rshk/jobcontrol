@@ -6,7 +6,15 @@
 Welcome to JobControl's documentation!
 ======================================
 
-Contents:
+Application usage:
+
+.. toctree::
+   :maxdepth: 2
+
+   configuration
+   deploy
+
+Internals documentation:
 
 .. toctree::
    :maxdepth: 2
