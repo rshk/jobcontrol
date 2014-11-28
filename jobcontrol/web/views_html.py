@@ -136,17 +136,29 @@ def job_run(job_id):
 def job_run_submit(job_id):
     # todo: CSRF protection!
 
-    from jobcontrol.async.tasks import app as celery_app, build_job
+    from jobcontrol.async.tasks import app as celery_app, run_build
+
+    # todo: check that the referrer is on the same domain!
+    return_to = request.headers.get('Referer')
+    if not return_to:
+        return_to = url_for('.job_info', job_id=job_id)
 
     jc = get_jc()
     broker = 'redis://'  # todo: take from configuration
     celery_app.conf.JOBCONTROL = jc
     celery_app.conf.BROKER_URL = broker
 
-    build_job.delay(job_id)
-    flash('Job {0} build scheduled'.format(job_id), 'success')
+    build = jc.create_build(job_id)
+    run_build.delay(build.id)
 
-    return redirect(url_for('.job_info', job_id=job_id))
+    # todo: flash links? [can we?]
+    flash(u'New build created for job {0}. Build id is #{1}.'
+          .format(job_id, build.id), 'success')
+
+    # build_job.delay(job_id)
+    # flash('Job {0} build scheduled'.format(job_id), 'success')
+
+    return redirect(return_to)
 
 
 @html_views.route('/build/<int:build_id>', methods=['GET'])

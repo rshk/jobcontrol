@@ -197,6 +197,14 @@ def job_with_progress(config):
 
     progress_report_items = []
     for name, steps in config:
+
+        if isinstance(name, list):
+            # Safe YAML doesn't have tuples
+            name = tuple(name)
+
+        if not (name is None or isinstance(name, tuple)):
+            raise TypeError("Name must be a tuple or None")
+
         for i in xrange(steps):
             progress_report_items.append(name)
         totals[name] = steps
@@ -205,7 +213,8 @@ def job_with_progress(config):
     random.shuffle(progress_report_items)
 
     def report_progress(name, cur, tot, status=None):
-        execution_context.report_build_progress(
+        app = execution_context.current_app
+        app.report_progress(
             group_name=name, current=cur, total=tot,
             status_line=status)
 

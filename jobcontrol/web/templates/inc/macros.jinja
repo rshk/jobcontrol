@@ -328,3 +328,18 @@
 {% macro job_info_details(job) %}
   {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
 {% endmacro %}
+
+
+{% macro build_progress_report(report, level=0) %}
+  <div style="margin: 0; padding: 5px 0;{% if level > 0 %}margin-left: 20px;border-left: solid 3px #ddd;padding-left: 10px;{% endif %}">
+    <div>
+      <strong>{{ report.name or 'Top level' }}</strong>
+      {{ report.status_line or '' }}
+    </div>
+    {{ progress_bar(cur=report.current, total=report.total, color='#a0a') }}
+    {% for child in report.children %}
+      {{ build_progress_report(child, level + 1) }}
+    {% endfor %}
+  </div>
+{% endmacro %}
+

@@ -399,11 +399,13 @@ class PostgreSQLStorage(StorageBase):
             group_name = None
 
         if group_name is not None:
-            if isinstance(group_name, list):
-                group_name = tuple(group_name)
+            if isinstance(group_name, tuple):
+                # We need it to be a list in order for psycopg2
+                # to adapt this to the correct TEXT[] type.
+                group_name = list(group_name)
 
-            if not isinstance(group_name, tuple):
-                raise TypeError('group_name must be a tuple (or None)')
+            if not isinstance(group_name, list):
+                raise TypeError('group_name must be a list / tuple (or None)')
 
         record = {
             'build_id': build_id,

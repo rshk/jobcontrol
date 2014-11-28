@@ -68,7 +68,9 @@
 
   <h2>Build status</h2>
 
-  {{ macros.progress_bar(cur=build.progress_current, total=build.progress_total, color=build.progress_info.color) }}
+  {{ macros.build_progress_report(build.get_progress_info()) }}
+
+  {# {{ macros.progress_bar(cur=build.progress_current, total=build.progress_total, color=build.progress_info.color) }} #}
 
   {% if build.retval %}
     <div class="panel panel-primary">

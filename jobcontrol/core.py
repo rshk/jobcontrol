@@ -494,6 +494,32 @@ class JobInfo(object):
             dep = self.app.config.get_job(dep_id)
             yield JobInfo(self.app, dep['id'], config=dep)
 
+    def get_status(self):
+        """
+        Return a label describing the current status of the job.
+
+        :returns:
+          - ``'not_built'`` the job has no builds
+          - ``'running'`` the job has running builds
+          - ``'success'`` the job has at least a successful build
+          - ``'failed'`` the job only has failed builds
+          - ``'outdated'`` the job has at least a successful build,
+            but older than one dependency build
+        """
+        if self.has_running_builds():
+            return 'running'
+
+        if not self.has_builds():
+            return 'not_built'
+
+        if self.is_outdated():
+            return 'outdated'
+
+        if self.has_successful_builds():
+            return 'success'
+
+        return 'failed'
+
     def get_revdeps(self):
         """
         Iterate over jobs depending on this one
@@ -574,6 +600,13 @@ class JobInfo(object):
         builds = list(self.get_builds(
             started=True, finished=True, success=True, skipped=False,
             order='desc', limit=1))
+        return len(builds) >= 1
+
+    def has_running_builds(self):
+        """
+        Check whether this job has any running build.
+        """
+        builds = list(self.get_builds(started=True, finished=False, limit=1))
         return len(builds) >= 1
 
     def is_outdated(self):
@@ -834,9 +867,12 @@ class BuildInfo(object):
 
     def get_progress_info(self):
         """Get information about the build progress"""
-        # ---------------------------------------------------------------- HERE
-        return None
-        raise NotImplementedError  # todo: use new progress objects
+        from jobcontrol.utils import ProgressReport
+
+        data = self.app.storage.get_build_progress_info(self.build_id)
+        return ProgressReport.from_table(data)
+
+        # TODO: Move the code below to ProgressReport class!
 
         # current = self.info['progress_current']
         # total = self.info['progress_total']

@@ -255,6 +255,9 @@ body {
 .status-badge.success .line-bg {
     color: rgba(255,255,255,.4);
 }
+.status-badge.primary .line-bg {
+    color: rgba(255,255,255,.4);
+}
 
 /* $brand-primary: #428bca !default; */
 /* $brand-success: #5cb85c !default; */

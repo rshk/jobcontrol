@@ -335,6 +335,9 @@ class ProgressReport(object):
         sub_tables = defaultdict(list)
 
         for name, current, total, status_line in table:
+            if isinstance(name, list):
+                name = tuple(name)
+
             if not (name is None or isinstance(name, tuple)):
                 raise TypeError('name must be a tuple (or None)')
 

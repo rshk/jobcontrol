@@ -18,61 +18,70 @@
     <div class="media-list media-list-striped">
       {% for job in jobs %}
 	<div class="media">
-	  {% set latest_build = job.get_latest_successful_build() %}
+          {% set latest_build = job.get_latest_successful_build() %}
+          {% set job_status = job.get_status() %}
 
+          {% set badge_class='default' %}
+          {% set badge_status=job_status %}
           {% set icon='' %}
-	  {% if job.has_builds() %}
-	    {% if job.has_successful_builds() %}
-	      {% if job.is_outdated() %}
-		{% set badge_class='warning' %}
-		{% set badge_status='Outdated' %}
-	      {% else %}
-		{% set badge_class='success' %}
-		{% set badge_status='Success' %}
-                {% set icon='check' %}
-	      {% endif %}
-	    {% else %}
-	      {% set badge_class='danger' %}
-	      {% set badge_status='Failed' %}
-	    {% endif %}
-	  {% else %}
-	    {% set badge_class='default' %}
-	    {% set badge_status='No builds' %}
+
+          {% if job_status == 'running' %}
+            {% set badge_class='primary' %}
+            {% set badge_status='Running' %}
             {% set icon='cog fa-spin' %}
-	  {% endif %}
 
-	  <div class="media-left">
-	    <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
-	      {{ macros.status_badge(main=badge_status, class='compact ' + badge_class, icon=icon) }}
-	    </a>
-	  </div>
+          {% elif job_status == 'not_built' %}
+            {% set badge_class='default' %}
+            {% set badge_status='No builds' %}
+            {% set icon='cog fa-spin' %}
 
-	  <div class="media-body" style="width: 100%">
-	    <div class="row row-fluid">
-	      <div class="col-md-8">
+          {% elif job_status == 'outdated' %}
+            {% set badge_class='warning' %}
+            {% set badge_status='Outdated' %}
+
+          {% elif job_status == 'success' %}
+            {% set badge_class='success' %}
+            {% set badge_status='Success' %}
+            {% set icon='check' %}
+
+          {% elif job_status == 'failed' %}
+            {% set badge_class='danger' %}
+            {% set badge_status='Failed' %}
+
+          {% endif %}
+
+          <div class="media-left">
+            <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
+              {{ macros.status_badge(main=badge_status, class='compact ' + badge_class, icon=icon) }}
+            </a>
+          </div>
+
+          <div class="media-body" style="width: 100%">
+            <div class="row row-fluid">
+              <div class="col-md-8">
 
 		<h2 class="media-heading">
-		  <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
-		    {{ job.title or 'Untitled' }}
-		  </a>
-		  {% if latest_build %}
-		    <small>Latest built <abbr title="{{ latest_build.end_time }}">
+                  <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
+                    {{ job.title or 'Untitled' }}
+                  </a>
+                  {% if latest_build %}
+                    <small>Latest built <abbr title="{{ latest_build.end_time }}">
 			{{ latest_build.end_time|humanize_timestamp }}</abbr></small>
-		      {% else %}
+                      {% else %}
 			<small>No successful builds.</small>
-		      {% endif %}
+                      {% endif %}
 		</h2>
 		<div><strong>Job id:</strong> {{ job.id }}</div>
 
 		{% set job_docs = job.get_docs() %}
 		<div style="font-size: 120%;margin-bottom: 1em;">
-		  <em>{{ job_docs.function_module -}}</em>{{ '' -}}
-		  .<strong>{{ job_docs.function_name -}}</strong>{{ '' -}}
-		  ({{ job_docs.function_argspec_human }})
+                  <em>{{ job_docs.function_module -}}</em>{{ '' -}}
+                  .<strong>{{ job_docs.function_name -}}</strong>{{ '' -}}
+                  ({{ job_docs.function_argspec_human }})
 		</div>
 
-	      </div>
-	      <div class="col-md-4">
+              </div>{# .col-md-4 #}
+              <div class="col-md-4">
 
 		<strong>Dependencies:</strong>
 		{{ macros.jobs_list(job.get_deps()|list, emptymsg='No dependencies') }}
@@ -80,9 +89,19 @@
 		<strong>Reverse dependencies:</strong>
 		{{ macros.jobs_list(job.get_revdeps()|list, emptymsg='No reverse dependencies') }}
 
-	      </div>
-	    </div>
-	  </div>
+              </div>{# .col-md-4 #}
+            </div>{# .row.row-fluid #}
+          </div>{# .media-left #}
+
+          <div class="media-right">
+            <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST">
+	      {{ macros.form_csrf_token() }}
+              <button class="btn btn-primary btn-lg">
+	        <span class="fa fa-cog"></span> Run
+              </button>
+            </form>
+          </div>
+
 	</div>
       {% endfor %}
     </div>
