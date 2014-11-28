@@ -2,10 +2,11 @@ jobcontrol
 ##########
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :glob:
 
    *
+   utils/index
 
 .. automodule:: jobcontrol
     :members:
