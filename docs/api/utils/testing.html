@@ -1,0 +1,225 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.utils.testing &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../../index.html" />
+    <link rel="up" title="jobcontrol.utils" href="index.html" />
+    <link rel="next" title="jobcontrol.utils.web" href="web.html" />
+    <link rel="prev" title="jobcontrol.utils.local" href="local.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="web.html" title="jobcontrol.utils.web"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="local.html" title="jobcontrol.utils.local"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" >jobcontrol</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">jobcontrol.utils</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-jobcontrol.utils.testing">
+<span id="jobcontrol-utils-testing"></span><h1>jobcontrol.utils.testing<a class="headerlink" href="#module-jobcontrol.utils.testing" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="jobcontrol.utils.testing.job_simple_echo">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_simple_echo</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_simple_echo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_simple_echo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.testing.testing_job">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">testing_job</tt><big>(</big><em>steps=10</em>, <em>sleep=1</em>, <em>retval='DONE'</em>, <em>fail=False</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#testing_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.testing_job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Job to be used for testing purposes.</p>
+<p>Provides facilities for simulating various execution scenarios,
+such as logging, failures, progress, ..</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>steps</strong> &#8211; How many &#8220;steps&#8221; this job is composed of</li>
+<li><strong>sleep</strong> &#8211; How many seconds to sleep between each &#8220;step&#8221;</li>
+<li><strong>retval</strong> &#8211; What to return</li>
+<li><strong>fail</strong> &#8211; <ul>
+<li>if <tt class="docutils literal"><span class="pre">False</span></tt>, the build will succeed</li>
+<li>if <tt class="docutils literal"><span class="pre">True</span></tt>, the build will fail</li>
+<li>if an integer, the step at wich the build will fail</li>
+<li>if a float (0 &lt;= x &lt;= 1), the chance of the job failing</li>
+</ul>
+</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.testing.job_with_logging">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_with_logging</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_with_logging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_with_logging" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.testing.job_with_tracer_log">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_with_tracer_log</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_with_tracer_log"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_with_tracer_log" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.testing.job_failing_once">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_failing_once</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_failing_once"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_failing_once" title="Permalink to this definition">¶</a></dt>
+<dd><p>This job will fail exactly once; retry will be successful</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.testing.job_dep_A">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_dep_A</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_dep_A"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_dep_A" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.testing.job_dep_B">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_dep_B</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_dep_B"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_dep_B" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.testing.job_dep_C">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_dep_C</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_dep_C"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_dep_C" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.testing.job_echo_config">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_echo_config</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_echo_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_echo_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simple job, &#8220;echoing&#8221; back the current configuration.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.testing.job_with_progress">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_with_progress</tt><big>(</big><em>config</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_with_progress"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_with_progress" title="Permalink to this definition">¶</a></dt>
+<dd><p>Job to be used for testing purposes.</p>
+<p>The configuration is a list of tuples: <tt class="docutils literal"><span class="pre">(name,</span> <span class="pre">steps)</span></tt>
+Progress will be reported in a random order.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.utils.testing.RecordingLogHandler">
+<em class="property">class </em><tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">RecordingLogHandler</tt><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#RecordingLogHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.RecordingLogHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Log handler that records messages</p>
+<dl class="method">
+<dt id="jobcontrol.utils.testing.RecordingLogHandler.flush">
+<tt class="descname">flush</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#RecordingLogHandler.flush"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.RecordingLogHandler.flush" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.utils.testing.RecordingLogHandler.emit">
+<tt class="descname">emit</tt><big>(</big><em>record</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#RecordingLogHandler.emit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.RecordingLogHandler.emit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.utils.testing.RecordingLogHandler.print_messages">
+<tt class="descname">print_messages</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#RecordingLogHandler.print_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.RecordingLogHandler.print_messages" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.utils.testing.RecordingLogHandler.clear_messages">
+<tt class="descname">clear_messages</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#RecordingLogHandler.clear_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.RecordingLogHandler.clear_messages" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="local.html"
+                        title="previous chapter">jobcontrol.utils.local</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="web.html"
+                        title="next chapter">jobcontrol.utils.web</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/api/utils/testing.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="web.html" title="jobcontrol.utils.web"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="local.html" title="jobcontrol.utils.local"
+             >previous</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" >jobcontrol</a> &raquo;</li>
+          <li><a href="index.html" >jobcontrol.utils</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

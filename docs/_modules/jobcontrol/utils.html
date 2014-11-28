@@ -1,0 +1,489 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.utils &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for jobcontrol.utils</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">urlparse</span> <span class="kn">import</span> <span class="n">urlparse</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">linecache</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="n">_missing</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="cached_property"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.cached_property">[docs]</a><span class="k">class</span> <span class="nc">cached_property</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A decorator that converts a function into a lazy property.  The</span>
+<span class="sd">    function wrapped is called the first time to retrieve the result</span>
+<span class="sd">    and then that calculated result is used the next time you access</span>
+<span class="sd">    the value::</span>
+
+<span class="sd">        class Foo(object):</span>
+
+<span class="sd">            @cached_property</span>
+<span class="sd">            def foo(self):</span>
+<span class="sd">                # calculate something important here</span>
+<span class="sd">                return 42</span>
+
+<span class="sd">    The class has to have a `__dict__` in order for this property to</span>
+<span class="sd">    work.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c"># implementation detail: this property is implemented as non-data</span>
+    <span class="c"># descriptor.  non-data descriptors are only invoked if there is</span>
+    <span class="c"># no entry with the same name in the instance&#39;s __dict__.</span>
+    <span class="c"># this allows us to completely get rid of the access function call</span>
+    <span class="c"># overhead.  If one choses to invoke __get__ by hand the property</span>
+    <span class="c"># will still work as expected because the lookup logic is replicated</span>
+    <span class="c"># in __get__ for manual invocation.</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__name__</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="n">func</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__module__</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">__module__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">doc</span> <span class="ow">or</span> <span class="n">func</span><span class="o">.</span><span class="n">__doc__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="o">=</span> <span class="n">func</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">_missing</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="n">_missing</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+</div>
+<div class="viewcode-block" id="import_object"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.import_object">[docs]</a><span class="k">def</span> <span class="nf">import_object</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Import an object from a module, by name.</span>
+
+<span class="sd">    :param name: The object name, in the ``package.module:name`` format.</span>
+<span class="sd">    :return: The imported object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Invalid object name: {0!r}. &quot;</span>
+                         <span class="s">&quot;Expected format: &#39;&lt;module&gt;:&lt;name&gt;&#39;.&quot;</span>
+                         <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+
+    <span class="n">module_name</span><span class="p">,</span> <span class="n">class_name</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">)</span>
+    <span class="n">module</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="n">module_name</span><span class="p">,</span> <span class="n">fromlist</span><span class="o">=</span><span class="p">[</span><span class="n">class_name</span><span class="p">])</span>
+    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">class_name</span><span class="p">)</span>
+
+</div>
+<span class="n">STORAGE_ALIASES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">&#39;postgresql&#39;</span><span class="p">:</span> <span class="s">&#39;jobcontrol.ext.postgresql:PostgreSQLStorage&#39;</span><span class="p">,</span>
+    <span class="s">&#39;memory&#39;</span><span class="p">:</span> <span class="s">&#39;jobcontrol.ext.memory:MemoryStorage&#39;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="get_storage_from_url"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.get_storage_from_url">[docs]</a><span class="k">def</span> <span class="nf">get_storage_from_url</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get a storage from URL.</span>
+
+<span class="sd">    Storages URLs are in the format:</span>
+
+<span class="sd">    - ``&lt;scheme&gt;://``</span>
+<span class="sd">    - ``&lt;class&gt;+&lt;scheme&gt;://`` Load &lt;class&gt;, pass the URL removing ``&lt;class&gt;+``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c"># NOTE: We should improve this, as the standard format for</span>
+    <span class="c">#       describing imported objects is **not** compatible with the URL</span>
+    <span class="c">#       scheme format.</span>
+
+    <span class="c"># TODO: Use stevedore to register / load storage plugins in place</span>
+    <span class="c">#       of the dict above.</span>
+
+    <span class="n">parsed</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s">&#39;+&#39;</span> <span class="ow">in</span> <span class="n">parsed</span><span class="o">.</span><span class="n">scheme</span><span class="p">:</span>
+        <span class="n">clsname</span><span class="p">,</span> <span class="n">scheme</span> <span class="o">=</span> <span class="n">parsed</span><span class="o">.</span><span class="n">scheme</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;+&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">parsed</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">scheme</span><span class="o">=</span><span class="n">scheme</span><span class="p">)</span><span class="o">.</span><span class="n">geturl</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">clsname</span> <span class="o">=</span> <span class="n">scheme</span> <span class="o">=</span> <span class="n">parsed</span><span class="o">.</span><span class="n">scheme</span>
+
+    <span class="k">if</span> <span class="n">clsname</span> <span class="ow">in</span> <span class="n">STORAGE_ALIASES</span><span class="p">:</span>
+        <span class="n">clsname</span> <span class="o">=</span> <span class="n">STORAGE_ALIASES</span><span class="p">[</span><span class="n">clsname</span><span class="p">]</span>
+
+    <span class="n">storage_class</span> <span class="o">=</span> <span class="n">import_object</span><span class="p">(</span><span class="n">clsname</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">storage_class</span><span class="o">.</span><span class="n">from_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="get_storage_from_config"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.get_storage_from_config">[docs]</a><span class="k">def</span> <span class="nf">get_storage_from_config</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Not implemented yet&quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="short_repr"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.short_repr">[docs]</a><span class="k">def</span> <span class="nf">short_repr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">maxlen</span><span class="o">=</span><span class="mi">50</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a &quot;shortened representation&quot; of an object; that is, the</span>
+<span class="sd">    return value of ``repr(obj)`` limited to a certain length,</span>
+<span class="sd">    with a trailing ellipsis ``&#39;...&#39;`` if text was truncated.</span>
+
+<span class="sd">    This function is mainly used in order to provide a nice representation</span>
+<span class="sd">    of local variables in :py:class:`TracebackInfo` objects</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c"># todo: unify curring with ``trim_string()``</span>
+
+    <span class="n">rep</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">rep</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">maxlen</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">rep</span>
+
+    <span class="c"># Cut in the middle..</span>
+    <span class="n">cutlen</span> <span class="o">=</span> <span class="n">maxlen</span> <span class="o">-</span> <span class="mi">3</span>
+    <span class="n">p1</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">cutlen</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+    <span class="n">p2</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">cutlen</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s">&#39;...&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">rep</span><span class="p">[:</span><span class="n">p1</span><span class="p">],</span> <span class="n">rep</span><span class="p">[</span><span class="o">-</span><span class="n">p2</span><span class="p">:]))</span>
+
+</div>
+<span class="k">def</span> <span class="nf">_json_dumps_default</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
+
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;{0!r} is not JSON serializable&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="json_dumps"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.json_dumps">[docs]</a><span class="k">def</span> <span class="nf">json_dumps</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">_json_dumps_default</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="trim_string"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.trim_string">[docs]</a><span class="k">def</span> <span class="nf">trim_string</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">maxlen</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">ellps</span><span class="o">=</span><span class="s">&#39;...&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Trim a string to a maximum length, adding an &quot;ellipsis&quot;</span>
+<span class="sd">    indicator if the string was trimmed</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c"># todo: allow cutting in the middle of the string,</span>
+    <span class="c">#       instead of just on the right end..?</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">maxlen</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">s</span><span class="p">[:</span><span class="n">maxlen</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">ellps</span><span class="p">)]</span> <span class="o">+</span> <span class="n">ellps</span>
+    <span class="k">return</span> <span class="n">s</span>
+
+</div>
+<div class="viewcode-block" id="FrameInfo"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.FrameInfo">[docs]</a><span class="k">class</span> <span class="nc">FrameInfo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">line</span><span class="p">,</span> <span class="n">locs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lineno</span> <span class="o">=</span> <span class="n">lineno</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line</span> <span class="o">=</span> <span class="n">line</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">locs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_locals</span><span class="p">(</span><span class="n">locs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_context</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_get_context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return some &quot;context&quot; lines from a file&quot;&quot;&quot;</span>
+        <span class="n">_start</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lineno</span> <span class="o">-</span> <span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lineno</span> <span class="o">+</span> <span class="n">size</span>
+        <span class="n">_lines</span> <span class="o">=</span> <span class="n">linecache</span><span class="o">.</span><span class="n">getlines</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">)[</span><span class="n">_start</span><span class="p">:</span><span class="n">_end</span><span class="p">]</span>
+        <span class="n">_lines</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">_lines</span><span class="p">]</span>
+        <span class="n">_lines</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">xrange</span><span class="p">(</span><span class="n">_start</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">_end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">_lines</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_lines</span>
+
+    <span class="k">def</span> <span class="nf">_format_locals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">locs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(((</span><span class="n">k</span><span class="p">,</span> <span class="n">trim_string</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">maxlen</span><span class="o">=</span><span class="mi">1024</span><span class="p">))</span>
+                     <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">locs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()))</span>
+
+</div>
+<div class="viewcode-block" id="TracebackInfo"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.TracebackInfo">[docs]</a><span class="k">class</span> <span class="nc">TracebackInfo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class used to hold information about an error traceback.</span>
+
+<span class="sd">    This is meant to be serialized &amp; stored in the database, instead</span>
+<span class="sd">    of a full traceback object, which is *not* serializable.</span>
+
+<span class="sd">    It holds information about:</span>
+
+<span class="sd">    - the exception that caused the thing to fail</span>
+<span class="sd">    - the stack frames (with file / line number, function and exact code</span>
+<span class="sd">      around the point in which the exception occurred)</span>
+<span class="sd">    - a representation of the local variables for each frame.</span>
+
+<span class="sd">    A textual representation of the traceback information may be</span>
+<span class="sd">    retrieved by using ``str()`` or ``unicode()`` on the object</span>
+<span class="sd">    instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frames</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="TracebackInfo.from_current_exc"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.TracebackInfo.from_current_exc">[docs]</a>    <span class="k">def</span> <span class="nf">from_current_exc</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Instantiate with traceback from ``sys.exc_info()``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_tb</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">])</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="TracebackInfo.from_tb"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.TracebackInfo.from_tb">[docs]</a>    <span class="k">def</span> <span class="nf">from_tb</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">tb</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Instantiate from a traceback object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">cls</span><span class="p">()</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">frames</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_extract_tb</span><span class="p">(</span><span class="n">tb</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj</span>
+</div>
+<div class="viewcode-block" id="TracebackInfo.format"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.TracebackInfo.format">[docs]</a>    <span class="k">def</span> <span class="nf">format</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Format traceback for printing&quot;&quot;&quot;</span>
+
+        <span class="n">lst</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">filename</span><span class="p">,</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">line</span><span class="p">,</span> <span class="n">locs</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">:</span>
+            <span class="n">item</span> <span class="o">=</span> <span class="s">&#39;  File &quot;{0}&quot;, line {1}, in {2}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">filename</span><span class="p">,</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">line</span><span class="p">:</span>
+                <span class="n">item</span> <span class="o">=</span> <span class="n">item</span> <span class="o">+</span> <span class="s">&#39;    {0}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="n">lst</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">locs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()):</span>
+                <span class="n">lst</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;        {0} = {1}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">lst</span>
+</div>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_extract_tb</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">tb</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">sys</span><span class="p">,</span> <span class="s">&#39;tracebacklimit&#39;</span><span class="p">):</span>
+                <span class="n">limit</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">tracebacklimit</span>
+        <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">tb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">limit</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="n">limit</span><span class="p">):</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_frame</span>
+            <span class="n">lineno</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_lineno</span>
+            <span class="n">co</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">f_code</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="n">co</span><span class="o">.</span><span class="n">co_filename</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">co</span><span class="o">.</span><span class="n">co_name</span>
+            <span class="n">linecache</span><span class="o">.</span><span class="n">checkcache</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">linecache</span><span class="o">.</span><span class="n">getline</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">f_globals</span><span class="p">)</span>
+            <span class="n">locs</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_dump_locals</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">f_locals</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">line</span><span class="p">:</span>
+                <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">line</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="nb">list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">FrameInfo</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">line</span><span class="p">,</span> <span class="n">locs</span><span class="p">))</span>
+            <span class="n">tb</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_next</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="n">n</span><span class="o">+</span><span class="mi">1</span>
+        <span class="k">return</span> <span class="nb">list</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_dump_locals</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">locs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(((</span><span class="n">k</span><span class="p">,</span> <span class="n">trim_string</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">maxlen</span><span class="o">=</span><span class="mi">1024</span><span class="p">))</span>
+                     <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">locs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()))</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a printable representation of the traceback information,</span>
+<span class="sd">        as a binary string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a printable representation of the traceback information,</span>
+<span class="sd">        as a unicode string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s">u&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">unicode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
+
+</div>
+<div class="viewcode-block" id="ProgressReport"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.ProgressReport">[docs]</a><span class="k">class</span> <span class="nc">ProgressReport</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class used to represent progress reports.</span>
+
+<span class="sd">    It supports progress reporting on a multi-level &quot;tree&quot; structure;</span>
+<span class="sd">    each level can have its own progress status, or it will generate</span>
+<span class="sd">    it automatically by summing up values from children.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">current</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">status_line</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">children</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current</span> <span class="o">=</span> <span class="n">current</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total</span> <span class="o">=</span> <span class="n">total</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status_line</span> <span class="o">=</span> <span class="n">status_line</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">children</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">ProgressReport</span><span class="p">)</span>
+                       <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">children</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="s">&quot;Progress children must be ProgressReport instances&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">children</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ProgressReport.current"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.ProgressReport.current">[docs]</a>    <span class="k">def</span> <span class="nf">current</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current</span>
+
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">current</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ProgressReport.total"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.ProgressReport.total">[docs]</a>    <span class="k">def</span> <span class="nf">total</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_total</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_total</span>
+
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">total</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ProgressReport.percent"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.ProgressReport.percent">[docs]</a>    <span class="k">def</span> <span class="nf">percent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">total</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">0.0</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">total</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ProgressReport.percent_human"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.ProgressReport.percent_human">[docs]</a>    <span class="k">def</span> <span class="nf">percent_human</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">percent</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="s">&#39;.0f&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39;%&#39;</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ProgressReport.progress_label"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.ProgressReport.progress_label">[docs]</a>    <span class="k">def</span> <span class="nf">progress_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&#39;{0}/{1} ({2:.0f}%)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">total</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">percent</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ProgressReport.color_css_rgb"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.ProgressReport.color_css_rgb">[docs]</a>    <span class="k">def</span> <span class="nf">color_css_rgb</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">colorsys</span>
+
+        <span class="c"># todo: use a logarithmic scale to calculate hue?</span>
+        <span class="c">#       we want the bar to stay &quot;yellower&quot; up to</span>
+        <span class="c">#       &quot;almost done&quot;..</span>
+        <span class="n">hue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">percent</span> <span class="o">*</span> <span class="mi">120</span>  <span class="c"># in degrees</span>
+
+        <span class="n">color</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span> <span class="o">*</span> <span class="mi">255</span><span class="p">),</span> <span class="s">&#39;02X&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">colorsys</span><span class="o">.</span><span class="n">hsv_to_rgb</span><span class="p">(</span><span class="n">hue</span> <span class="o">/</span> <span class="mf">360.0</span><span class="p">,</span> <span class="o">.</span><span class="mi">8</span><span class="p">,</span> <span class="o">.</span><span class="mi">8</span><span class="p">)])</span>
+
+        <span class="k">return</span> <span class="s">&#39;#&#39;</span> <span class="o">+</span> <span class="n">color</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ProgressReport.from_table"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.ProgressReport.from_table">[docs]</a>    <span class="k">def</span> <span class="nf">from_table</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">base_name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param table:</span>
+<span class="sd">            a list of tuples: (name, current, total, status_line).</span>
+
+<span class="sd">            - If there is a tuple with ``name == None`` -&gt; use</span>
+<span class="sd">              as the object&#39;s current/total report</span>
+
+<span class="sd">            - Find all the &quot;namespaces&quot; and use to build progress</span>
+<span class="sd">              sub-objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">root</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">prefixes</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c"># Need to preserve order!</span>
+
+        <span class="c"># For each prefix, build a table with prefix stripped from names</span>
+        <span class="n">sub_tables</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">status_line</span> <span class="ow">in</span> <span class="n">table</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">name</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;name must be a tuple (or None)&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+                <span class="n">root</span> <span class="o">=</span> <span class="p">(</span><span class="n">base_name</span><span class="p">,</span> <span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">status_line</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">prefix</span> <span class="o">=</span> <span class="n">name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">prefix</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">prefixes</span><span class="p">:</span>
+                    <span class="n">prefixes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span>
+                <span class="n">sub_tables</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">name</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">status_line</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">root</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="c"># the root is indefined -- should be guessed!</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">cls</span><span class="p">(</span><span class="n">base_name</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">name</span><span class="p">,</span> <span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">status_line</span> <span class="o">=</span> <span class="n">root</span>  <span class="c"># Explicit!</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">cls</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">status_line</span><span class="p">)</span>
+
+        <span class="c"># Add children..</span>
+        <span class="k">for</span> <span class="n">pref</span> <span class="ow">in</span> <span class="n">prefixes</span><span class="p">:</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ProgressReport</span><span class="o">.</span><span class="n">from_table</span><span class="p">(</span>
+                <span class="n">sub_tables</span><span class="p">[</span><span class="n">pref</span><span class="p">],</span> <span class="n">base_name</span><span class="o">=</span><span class="n">pref</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">obj</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

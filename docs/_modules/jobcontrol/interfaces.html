@@ -1,0 +1,504 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.interfaces &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for jobcontrol.interfaces</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Interfaces for NEW jobcontrol objects.</span>
+
+<span class="sd">**Data model**::</span>
+
+<span class="sd">    Build   id SERIAL</span>
+<span class="sd">    -----   job_id TEXT</span>
+<span class="sd">            start_time TIMESTAMP</span>
+<span class="sd">            end_time TIMESTAMP</span>
+<span class="sd">            started BOOLEAN</span>
+<span class="sd">            finished BOOLEAN</span>
+<span class="sd">            success BOOLEAN</span>
+<span class="sd">            skipped BOOLEAN</span>
+<span class="sd">            job_config TEXT (YAML)</span>
+<span class="sd">                Copy of the job configuration whan the build was started</span>
+<span class="sd">            build_config TEXT (YAML)</span>
+<span class="sd">                Extra configuration, such as dependency build &quot;pinning&quot;</span>
+<span class="sd">            retval BINARY (Pickled return value)</span>
+<span class="sd">            exception BINARY</span>
+<span class="sd">                Pickled exception object (or None)</span>
+<span class="sd">            exception_tb BINARY</span>
+<span class="sd">                Pickled TracebackInfo object</span>
+
+<span class="sd">    Build progress</span>
+<span class="sd">    --------------</span>
+<span class="sd">            build_id INTEGER (references Build.id)</span>
+<span class="sd">            group_name VARCHAR(128)</span>
+<span class="sd">                Name of the &quot;progress group&quot; (separated by &#39;::&#39;)</span>
+<span class="sd">            current INTEGER</span>
+<span class="sd">                Current progress value</span>
+<span class="sd">            total INTEGER</span>
+<span class="sd">                Total progress value</span>
+<span class="sd">            status_line TEXT</span>
+<span class="sd">                An optional line of text describing current state</span>
+<span class="sd">            UNIQUE constraint on (build_id, group_name)</span>
+
+<span class="sd">    Log     id SERIAL</span>
+<span class="sd">    ---     build_id INTEGER (references Build.id)</span>
+<span class="sd">            created TIMESTAMP</span>
+<span class="sd">            level INTEGER</span>
+<span class="sd">            record BINARY</span>
+<span class="sd">                Pickled LogRecord</span>
+<span class="sd">            exception_tb BINARY</span>
+<span class="sd">                Pickled TracebackInfo object</span>
+
+
+<span class="sd">**Job configuration:**</span>
+
+<span class="sd">The job configuration is stored as a YAML-serialized dict.</span>
+
+<span class="sd">Recognised keys are:</span>
+
+<span class="sd">- ``function`` in ``module:function`` format, specify the function to be called</span>
+<span class="sd">- ``args`` a list of arguments to be passed to the function</span>
+<span class="sd">- ``kwargs`` a dict of keyword arguments to be passed to the function</span>
+<span class="sd">- ``title`` a descriptive title, to be shown on the interfaces</span>
+<span class="sd">- ``notes`` notes, to be shown in interfaces (in restructured text)</span>
+<span class="sd">- ``dependencies`` list of dependency job names</span>
+
+<span class="sd">Additionally, args/kwargs may contain references to return value of dependency</span>
+<span class="sd">builds, by using the ``!retval &lt;name&gt;`` syntax.</span>
+
+
+<span class="sd">**Exception traceback serialization**</span>
+
+<span class="sd">To be used both in build records and associated with log messages containing</span>
+<span class="sd">an exception.</span>
+
+<span class="sd">We want to include the following information:</span>
+
+<span class="sd">- Details about the call stack, as in normal tracebacks: filename, line</span>
+<span class="sd">  number, function name, line of code (plus some context)</span>
+<span class="sd">- Local variables: we are not guaranteed we can safely pickle / unpickle</span>
+<span class="sd">  arbitrary values; moreover this might result in huge fields, etc.</span>
+<span class="sd">  So our better chance is to just store a dictionary mapping names</span>
+<span class="sd">  to repr()s of the values (trimmed to a -- large -- maximum length,</span>
+<span class="sd">  just to be on the safe side).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">types</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">import</span> <span class="nn">jobcontrol.job_conf</span>
+
+
+<div class="viewcode-block" id="StorageBase"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase">[docs]</a><span class="k">class</span> <span class="nc">StorageBase</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="StorageBase.from_url"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.from_url">[docs]</a>    <span class="k">def</span> <span class="nf">from_url</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">url</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="c"># ------------------------------------------------------------</span>
+    <span class="c"># Installation methods.</span>
+    <span class="c"># For resource initialization, if needed.</span>
+    <span class="c"># ------------------------------------------------------------</span>
+</div>
+<div class="viewcode-block" id="StorageBase.install"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.install">[docs]</a>    <span class="k">def</span> <span class="nf">install</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="StorageBase.uninstall"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.uninstall">[docs]</a>    <span class="k">def</span> <span class="nf">uninstall</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="c"># ------------------------------------------------------------</span>
+    <span class="c"># Build CRUD methods</span>
+    <span class="c"># ------------------------------------------------------------</span>
+</div>
+    <span class="nd">@abc.abstractmethod</span>
+<div class="viewcode-block" id="StorageBase.get_job_builds"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.get_job_builds">[docs]</a>    <span class="k">def</span> <span class="nf">get_job_builds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">started</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">finished</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                       <span class="n">success</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">skipped</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s">&#39;asc&#39;</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iterate over all the builds for a job, sorted by date, according</span>
+<span class="sd">        to the order specified by ``order``.</span>
+
+<span class="sd">        :param job_id:</span>
+<span class="sd">            The job id</span>
+<span class="sd">        :param started:</span>
+<span class="sd">            If set to a boolean, filter on the &quot;started&quot; field</span>
+<span class="sd">        :param finished:</span>
+<span class="sd">            If set to a boolean, filter on the &quot;finished&quot; field</span>
+<span class="sd">        :param success:</span>
+<span class="sd">            If set to a boolean, filter on the &quot;success&quot; field</span>
+<span class="sd">        :param skipped:</span>
+<span class="sd">            If set to a boolean, filter on the &quot;skipped&quot; field</span>
+<span class="sd">        :param order:</span>
+<span class="sd">            &#39;asc&#39; (default) or &#39;desc&#39;</span>
+<span class="sd">        :param limit:</span>
+<span class="sd">            only return the first ``limit`` builds</span>
+
+<span class="sd">        :yield: Dictionaries representing build information</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@abc.abstractmethod</span>
+<div class="viewcode-block" id="StorageBase.create_build"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.create_build">[docs]</a>    <span class="k">def</span> <span class="nf">create_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">job_config</span><span class="p">,</span> <span class="n">build_config</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a build.</span>
+
+<span class="sd">        :param job_id:</span>
+<span class="sd">            The job for which a build should be started</span>
+
+<span class="sd">        :param job_config:</span>
+<span class="sd">            The job configuration ``(function, args, kwargs, ..)``</span>
+<span class="sd">            to be copied inside the object (we will use this from now on).</span>
+
+<span class="sd">        :param build_config:</span>
+<span class="sd">            Build configuration, containing things like dependency build</span>
+<span class="sd">            pinning, etc.</span>
+
+<span class="sd">            - ``dependency_builds``: dict mapping job ids to build ids,</span>
+<span class="sd">              or ``None`` to indicate &quot;create a new build&quot; for this job.</span>
+
+<span class="sd">        :return: the build id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@abc.abstractmethod</span>
+<div class="viewcode-block" id="StorageBase.get_build"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.get_build">[docs]</a>    <span class="k">def</span> <span class="nf">get_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get information about a build.</span>
+
+<span class="sd">        :return: the build information, as a dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@abc.abstractmethod</span>
+<div class="viewcode-block" id="StorageBase.delete_build"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.delete_build">[docs]</a>    <span class="k">def</span> <span class="nf">delete_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete a build, by id.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@abc.abstractmethod</span>
+<div class="viewcode-block" id="StorageBase.start_build"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.start_build">[docs]</a>    <span class="k">def</span> <span class="nf">start_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Register a build execution start.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@abc.abstractmethod</span>
+<div class="viewcode-block" id="StorageBase.finish_build"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.finish_build">[docs]</a>    <span class="k">def</span> <span class="nf">finish_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">,</span> <span class="n">success</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">skipped</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">retval</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                     <span class="n">exception</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Register a build execution end.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="StorageBase.finish_build_with_exception"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.finish_build_with_exception">[docs]</a>    <span class="k">def</span> <span class="nf">finish_build_with_exception</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">):</span>
+        <span class="c"># todo: build a tracebackinfo object</span>
+        <span class="c"># todo: return finish_build() with failure + exception trace</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</div>
+<div class="viewcode-block" id="StorageBase.update_build_progress"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.update_build_progress">[docs]</a>    <span class="k">def</span> <span class="nf">update_build_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">,</span> <span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">):</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="ne">DeprecationWarning</span><span class="p">(</span>
+            <span class="s">&#39;The update_build_progress() method is deprecated. &#39;</span>
+            <span class="s">&#39;Use report_build_progress() instead.&#39;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">report_build_progress</span><span class="p">(</span><span class="n">build_id</span><span class="p">,</span> <span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">)</span>
+</div>
+    <span class="nd">@abc.abstractmethod</span>
+<div class="viewcode-block" id="StorageBase.report_build_progress"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.report_build_progress">[docs]</a>    <span class="k">def</span> <span class="nf">report_build_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">,</span> <span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">group_name</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span>
+                              <span class="n">status_line</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Report progress for a build.</span>
+
+<span class="sd">        :param build_id:</span>
+<span class="sd">            The build id for which to report progress</span>
+<span class="sd">        :param current:</span>
+<span class="sd">            The current number of &quot;steps&quot; done</span>
+<span class="sd">        :param total:</span>
+<span class="sd">            The total amount of &quot;steps&quot;</span>
+<span class="sd">        :param group_name:</span>
+<span class="sd">            Optionally, a name used to nest multiple progress &quot;levels&quot;.</span>
+<span class="sd">            A tuple (or string separated by &#39;::&#39; can be used to specify</span>
+<span class="sd">            multiple &quot;nesting&quot; levels)</span>
+<span class="sd">        :param status_line:</span>
+<span class="sd">            Optionally, a line of text indicating the current build status.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@abc.abstractmethod</span>
+<div class="viewcode-block" id="StorageBase.get_build_progress_info"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.get_build_progress_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_build_progress_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return progress information for a build.</span>
+
+<span class="sd">        :return: a list of tuples: ``(name, current, total, status_line)``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="StorageBase.get_latest_successful_build"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.get_latest_successful_build">[docs]</a>    <span class="k">def</span> <span class="nf">get_latest_successful_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper method to retrieve the latest successful build for a given</span>
+<span class="sd">        job. Calls ``get_job_builds()`` in the background.</span>
+
+<span class="sd">        :return: information about the build, as a dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">builds</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_job_builds</span><span class="p">(</span>
+            <span class="n">job_id</span><span class="p">,</span> <span class="n">started</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">finished</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">success</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">skipped</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">order</span><span class="o">=</span><span class="s">&#39;desc&#39;</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">builds</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>  <span class="c"># No build!</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">builds</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>  <span class="c"># Or something is broken..</span>
+        <span class="k">return</span> <span class="n">builds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</div>
+    <span class="nd">@abc.abstractmethod</span>
+<div class="viewcode-block" id="StorageBase.log_message"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.log_message">[docs]</a>    <span class="k">def</span> <span class="nf">log_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Store a log record associated with a build.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Todo: provide &quot;shortcut&quot; methods to convert the traceback</span>
+        <span class="c">#       (from exc_info) to a serializable object, and to clean</span>
+        <span class="c">#       up the record object for decent serialization in the</span>
+        <span class="c">#       database.</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@abc.abstractmethod</span>
+<div class="viewcode-block" id="StorageBase.prune_log_messages"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.prune_log_messages">[docs]</a>    <span class="k">def</span> <span class="nf">prune_log_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">build_id</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">max_age</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                           <span class="n">level</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete (old) log messages.</span>
+
+<span class="sd">        :param job_id:</span>
+<span class="sd">            If specified, only delete messages for this job</span>
+
+<span class="sd">        :param build_id:</span>
+<span class="sd">            If specified, only delete messages for this build</span>
+
+<span class="sd">        :param max_age:</span>
+<span class="sd">            If specified, only delete log messages with an age</span>
+<span class="sd">            greater than this one (in seconds)</span>
+
+<span class="sd">        :param level:</span>
+<span class="sd">            If specified, only delete log messages with a level</span>
+<span class="sd">            equal or minor to this one</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@abc.abstractmethod</span>
+<div class="viewcode-block" id="StorageBase.iter_log_messages"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.iter_log_messages">[docs]</a>    <span class="k">def</span> <span class="nf">iter_log_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">max_date</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                          <span class="n">min_date</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">min_level</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iterate over log messages, applying some filters.</span>
+
+<span class="sd">        :param build_id:</span>
+<span class="sd">            If specified, only return messages for this build</span>
+
+<span class="sd">        :param max_date:</span>
+<span class="sd">            If specified, only return messages newer than this date</span>
+
+<span class="sd">        :param min_date:</span>
+<span class="sd">            If specified, only return messages older than this date</span>
+
+<span class="sd">        :param min_level:</span>
+<span class="sd">            If specified, only return messages with a level at least</span>
+<span class="sd">            equal to this one</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+    <span class="c"># ------------------------------------------------------------</span>
+    <span class="c"># Helper methods for serialization</span>
+    <span class="c"># ------------------------------------------------------------</span>
+</div>
+<div class="viewcode-block" id="StorageBase.pack"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.pack">[docs]</a>    <span class="k">def</span> <span class="nf">pack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="StorageBase.unpack"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.unpack">[docs]</a>    <span class="k">def</span> <span class="nf">unpack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">safe</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">safe</span><span class="p">:</span>
+                <span class="k">raise</span>
+            <span class="k">return</span> <span class="s">&#39;Error deserializing object: {0!r}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="StorageBase.yaml_pack"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.yaml_pack">[docs]</a>    <span class="k">def</span> <span class="nf">yaml_pack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">jobcontrol</span><span class="o">.</span><span class="n">job_conf</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="StorageBase.yaml_unpack"><a class="viewcode-back" href="../../api/interfaces.html#jobcontrol.interfaces.StorageBase.yaml_unpack">[docs]</a>    <span class="k">def</span> <span class="nf">yaml_unpack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">jobcontrol</span><span class="o">.</span><span class="n">job_conf</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+    <span class="c"># ------------------------------------------------------------</span>
+    <span class="c"># Generic helper methods</span>
+    <span class="c"># ------------------------------------------------------------</span>
+</div>
+    <span class="k">def</span> <span class="nf">_normalize_job_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_conf</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">job_conf</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">job_conf</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_conf</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;job_conf must be a dict, got {0} instead&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">job_conf</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+
+        <span class="n">job_conf</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;function&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="n">job_conf</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;args&#39;</span><span class="p">,</span> <span class="p">())</span>
+        <span class="n">job_conf</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;kwargs&#39;</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_conf</span><span class="p">[</span><span class="s">&#39;args&#39;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">job_conf</span><span class="p">[</span><span class="s">&#39;args&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">job_conf</span><span class="p">[</span><span class="s">&#39;args&#39;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_conf</span><span class="p">[</span><span class="s">&#39;args&#39;</span><span class="p">],</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;args must be a tuple&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_conf</span><span class="p">[</span><span class="s">&#39;kwargs&#39;</span><span class="p">],</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;kwargs must be a dict&#39;</span><span class="p">)</span>
+
+        <span class="n">job_conf</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;dependencies&#39;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_conf</span><span class="p">[</span><span class="s">&#39;dependencies&#39;</span><span class="p">],</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;dependencies must be a list (or tuple)&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">job_conf</span>
+
+    <span class="k">def</span> <span class="nf">_normalize_build_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_conf</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">build_conf</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">build_conf</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">build_conf</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;build_conf must be a dict, got {0} instead&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">build_conf</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+
+        <span class="n">build_conf</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;dependency_builds&#39;</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="k">return</span> <span class="n">build_conf</span>
+
+    <span class="k">def</span> <span class="nf">_normalize_build_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_info</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">build_info</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;build_info must be a dict&#39;</span><span class="p">)</span>
+
+        <span class="n">build_info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;job_id&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;start_time&#39;</span><span class="p">,</span> <span class="s">&#39;end_time&#39;</span><span class="p">):</span>
+            <span class="n">build_info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;started&#39;</span><span class="p">,</span> <span class="s">&#39;finished&#39;</span><span class="p">,</span> <span class="s">&#39;success&#39;</span><span class="p">,</span> <span class="s">&#39;skipped&#39;</span><span class="p">):</span>
+            <span class="n">build_info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+
+        <span class="n">build_info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;job_config&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">build_info</span><span class="p">[</span><span class="s">&#39;job_config&#39;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_job_config</span><span class="p">(</span><span class="n">build_info</span><span class="p">[</span><span class="s">&#39;job_config&#39;</span><span class="p">])</span>
+
+        <span class="n">build_info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;build_config&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">build_info</span><span class="p">[</span><span class="s">&#39;build_config&#39;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_build_config</span><span class="p">(</span><span class="n">build_info</span><span class="p">[</span><span class="s">&#39;build_config&#39;</span><span class="p">])</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;retval&#39;</span><span class="p">,</span> <span class="s">&#39;exception&#39;</span><span class="p">,</span> <span class="s">&#39;exception_tb&#39;</span><span class="p">):</span>
+            <span class="n">build_info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;title&#39;</span><span class="p">,</span> <span class="s">&#39;notes&#39;</span><span class="p">):</span>
+            <span class="n">build_info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">build_info</span>
+
+    <span class="k">def</span> <span class="nf">_serialize_log_record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">jobcontrol.utils</span> <span class="kn">import</span> <span class="n">TracebackInfo</span>
+
+        <span class="n">row</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;record&#39;</span><span class="p">:</span> <span class="n">record</span><span class="p">,</span>
+            <span class="s">&#39;created&#39;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">created</span><span class="p">),</span>
+            <span class="s">&#39;exception_tb&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">exc_info</span><span class="p">:</span>
+            <span class="n">etype</span><span class="p">,</span> <span class="n">exc</span><span class="p">,</span> <span class="n">tb</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">exc_info</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">exc_info</span> <span class="o">=</span> <span class="p">(</span><span class="n">etype</span><span class="p">,</span> <span class="n">exc</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tb</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">TracebackType</span><span class="p">)</span>
+            <span class="n">row</span><span class="p">[</span><span class="s">&#39;exception_tb&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TracebackInfo</span><span class="o">.</span><span class="n">from_tb</span><span class="p">(</span><span class="n">tb</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">row</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

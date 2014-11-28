@@ -1,0 +1,427 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.interfaces &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../index.html" />
+    <link rel="up" title="jobcontrol" href="index.html" />
+    <link rel="next" title="jobcontrol.job_conf" href="job_conf.html" />
+    <link rel="prev" title="jobcontrol.globals" href="globals.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="job_conf.html" title="jobcontrol.job_conf"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="globals.html" title="jobcontrol.globals"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">jobcontrol</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-jobcontrol.interfaces">
+<span id="jobcontrol-interfaces"></span><h1>jobcontrol.interfaces<a class="headerlink" href="#module-jobcontrol.interfaces" title="Permalink to this headline">¶</a></h1>
+<p>Interfaces for NEW jobcontrol objects.</p>
+<p><strong>Data model</strong>:</p>
+<div class="highlight-python"><div class="highlight"><pre>Build   id SERIAL
+-----   job_id TEXT
+        start_time TIMESTAMP
+        end_time TIMESTAMP
+        started BOOLEAN
+        finished BOOLEAN
+        success BOOLEAN
+        skipped BOOLEAN
+        job_config TEXT (YAML)
+            Copy of the job configuration whan the build was started
+        build_config TEXT (YAML)
+            Extra configuration, such as dependency build &quot;pinning&quot;
+        retval BINARY (Pickled return value)
+        exception BINARY
+            Pickled exception object (or None)
+        exception_tb BINARY
+            Pickled TracebackInfo object
+
+Build progress
+--------------
+        build_id INTEGER (references Build.id)
+        group_name VARCHAR(128)
+            Name of the &quot;progress group&quot; (separated by &#39;::&#39;)
+        current INTEGER
+            Current progress value
+        total INTEGER
+            Total progress value
+        status_line TEXT
+            An optional line of text describing current state
+        UNIQUE constraint on (build_id, group_name)
+
+Log     id SERIAL
+---     build_id INTEGER (references Build.id)
+        created TIMESTAMP
+        level INTEGER
+        record BINARY
+            Pickled LogRecord
+        exception_tb BINARY
+            Pickled TracebackInfo object
+</pre></div>
+</div>
+<p><strong>Job configuration:</strong></p>
+<p>The job configuration is stored as a YAML-serialized dict.</p>
+<p>Recognised keys are:</p>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">function</span></tt> in <tt class="docutils literal"><span class="pre">module:function</span></tt> format, specify the function to be called</li>
+<li><tt class="docutils literal"><span class="pre">args</span></tt> a list of arguments to be passed to the function</li>
+<li><tt class="docutils literal"><span class="pre">kwargs</span></tt> a dict of keyword arguments to be passed to the function</li>
+<li><tt class="docutils literal"><span class="pre">title</span></tt> a descriptive title, to be shown on the interfaces</li>
+<li><tt class="docutils literal"><span class="pre">notes</span></tt> notes, to be shown in interfaces (in restructured text)</li>
+<li><tt class="docutils literal"><span class="pre">dependencies</span></tt> list of dependency job names</li>
+</ul>
+<p>Additionally, args/kwargs may contain references to return value of dependency
+builds, by using the <tt class="docutils literal"><span class="pre">!retval</span> <span class="pre">&lt;name&gt;</span></tt> syntax.</p>
+<p><strong>Exception traceback serialization</strong></p>
+<p>To be used both in build records and associated with log messages containing
+an exception.</p>
+<p>We want to include the following information:</p>
+<ul class="simple">
+<li>Details about the call stack, as in normal tracebacks: filename, line
+number, function name, line of code (plus some context)</li>
+<li>Local variables: we are not guaranteed we can safely pickle / unpickle
+arbitrary values; moreover this might result in huge fields, etc.
+So our better chance is to just store a dictionary mapping names
+to repr()s of the values (trimmed to a &#8211; large &#8211; maximum length,
+just to be on the safe side).</li>
+</ul>
+<dl class="class">
+<dt id="jobcontrol.interfaces.StorageBase">
+<em class="property">class </em><tt class="descclassname">jobcontrol.interfaces.</tt><tt class="descname">StorageBase</tt><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="classmethod">
+<dt id="jobcontrol.interfaces.StorageBase.from_url">
+<em class="property">classmethod </em><tt class="descname">from_url</tt><big>(</big><em>url</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.from_url"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.from_url" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.install">
+<tt class="descname">install</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.install"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.install" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.uninstall">
+<tt class="descname">uninstall</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.uninstall"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.uninstall" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.get_job_builds">
+<tt class="descname">get_job_builds</tt><big>(</big><em>job_id</em>, <em>started=None</em>, <em>finished=None</em>, <em>success=None</em>, <em>skipped=None</em>, <em>order='asc'</em>, <em>limit=100</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.get_job_builds"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.get_job_builds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over all the builds for a job, sorted by date, according
+to the order specified by <tt class="docutils literal"><span class="pre">order</span></tt>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>job_id</strong> &#8211; The job id</li>
+<li><strong>started</strong> &#8211; If set to a boolean, filter on the &#8220;started&#8221; field</li>
+<li><strong>finished</strong> &#8211; If set to a boolean, filter on the &#8220;finished&#8221; field</li>
+<li><strong>success</strong> &#8211; If set to a boolean, filter on the &#8220;success&#8221; field</li>
+<li><strong>skipped</strong> &#8211; If set to a boolean, filter on the &#8220;skipped&#8221; field</li>
+<li><strong>order</strong> &#8211; &#8216;asc&#8217; (default) or &#8216;desc&#8217;</li>
+<li><strong>limit</strong> &#8211; only return the first <tt class="docutils literal"><span class="pre">limit</span></tt> builds</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Yield:</th><td class="field-body"><p class="first last">Dictionaries representing build information</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.create_build">
+<tt class="descname">create_build</tt><big>(</big><em>job_id</em>, <em>job_config</em>, <em>build_config</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.create_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.create_build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a build.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>job_id</strong> &#8211; The job for which a build should be started</li>
+<li><strong>job_config</strong> &#8211; The job configuration <tt class="docutils literal"><span class="pre">(function,</span> <span class="pre">args,</span> <span class="pre">kwargs,</span> <span class="pre">..)</span></tt>
+to be copied inside the object (we will use this from now on).</li>
+<li><strong>build_config</strong> &#8211; <p>Build configuration, containing things like dependency build
+pinning, etc.</p>
+<ul>
+<li><tt class="docutils literal"><span class="pre">dependency_builds</span></tt>: dict mapping job ids to build ids,
+or <tt class="docutils literal"><span class="pre">None</span></tt> to indicate &#8220;create a new build&#8221; for this job.</li>
+</ul>
+</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">the build id</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.get_build">
+<tt class="descname">get_build</tt><big>(</big><em>build_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.get_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.get_build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get information about a build.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">the build information, as a dict</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.delete_build">
+<tt class="descname">delete_build</tt><big>(</big><em>build_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.delete_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.delete_build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete a build, by id.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.start_build">
+<tt class="descname">start_build</tt><big>(</big><em>build_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.start_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.start_build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register a build execution start.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.finish_build">
+<tt class="descname">finish_build</tt><big>(</big><em>build_id</em>, <em>success=None</em>, <em>skipped=None</em>, <em>retval=None</em>, <em>exception=None</em>, <em>exc_info=None</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.finish_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.finish_build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register a build execution end.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.finish_build_with_exception">
+<tt class="descname">finish_build_with_exception</tt><big>(</big><em>build_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.finish_build_with_exception"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.finish_build_with_exception" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.update_build_progress">
+<tt class="descname">update_build_progress</tt><big>(</big><em>build_id</em>, <em>current</em>, <em>total</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.update_build_progress"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.update_build_progress" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.report_build_progress">
+<tt class="descname">report_build_progress</tt><big>(</big><em>build_id</em>, <em>current</em>, <em>total</em>, <em>group_name=''</em>, <em>status_line=''</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.report_build_progress"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.report_build_progress" title="Permalink to this definition">¶</a></dt>
+<dd><p>Report progress for a build.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>build_id</strong> &#8211; The build id for which to report progress</li>
+<li><strong>current</strong> &#8211; The current number of &#8220;steps&#8221; done</li>
+<li><strong>total</strong> &#8211; The total amount of &#8220;steps&#8221;</li>
+<li><strong>group_name</strong> &#8211; Optionally, a name used to nest multiple progress &#8220;levels&#8221;.
+A tuple (or string separated by &#8216;::&#8217; can be used to specify
+multiple &#8220;nesting&#8221; levels)</li>
+<li><strong>status_line</strong> &#8211; Optionally, a line of text indicating the current build status.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.get_build_progress_info">
+<tt class="descname">get_build_progress_info</tt><big>(</big><em>build_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.get_build_progress_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.get_build_progress_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return progress information for a build.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">a list of tuples: <tt class="docutils literal"><span class="pre">(name,</span> <span class="pre">current,</span> <span class="pre">total,</span> <span class="pre">status_line)</span></tt></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.get_latest_successful_build">
+<tt class="descname">get_latest_successful_build</tt><big>(</big><em>job_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.get_latest_successful_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.get_latest_successful_build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper method to retrieve the latest successful build for a given
+job. Calls <tt class="docutils literal"><span class="pre">get_job_builds()</span></tt> in the background.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">information about the build, as a dict</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.log_message">
+<tt class="descname">log_message</tt><big>(</big><em>build_id</em>, <em>record</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.log_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.log_message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Store a log record associated with a build.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.prune_log_messages">
+<tt class="descname">prune_log_messages</tt><big>(</big><em>job_id=None</em>, <em>build_id=None</em>, <em>max_age=None</em>, <em>level=None</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.prune_log_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.prune_log_messages" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete (old) log messages.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>job_id</strong> &#8211; If specified, only delete messages for this job</li>
+<li><strong>build_id</strong> &#8211; If specified, only delete messages for this build</li>
+<li><strong>max_age</strong> &#8211; If specified, only delete log messages with an age
+greater than this one (in seconds)</li>
+<li><strong>level</strong> &#8211; If specified, only delete log messages with a level
+equal or minor to this one</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.iter_log_messages">
+<tt class="descname">iter_log_messages</tt><big>(</big><em>build_id=None</em>, <em>max_date=None</em>, <em>min_date=None</em>, <em>min_level=None</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.iter_log_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.iter_log_messages" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over log messages, applying some filters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>build_id</strong> &#8211; If specified, only return messages for this build</li>
+<li><strong>max_date</strong> &#8211; If specified, only return messages newer than this date</li>
+<li><strong>min_date</strong> &#8211; If specified, only return messages older than this date</li>
+<li><strong>min_level</strong> &#8211; If specified, only return messages with a level at least
+equal to this one</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.pack">
+<tt class="descname">pack</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.pack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.pack" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.unpack">
+<tt class="descname">unpack</tt><big>(</big><em>obj</em>, <em>safe=False</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.unpack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.unpack" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.yaml_pack">
+<tt class="descname">yaml_pack</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.yaml_pack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.yaml_pack" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.yaml_unpack">
+<tt class="descname">yaml_unpack</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.yaml_unpack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.yaml_unpack" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="globals.html"
+                        title="previous chapter">jobcontrol.globals</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="job_conf.html"
+                        title="next chapter">jobcontrol.job_conf</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/api/interfaces.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="job_conf.html" title="jobcontrol.job_conf"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="globals.html" title="jobcontrol.globals"
+             >previous</a> |</li>
+        <li><a href="../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="index.html" >jobcontrol</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

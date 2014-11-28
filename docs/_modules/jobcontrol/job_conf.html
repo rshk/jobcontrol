@@ -1,0 +1,345 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.job_conf &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for jobcontrol.job_conf</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Functions to manage the job configuration</span>
+
+<span class="sd">The job configuration is a YAML object (dict) containing (at least) the</span>
+<span class="sd">following keys:</span>
+
+<span class="sd">- module - name of the module from wich to import the function</span>
+<span class="sd">- function - name of the function to be called</span>
+<span class="sd">- args - arguments to the function (list)</span>
+<span class="sd">- kwargs - keyword arguments to the function (dictionary)</span>
+<span class="sd">- dependencies - dependencies for this job</span>
+
+<span class="sd">Additional &quot;constructors&quot; are available:</span>
+
+<span class="sd">- ``!retval &lt;n&gt;`` will be replaced with return value of latest successful</span>
+<span class="sd">  build for dependency job ``&lt;n&gt;`` (and job ``&lt;n&gt;`` *must* be specified</span>
+<span class="sd">  as a dependency)</span>
+
+<span class="sd">- [proposed] ``!cfg &lt;name&gt;`` will be replaced with global configuration</span>
+<span class="sd">  option ``&lt;name&gt;``</span>
+
+<span class="sd">- [proposed] &quot;system&quot; objects, such as context, job configuration, ...</span>
+<span class="sd">  might be passed/accessed as well?</span>
+
+<span class="sd">  - execution context</span>
+<span class="sd">  - current job object</span>
+<span class="sd">  - current build object</span>
+
+<span class="sd">- [proposed] ``!secret &lt;name&gt;`` value from &quot;secret&quot; configuration, usually</span>
+<span class="sd">  used for storing passwords etc, on file.</span>
+
+
+<span class="sd">**Note:** job configuration widgets *need* to manipulate the configuration,</span>
+<span class="sd">if we want to expose it in a nicer way -- is there any way to do so while</span>
+<span class="sd">preserving formatting / comments in other parts of the document?</span>
+
+<span class="sd">-----</span>
+
+<span class="sd">**Job configuration:**</span>
+
+<span class="sd">.. code-block:: yaml</span>
+
+<span class="sd">    jobs:</span>
+
+<span class="sd">      - name: my-job-name</span>
+<span class="sd">        title: A descriptive title</span>
+<span class="sd">        function: package.module:name</span>
+<span class="sd">        args: []</span>
+<span class="sd">        kwargs:</span>
+<span class="sd">          storage: {url: &#39;mongodb://...&#39;}</span>
+<span class="sd">          input_storage: !retval &#39;other-job-name&#39;</span>
+<span class="sd">        dependencies: [&#39;other-job-name&#39;]</span>
+
+<span class="sd">      - name: other-job-name</span>
+<span class="sd">        title: Another descriptive title</span>
+<span class="sd">        function: package.module:othername</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Mapping</span>
+
+<span class="kn">import</span> <span class="nn">yaml</span>
+<span class="kn">from</span> <span class="nn">yaml</span> <span class="kn">import</span> <span class="n">SafeDumper</span><span class="p">,</span> <span class="n">SafeLoader</span>
+
+<span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">execution_context</span>
+<span class="kn">from</span> <span class="nn">jobcontrol.utils</span> <span class="kn">import</span> <span class="n">get_storage_from_url</span>
+<span class="kn">from</span> <span class="nn">jobcontrol.exceptions</span> <span class="kn">import</span> <span class="n">NotFound</span>
+
+
+<div class="viewcode-block" id="Retval"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.Retval">[docs]</a><span class="k">class</span> <span class="nc">Retval</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Placeholder for ``!retval &lt;n&gt;``&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Job id must be a string&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&#39;Retval({0!r})&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">job_id</span>
+
+    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__eq__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="dump"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.dump">[docs]</a><span class="k">def</span> <span class="nf">dump</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">CustomDumper</span><span class="p">(</span><span class="n">SafeDumper</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_represent_retval</span><span class="p">(</span><span class="n">dumper</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">dumper</span><span class="o">.</span><span class="n">represent_scalar</span><span class="p">(</span>
+            <span class="s">u&#39;!retval&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="nb">unicode</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+
+    <span class="n">CustomDumper</span><span class="o">.</span><span class="n">add_representer</span><span class="p">(</span><span class="n">Retval</span><span class="p">,</span> <span class="n">_represent_retval</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">yaml</span><span class="o">.</span><span class="n">dump_all</span><span class="p">([</span><span class="n">data</span><span class="p">],</span> <span class="n">Dumper</span><span class="o">=</span><span class="n">CustomDumper</span><span class="p">,</span>
+                         <span class="n">default_flow_style</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">stream</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">CustomLoader</span><span class="p">(</span><span class="n">SafeLoader</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_construct_retval</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Retval</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">construct_scalar</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+
+    <span class="n">CustomLoader</span><span class="o">.</span><span class="n">add_constructor</span><span class="p">(</span><span class="s">u&#39;!retval&#39;</span><span class="p">,</span> <span class="n">_construct_retval</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">Loader</span><span class="o">=</span><span class="n">CustomLoader</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="prepare_args"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.prepare_args">[docs]</a><span class="k">def</span> <span class="nf">prepare_args</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">build</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Prepare arguments / kwargs by replacing placeholders with actual</span>
+<span class="sd">    values from the context.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c"># todo: important! we want to use return values from the *pinned* builds!</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">Retval</span><span class="p">):</span>
+        <span class="n">current_job</span> <span class="o">=</span> <span class="n">execution_context</span><span class="o">.</span><span class="n">current_job</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">job_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">current_job</span><span class="p">[</span><span class="s">&#39;dependencies&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;job {0} is not a dependency of job {1}&quot;</span>
+                             <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">current_job</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+
+        <span class="n">dep_job</span> <span class="o">=</span> <span class="n">execution_context</span><span class="o">.</span><span class="n">current_app</span><span class="o">.</span><span class="n">get_job</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="n">build</span> <span class="o">=</span> <span class="n">dep_job</span><span class="o">.</span><span class="n">get_latest_successful_build</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">build</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Job {0} has no successful builds&quot;</span>
+                             <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">build</span><span class="p">[</span><span class="s">&#39;retval&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">prepare_args</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">build</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">prepare_args</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">build</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">args</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">((</span><span class="n">prepare_args</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">build</span><span class="p">),</span> <span class="n">prepare_args</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">build</span><span class="p">))</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">iteritems</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="p">(</span><span class="nb">basestring</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">long</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="n">args</span>
+
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Unsupported type: {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">args</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+
+</div>
+<div class="viewcode-block" id="JobControlConfigMgr"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr">[docs]</a><span class="k">class</span> <span class="nc">JobControlConfigMgr</span><span class="p">(</span><span class="n">Mapping</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">initial</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">initial</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="JobControlConfigMgr.from_file"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.from_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">fp</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="JobControlConfigMgr.from_string"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.from_string">[docs]</a>    <span class="k">def</span> <span class="nf">from_string</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_object</span><span class="p">(</span><span class="n">load</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="JobControlConfigMgr.from_object"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.from_object">[docs]</a>    <span class="k">def</span> <span class="nf">from_object</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">cls</span><span class="p">()</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="JobControlConfigMgr.config"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.config">[docs]</a>    <span class="k">def</span> <span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span>
+</div>
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="c"># ------------------------------------------------------------</span>
+    <span class="c"># Configuration validation</span>
+    <span class="c"># ------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="JobControlConfigMgr.validate"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;jobs&#39;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;webapp&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">&#39;secret&#39;</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;jobs&#39;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Jobs must be a list&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s">&#39;jobs&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="s">&#39;id&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">job</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Jobs must have an Id&#39;</span><span class="p">)</span>
+
+    <span class="c"># ------------------------------------------------------------</span>
+    <span class="c"># High-level interface</span>
+    <span class="c"># ------------------------------------------------------------</span>
+</div>
+<div class="viewcode-block" id="JobControlConfigMgr.iter_jobs"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.iter_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">iter_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="s">&#39;jobs&#39;</span><span class="p">]:</span>
+            <span class="k">yield</span> <span class="n">job</span>
+</div>
+<div class="viewcode-block" id="JobControlConfigMgr.get_job"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.get_job">[docs]</a>    <span class="k">def</span> <span class="nf">get_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="s">&#39;jobs&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">job_id</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">job</span>
+        <span class="k">raise</span> <span class="n">NotFound</span><span class="p">(</span><span class="s">&#39;Job not found: {0!r}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="JobControlConfigMgr.get_job_deps"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.get_job_deps">[docs]</a>    <span class="k">def</span> <span class="nf">get_job_deps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s">&#39;dependencies&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">job</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">for</span> <span class="n">dep</span> <span class="ow">in</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;dependencies&#39;</span><span class="p">]:</span>
+            <span class="k">yield</span> <span class="n">dep</span>
+</div>
+<div class="viewcode-block" id="JobControlConfigMgr.get_job_revdeps"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.get_job_revdeps">[docs]</a>    <span class="k">def</span> <span class="nf">get_job_revdeps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="s">&#39;jobs&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="s">&#39;dependencies&#39;</span> <span class="ow">in</span> <span class="n">job</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span>
+                    <span class="n">job_id</span> <span class="ow">in</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;dependencies&#39;</span><span class="p">]):</span>
+                <span class="k">yield</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="JobControlConfigMgr.get_webapp_config"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.get_webapp_config">[docs]</a>    <span class="k">def</span> <span class="nf">get_webapp_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a dict containing configuration for the Flask app</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="s">&#39;webapp&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{}</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="s">&#39;webapp&#39;</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="JobControlConfigMgr.get_secret"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.get_secret">[docs]</a>    <span class="k">def</span> <span class="nf">get_secret</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="s">&#39;secret&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobControlConfigMgr.get_storage"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.get_storage">[docs]</a>    <span class="k">def</span> <span class="nf">get_storage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s">&#39;storage&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Configuration must specify a storage&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="s">&#39;storage&#39;</span><span class="p">],</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Storage must be a string (URL)&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">get_storage_from_url</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="s">&#39;storage&#39;</span><span class="p">])</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

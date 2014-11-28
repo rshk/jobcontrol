@@ -1,0 +1,520 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.utils.local &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../../../index.html" />
+    <link rel="up" title="jobcontrol.utils" href="../utils.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../utils.html" accesskey="U">jobcontrol.utils</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for jobcontrol.utils.local</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    werkzeug.local</span>
+<span class="sd">    ~~~~~~~~~~~~~~</span>
+
+<span class="sd">    This module implements context-local objects.</span>
+
+<span class="sd">    :copyright: (c) 2014 by the Werkzeug Team, see AUTHORS for more details.</span>
+<span class="sd">    :license: BSD, see LICENSE for more details.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="c"># from functools import update_wrapper</span>
+
+<span class="c"># from werkzeug.wsgi import ClosingIterator</span>
+<span class="c"># from werkzeug._compat import PY2, implements_bool</span>
+
+<span class="c"># ---------- Relevant parts from werkzeug._compat ------------</span>
+<span class="n">PY2</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span>
+
+<span class="k">assert</span> <span class="n">PY2</span>  <span class="c"># We assume we are using python 2</span>
+
+
+<div class="viewcode-block" id="implements_bool"><a class="viewcode-back" href="../../../api/utils/local.html#jobcontrol.utils.local.implements_bool">[docs]</a><span class="k">def</span> <span class="nf">implements_bool</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+    <span class="n">cls</span><span class="o">.</span><span class="n">__nonzero__</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">__bool__</span>
+    <span class="k">del</span> <span class="n">cls</span><span class="o">.</span><span class="n">__bool__</span>
+    <span class="k">return</span> <span class="n">cls</span>
+
+<span class="c"># ------------------------------------------------------------</span>
+
+<span class="c"># since each thread has its own greenlet we can just use those as identifiers</span>
+<span class="c"># for the context.  If greenlets are not available we fall back to the</span>
+<span class="c"># current thread ident depending on where it is.</span></div>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">greenlet</span> <span class="kn">import</span> <span class="n">getcurrent</span> <span class="k">as</span> <span class="n">get_ident</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">thread</span> <span class="kn">import</span> <span class="n">get_ident</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">_thread</span> <span class="kn">import</span> <span class="n">get_ident</span>
+
+
+<div class="viewcode-block" id="release_local"><a class="viewcode-back" href="../../../api/utils/local.html#jobcontrol.utils.local.release_local">[docs]</a><span class="k">def</span> <span class="nf">release_local</span><span class="p">(</span><span class="n">local</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Releases the contents of the local for the current context.</span>
+<span class="sd">    This makes it possible to use locals without a manager.</span>
+
+<span class="sd">    Example::</span>
+
+<span class="sd">        &gt;&gt;&gt; loc = Local()</span>
+<span class="sd">        &gt;&gt;&gt; loc.foo = 42</span>
+<span class="sd">        &gt;&gt;&gt; release_local(loc)</span>
+<span class="sd">        &gt;&gt;&gt; hasattr(loc, &#39;foo&#39;)</span>
+<span class="sd">        False</span>
+
+<span class="sd">    With this function one can release :class:`Local` objects as well</span>
+<span class="sd">    as :class:`LocalStack` objects.  However it is not possible to</span>
+<span class="sd">    release data held by proxies that way, one always has to retain</span>
+<span class="sd">    a reference to the underlying local object in order to be able</span>
+<span class="sd">    to release it.</span>
+
+<span class="sd">    .. versionadded:: 0.6.1</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">local</span><span class="o">.</span><span class="n">__release_local__</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="Local"><a class="viewcode-back" href="../../../api/utils/local.html#jobcontrol.utils.local.Local">[docs]</a><span class="k">class</span> <span class="nc">Local</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;__storage__&#39;</span><span class="p">,</span> <span class="s">&#39;__ident_func__&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">object</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;__storage__&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="nb">object</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;__ident_func__&#39;</span><span class="p">,</span> <span class="n">get_ident</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__storage__</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proxy</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a proxy for a name.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">LocalProxy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proxy</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__release_local__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__storage__</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__ident_func__</span><span class="p">(),</span> <span class="bp">None</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__storage__</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__ident_func__</span><span class="p">()][</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="n">ident</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ident_func__</span><span class="p">()</span>
+        <span class="n">storage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__storage__</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">storage</span><span class="p">[</span><span class="n">ident</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">storage</span><span class="p">[</span><span class="n">ident</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">value</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__delattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">__storage__</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__ident_func__</span><span class="p">()][</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="LocalStack"><a class="viewcode-back" href="../../../api/utils/local.html#jobcontrol.utils.local.LocalStack">[docs]</a><span class="k">class</span> <span class="nc">LocalStack</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This class works similar to a :class:`Local` but keeps a stack</span>
+<span class="sd">    of objects instead.  This is best explained with an example::</span>
+
+<span class="sd">        &gt;&gt;&gt; ls = LocalStack()</span>
+<span class="sd">        &gt;&gt;&gt; ls.push(42)</span>
+<span class="sd">        &gt;&gt;&gt; ls.top</span>
+<span class="sd">        42</span>
+<span class="sd">        &gt;&gt;&gt; ls.push(23)</span>
+<span class="sd">        &gt;&gt;&gt; ls.top</span>
+<span class="sd">        23</span>
+<span class="sd">        &gt;&gt;&gt; ls.pop()</span>
+<span class="sd">        23</span>
+<span class="sd">        &gt;&gt;&gt; ls.top</span>
+<span class="sd">        42</span>
+
+<span class="sd">    They can be force released by using a :class:`LocalManager` or with</span>
+<span class="sd">    the :func:`release_local` function but the correct way is to pop the</span>
+<span class="sd">    item from the stack after using.  When the stack is empty it will</span>
+<span class="sd">    no longer be bound to the current context (and as such released).</span>
+
+<span class="sd">    By calling the stack without arguments it returns a proxy that resolves to</span>
+<span class="sd">    the topmost item on the stack.</span>
+
+<span class="sd">    .. versionadded:: 0.6.1</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local</span> <span class="o">=</span> <span class="n">Local</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__release_local__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">__release_local__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_get__ident_func__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">__ident_func__</span>
+
+    <span class="k">def</span> <span class="nf">_set__ident_func__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="nb">object</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">,</span> <span class="s">&#39;__ident_func__&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+    <span class="n">__ident_func__</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get__ident_func__</span><span class="p">,</span> <span class="n">_set__ident_func__</span><span class="p">)</span>
+    <span class="k">del</span> <span class="n">_get__ident_func__</span><span class="p">,</span> <span class="n">_set__ident_func__</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">_lookup</span><span class="p">():</span>
+            <span class="n">rv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">top</span>
+            <span class="k">if</span> <span class="n">rv</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;object unbound&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">rv</span>
+        <span class="k">return</span> <span class="n">LocalProxy</span><span class="p">(</span><span class="n">_lookup</span><span class="p">)</span>
+
+<div class="viewcode-block" id="LocalStack.push"><a class="viewcode-back" href="../../../api/utils/local.html#jobcontrol.utils.local.LocalStack.push">[docs]</a>    <span class="k">def</span> <span class="nf">push</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Pushes a new item to the stack&quot;&quot;&quot;</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">,</span> <span class="s">&#39;stack&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rv</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">stack</span> <span class="o">=</span> <span class="n">rv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">rv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rv</span>
+</div>
+<div class="viewcode-block" id="LocalStack.pop"><a class="viewcode-back" href="../../../api/utils/local.html#jobcontrol.utils.local.LocalStack.pop">[docs]</a>    <span class="k">def</span> <span class="nf">pop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Removes the topmost item from the stack, will return the</span>
+<span class="sd">        old value or `None` if the stack was already empty.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">,</span> <span class="s">&#39;stack&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">stack</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">stack</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">release_local</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="LocalStack.top"><a class="viewcode-back" href="../../../api/utils/local.html#jobcontrol.utils.local.LocalStack.top">[docs]</a>    <span class="k">def</span> <span class="nf">top</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The topmost item on the stack.  If the stack is empty,</span>
+<span class="sd">        `None` is returned.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+
+<span class="c"># class LocalManager(object):</span>
+<span class="c">#     &quot;&quot;&quot;Local objects cannot manage themselves. For that you need a local</span>
+<span class="c">#     manager.  You can pass a local manager multiple locals or add them later</span>
+<span class="c">#     by appending them to `manager.locals`.  Everytime the manager cleans up</span>
+<span class="c">#     it, will clean up all the data left in the locals for this context.</span>
+
+<span class="c">#     The `ident_func` parameter can be added to override the default ident</span>
+<span class="c">#     function for the wrapped locals.</span>
+
+<span class="c">#     .. versionchanged:: 0.6.1</span>
+<span class="c">#        Instead of a manager the :func:`release_local` function can be used</span>
+<span class="c">#        as well.</span>
+
+<span class="c">#     .. versionchanged:: 0.7</span>
+<span class="c">#        `ident_func` was added.</span>
+<span class="c">#     &quot;&quot;&quot;</span>
+
+<span class="c">#     def __init__(self, locals=None, ident_func=None):</span>
+<span class="c">#         if locals is None:</span>
+<span class="c">#             self.locals = []</span>
+<span class="c">#         elif isinstance(locals, Local):</span>
+<span class="c">#             self.locals = [locals]</span>
+<span class="c">#         else:</span>
+<span class="c">#             self.locals = list(locals)</span>
+<span class="c">#         if ident_func is not None:</span>
+<span class="c">#             self.ident_func = ident_func</span>
+<span class="c">#             for local in self.locals:</span>
+<span class="c">#                 object.__setattr__(local, &#39;__ident_func__&#39;, ident_func)</span>
+<span class="c">#         else:</span>
+<span class="c">#             self.ident_func = get_ident</span>
+
+<span class="c">#     def get_ident(self):</span>
+<span class="c">#         &quot;&quot;&quot;Return the context identifier the local objects use internally for</span>
+<span class="c">#         this context.  You cannot override this method to change the behavior</span>
+<span class="c">#         but use it to link other context local objects (such as SQLAlchemy&#39;s</span>
+<span class="c">#         scoped sessions) to the Werkzeug locals.</span>
+
+<span class="c">#         .. versionchanged:: 0.7</span>
+<span class="c">#            You can pass a different ident function to the local manager that</span>
+<span class="c">#            will then be propagated to all the locals passed to the</span>
+<span class="c">#            constructor.</span>
+<span class="c">#         &quot;&quot;&quot;</span>
+<span class="c">#         return self.ident_func()</span>
+
+<span class="c">#     def cleanup(self):</span>
+<span class="c">#         &quot;&quot;&quot;Manually clean up the data in the locals for this context.  Call</span>
+<span class="c">#         this at the end of the request or use `make_middleware()`.</span>
+<span class="c">#         &quot;&quot;&quot;</span>
+<span class="c">#         for local in self.locals:</span>
+<span class="c">#             release_local(local)</span>
+
+<span class="c">#     def make_middleware(self, app):</span>
+<span class="c">#         &quot;&quot;&quot;Wrap a WSGI application so that cleaning up happens after</span>
+<span class="c">#         request end.</span>
+<span class="c">#         &quot;&quot;&quot;</span>
+<span class="c">#         def application(environ, start_response):</span>
+<span class="c">#             return ClosingIterator(app(environ, start_response), self.cleanup)  # noqa</span>
+<span class="c">#         return application</span>
+
+<span class="c">#     def middleware(self, func):</span>
+<span class="c">#         &quot;&quot;&quot;Like `make_middleware` but for decorating functions.</span>
+
+<span class="c">#         Example usage::</span>
+
+<span class="c">#             @manager.middleware</span>
+<span class="c">#             def application(environ, start_response):</span>
+<span class="c">#                 ...</span>
+
+<span class="c">#         The difference to `make_middleware` is that the function passed</span>
+<span class="c">#         will have all the arguments copied from the inner application</span>
+<span class="c">#         (name, docstring, module).</span>
+<span class="c">#         &quot;&quot;&quot;</span>
+<span class="c">#         return update_wrapper(self.make_middleware(func), func)</span>
+
+<span class="c">#     def __repr__(self):</span>
+<span class="c">#         return &#39;&lt;%s storages: %d&gt;&#39; % (</span>
+<span class="c">#             self.__class__.__name__,</span>
+<span class="c">#             len(self.locals)</span>
+<span class="c">#         )</span>
+
+</div></div>
+<span class="nd">@implements_bool</span>
+<div class="viewcode-block" id="LocalProxy"><a class="viewcode-back" href="../../../api/utils/local.html#jobcontrol.utils.local.LocalProxy">[docs]</a><span class="k">class</span> <span class="nc">LocalProxy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Acts as a proxy for a werkzeug local.  Forwards all operations to</span>
+<span class="sd">    a proxied object.  The only operations not supported for forwarding</span>
+<span class="sd">    are right handed operands and any kind of assignment.</span>
+
+<span class="sd">    Example usage::</span>
+
+<span class="sd">        from werkzeug.local import Local</span>
+<span class="sd">        l = Local()</span>
+
+<span class="sd">        # these are proxies</span>
+<span class="sd">        request = l(&#39;request&#39;)</span>
+<span class="sd">        user = l(&#39;user&#39;)</span>
+
+
+<span class="sd">        from werkzeug.local import LocalStack</span>
+<span class="sd">        _response_local = LocalStack()</span>
+
+<span class="sd">        # this is a proxy</span>
+<span class="sd">        response = _response_local()</span>
+
+<span class="sd">    Whenever something is bound to l.user / l.request the proxy objects</span>
+<span class="sd">    will forward all operations.  If no object is bound a :exc:`RuntimeError`</span>
+<span class="sd">    will be raised.</span>
+
+<span class="sd">    To create proxies to :class:`Local` or :class:`LocalStack` objects,</span>
+<span class="sd">    call the object as shown above.  If you want to have a proxy to an</span>
+<span class="sd">    object looked up by a function, you can (as of Werkzeug 0.6.1) pass</span>
+<span class="sd">    a function to the :class:`LocalProxy` constructor::</span>
+
+<span class="sd">        session = LocalProxy(lambda: get_current_request().session)</span>
+
+<span class="sd">    .. versionchanged:: 0.6.1</span>
+<span class="sd">       The class can be instanciated with a callable as well now.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;__local&#39;</span><span class="p">,</span> <span class="s">&#39;__dict__&#39;</span><span class="p">,</span> <span class="s">&#39;__name__&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="nb">object</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_LocalProxy__local&#39;</span><span class="p">,</span> <span class="n">local</span><span class="p">)</span>
+        <span class="nb">object</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;__name__&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_current_object</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the current object.  This is useful if you want the real</span>
+<span class="sd">        object behind the proxy at a time for performance reasons or because</span>
+<span class="sd">        you want to pass the object into a different context.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__local</span><span class="p">,</span> <span class="s">&#39;__release_local__&#39;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__local</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__local</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;no object bound to </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">__dict__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span><span class="o">.</span><span class="n">__dict__</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s">&#39;__dict__&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;&lt;</span><span class="si">%s</span><span class="s"> unbound&gt;&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__bool__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">unicode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__dir__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&#39;__members__&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">(),</span> <span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">__delitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">PY2</span><span class="p">:</span>
+        <span class="n">__getslice__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span>
+
+        <span class="k">def</span> <span class="nf">__setslice__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">seq</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">seq</span>
+
+        <span class="k">def</span> <span class="nf">__delslice__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">):</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span>
+
+    <span class="n">__setattr__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="nb">setattr</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">(),</span> <span class="n">n</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+    <span class="n">__delattr__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">delattr</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">(),</span> <span class="n">n</span><span class="p">)</span>
+    <span class="n">__str__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__lt__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">o</span>
+    <span class="n">__le__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="n">o</span>
+    <span class="n">__eq__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">==</span> <span class="n">o</span>
+    <span class="n">__ne__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">!=</span> <span class="n">o</span>
+    <span class="n">__gt__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">o</span>
+    <span class="n">__ge__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">o</span>
+    <span class="n">__cmp__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="nb">cmp</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">(),</span> <span class="n">o</span><span class="p">)</span>
+    <span class="n">__hash__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">hash</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__call__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()(</span><span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+    <span class="n">__len__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__getitem__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">i</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">__iter__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">iter</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__contains__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">i</span><span class="p">:</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span>
+    <span class="n">__add__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">+</span> <span class="n">o</span>
+    <span class="n">__sub__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">-</span> <span class="n">o</span>
+    <span class="n">__mul__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">*</span> <span class="n">o</span>
+    <span class="n">__floordiv__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">//</span> <span class="n">o</span>
+    <span class="n">__mod__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">%</span> <span class="n">o</span>
+    <span class="n">__divmod__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span><span class="o">.</span><span class="n">__divmod__</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+    <span class="n">__pow__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">**</span> <span class="n">o</span>
+    <span class="n">__lshift__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">&lt;&lt;</span> <span class="n">o</span>
+    <span class="n">__rshift__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">&gt;&gt;</span> <span class="n">o</span>
+    <span class="n">__and__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">o</span>
+    <span class="n">__xor__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">^</span> <span class="n">o</span>
+    <span class="n">__or__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span> <span class="o">|</span> <span class="n">o</span>
+    <span class="n">__div__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span><span class="o">.</span><span class="n">__div__</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+    <span class="n">__truediv__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span><span class="o">.</span><span class="n">__truediv__</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+    <span class="n">__neg__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__pos__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">+</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__abs__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">abs</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__invert__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">~</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__complex__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">complex</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__int__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__long__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">long</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__float__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__oct__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">oct</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__hex__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">hex</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">())</span>
+    <span class="n">__index__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span><span class="o">.</span><span class="n">__index__</span><span class="p">()</span>
+    <span class="n">__coerce__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span><span class="o">.</span><span class="n">__coerce__</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">)</span>
+    <span class="n">__enter__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span><span class="o">.</span><span class="n">__enter__</span><span class="p">()</span>
+    <span class="n">__exit__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span><span class="o">.</span><span class="n">__exit__</span><span class="p">(</span><span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+    <span class="n">__radd__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">o</span> <span class="o">+</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span>
+    <span class="n">__rsub__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">o</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span>
+    <span class="n">__rmul__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">o</span> <span class="o">*</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span>
+    <span class="n">__rdiv__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">o</span> <span class="o">/</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">PY2</span><span class="p">:</span>
+        <span class="n">__rtruediv__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span><span class="o">.</span><span class="n">__rtruediv__</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">__rtruediv__</span> <span class="o">=</span> <span class="n">__rdiv__</span>
+    <span class="n">__rfloordiv__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">o</span> <span class="o">//</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span>
+    <span class="n">__rmod__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">o</span> <span class="o">%</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span>
+    <span class="n">__rdivmod__</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span><span class="o">.</span><span class="n">__rdivmod__</span><span class="p">(</span><span class="n">o</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../utils.html" >jobcontrol.utils</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,304 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.utils &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../../index.html" />
+    <link rel="up" title="jobcontrol" href="../index.html" />
+    <link rel="next" title="jobcontrol.utils.depgraph" href="depgraph.html" />
+    <link rel="prev" title="jobcontrol.job_conf" href="../job_conf.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="depgraph.html" title="jobcontrol.utils.depgraph"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../job_conf.html" title="jobcontrol.job_conf"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">jobcontrol</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="jobcontrol-utils">
+<h1>jobcontrol.utils<a class="headerlink" href="#jobcontrol-utils" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="depgraph.html">jobcontrol.utils.depgraph</a></li>
+<li class="toctree-l1"><a class="reference internal" href="local.html">jobcontrol.utils.local</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="local.html#werkzeug-local">werkzeug.local</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">jobcontrol.utils.testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="web.html">jobcontrol.utils.web</a></li>
+</ul>
+</div>
+<span class="target" id="module-jobcontrol.utils"></span><dl class="class">
+<dt id="jobcontrol.utils.cached_property">
+<em class="property">class </em><tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">cached_property</tt><big>(</big><em>func</em>, <em>name=None</em>, <em>doc=None</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#cached_property"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.cached_property" title="Permalink to this definition">¶</a></dt>
+<dd><p>A decorator that converts a function into a lazy property.  The
+function wrapped is called the first time to retrieve the result
+and then that calculated result is used the next time you access
+the value:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Foo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="nd">@cached_property</span>
+    <span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># calculate something important here</span>
+        <span class="k">return</span> <span class="mi">42</span>
+</pre></div>
+</div>
+<p>The class has to have a <cite>__dict__</cite> in order for this property to
+work.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.import_object">
+<tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">import_object</tt><big>(</big><em>name</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#import_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.import_object" title="Permalink to this definition">¶</a></dt>
+<dd><p>Import an object from a module, by name.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> &#8211; The object name, in the <tt class="docutils literal"><span class="pre">package.module:name</span></tt> format.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The imported object</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.get_storage_from_url">
+<tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">get_storage_from_url</tt><big>(</big><em>url</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#get_storage_from_url"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.get_storage_from_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a storage from URL.</p>
+<p>Storages URLs are in the format:</p>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">&lt;scheme&gt;://</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">&lt;class&gt;+&lt;scheme&gt;://</span></tt> Load &lt;class&gt;, pass the URL removing <tt class="docutils literal"><span class="pre">&lt;class&gt;+</span></tt></li>
+</ul>
+</dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.get_storage_from_config">
+<tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">get_storage_from_config</tt><big>(</big><em>config</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#get_storage_from_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.get_storage_from_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Not implemented yet</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.short_repr">
+<tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">short_repr</tt><big>(</big><em>obj</em>, <em>maxlen=50</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#short_repr"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.short_repr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a &#8220;shortened representation&#8221; of an object; that is, the
+return value of <tt class="docutils literal"><span class="pre">repr(obj)</span></tt> limited to a certain length,
+with a trailing ellipsis <tt class="docutils literal"><span class="pre">'...'</span></tt> if text was truncated.</p>
+<p>This function is mainly used in order to provide a nice representation
+of local variables in <a class="reference internal" href="#jobcontrol.utils.TracebackInfo" title="jobcontrol.utils.TracebackInfo"><tt class="xref py py-class docutils literal"><span class="pre">TracebackInfo</span></tt></a> objects</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.json_dumps">
+<tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">json_dumps</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#json_dumps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.json_dumps" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.trim_string">
+<tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">trim_string</tt><big>(</big><em>s</em>, <em>maxlen=1024</em>, <em>ellps='...'</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#trim_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.trim_string" title="Permalink to this definition">¶</a></dt>
+<dd><p>Trim a string to a maximum length, adding an &#8220;ellipsis&#8221;
+indicator if the string was trimmed</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.utils.FrameInfo">
+<em class="property">class </em><tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">FrameInfo</tt><big>(</big><em>filename</em>, <em>lineno</em>, <em>name</em>, <em>line</em>, <em>locs</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#FrameInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.FrameInfo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.utils.TracebackInfo">
+<em class="property">class </em><tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">TracebackInfo</tt><a class="reference internal" href="../../_modules/jobcontrol/utils.html#TracebackInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.TracebackInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class used to hold information about an error traceback.</p>
+<p>This is meant to be serialized &amp; stored in the database, instead
+of a full traceback object, which is <em>not</em> serializable.</p>
+<p>It holds information about:</p>
+<ul class="simple">
+<li>the exception that caused the thing to fail</li>
+<li>the stack frames (with file / line number, function and exact code
+around the point in which the exception occurred)</li>
+<li>a representation of the local variables for each frame.</li>
+</ul>
+<p>A textual representation of the traceback information may be
+retrieved by using <tt class="docutils literal"><span class="pre">str()</span></tt> or <tt class="docutils literal"><span class="pre">unicode()</span></tt> on the object
+instance.</p>
+<dl class="classmethod">
+<dt id="jobcontrol.utils.TracebackInfo.from_current_exc">
+<em class="property">classmethod </em><tt class="descname">from_current_exc</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#TracebackInfo.from_current_exc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.TracebackInfo.from_current_exc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Instantiate with traceback from <tt class="docutils literal"><span class="pre">sys.exc_info()</span></tt>.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="jobcontrol.utils.TracebackInfo.from_tb">
+<em class="property">classmethod </em><tt class="descname">from_tb</tt><big>(</big><em>tb</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#TracebackInfo.from_tb"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.TracebackInfo.from_tb" title="Permalink to this definition">¶</a></dt>
+<dd><p>Instantiate from a traceback object.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.utils.TracebackInfo.format">
+<tt class="descname">format</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#TracebackInfo.format"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.TracebackInfo.format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format traceback for printing</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.utils.ProgressReport">
+<em class="property">class </em><tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">ProgressReport</tt><big>(</big><em>name</em>, <em>current=None</em>, <em>total=None</em>, <em>status_line=None</em>, <em>children=None</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#ProgressReport"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.ProgressReport" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class used to represent progress reports.</p>
+<p>It supports progress reporting on a multi-level &#8220;tree&#8221; structure;
+each level can have its own progress status, or it will generate
+it automatically by summing up values from children.</p>
+<dl class="attribute">
+<dt id="jobcontrol.utils.ProgressReport.current">
+<tt class="descname">current</tt><a class="reference internal" href="../../_modules/jobcontrol/utils.html#ProgressReport.current"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.ProgressReport.current" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.utils.ProgressReport.total">
+<tt class="descname">total</tt><a class="reference internal" href="../../_modules/jobcontrol/utils.html#ProgressReport.total"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.ProgressReport.total" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.utils.ProgressReport.percent">
+<tt class="descname">percent</tt><a class="reference internal" href="../../_modules/jobcontrol/utils.html#ProgressReport.percent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.ProgressReport.percent" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.utils.ProgressReport.percent_human">
+<tt class="descname">percent_human</tt><a class="reference internal" href="../../_modules/jobcontrol/utils.html#ProgressReport.percent_human"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.ProgressReport.percent_human" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.utils.ProgressReport.progress_label">
+<tt class="descname">progress_label</tt><a class="reference internal" href="../../_modules/jobcontrol/utils.html#ProgressReport.progress_label"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.ProgressReport.progress_label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.utils.ProgressReport.color_css_rgb">
+<tt class="descname">color_css_rgb</tt><a class="reference internal" href="../../_modules/jobcontrol/utils.html#ProgressReport.color_css_rgb"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.ProgressReport.color_css_rgb" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="jobcontrol.utils.ProgressReport.from_table">
+<em class="property">classmethod </em><tt class="descname">from_table</tt><big>(</big><em>table</em>, <em>base_name=None</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#ProgressReport.from_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.ProgressReport.from_table" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>table</strong> &#8211; <p>a list of tuples: (name, current, total, status_line).</p>
+<ul class="simple">
+<li>If there is a tuple with <tt class="docutils literal"><span class="pre">name</span> <span class="pre">==</span> <span class="pre">None</span></tt> -&gt; use
+as the object&#8217;s current/total report</li>
+<li>Find all the &#8220;namespaces&#8221; and use to build progress
+sub-objects</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../job_conf.html"
+                        title="previous chapter">jobcontrol.job_conf</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="depgraph.html"
+                        title="next chapter">jobcontrol.utils.depgraph</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/api/utils/index.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="depgraph.html" title="jobcontrol.utils.depgraph"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../job_conf.html" title="jobcontrol.job_conf"
+             >previous</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" >jobcontrol</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

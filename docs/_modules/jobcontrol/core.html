@@ -1,0 +1,991 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.core &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for jobcontrol.core</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Objects responsible for JobControl core functionality.</span>
+
+<span class="sd">.. note::</span>
+
+<span class="sd">    Important objects from this module should be imported in</span>
+<span class="sd">    main __init___, in order to &quot;abstract away&quot; the namespace</span>
+<span class="sd">    and have them in a more nicely accessible place.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">timedelta</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">escape</span>
+
+<span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">_execution_ctx_stack</span>
+<span class="kn">from</span> <span class="nn">jobcontrol.exceptions</span> <span class="kn">import</span> <span class="n">MissingDependencies</span><span class="p">,</span> <span class="n">SkipBuild</span><span class="p">,</span> <span class="n">NotFound</span>
+<span class="kn">from</span> <span class="nn">jobcontrol.utils</span> <span class="kn">import</span> <span class="n">import_object</span><span class="p">,</span> <span class="n">cached_property</span>
+<span class="kn">from</span> <span class="nn">jobcontrol.utils.depgraph</span> <span class="kn">import</span> <span class="n">resolve_deps</span>
+<span class="kn">from</span> <span class="nn">jobcontrol.job_conf</span> <span class="kn">import</span> <span class="n">JobControlConfigMgr</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;jobcontrol&#39;</span><span class="p">)</span>
+
+
+<span class="n">_secs</span> <span class="o">=</span> <span class="k">lambda</span> <span class="o">**</span><span class="n">kw</span><span class="p">:</span> <span class="n">timedelta</span><span class="p">(</span><span class="o">**</span><span class="n">kw</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
+<span class="n">_year</span> <span class="o">=</span> <span class="mf">365.25</span>  <span class="c"># days in a year</span>
+<span class="n">_month</span> <span class="o">=</span> <span class="n">_year</span> <span class="o">/</span> <span class="mi">12</span>  <span class="c"># days in a month</span>
+
+
+<span class="n">DEFAULT_LOG_RETENTION_POLICY</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">:</span> <span class="n">_secs</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">15</span><span class="p">),</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">:</span> <span class="n">_secs</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">_month</span><span class="p">),</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">:</span> <span class="n">_secs</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">_month</span> <span class="o">*</span> <span class="mi">3</span><span class="p">),</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">:</span> <span class="n">_secs</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">_month</span> <span class="o">*</span> <span class="mi">6</span><span class="p">),</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">CRITICAL</span><span class="p">:</span> <span class="n">_secs</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">_month</span> <span class="o">*</span> <span class="mi">6</span><span class="p">),</span>
+    <span class="bp">None</span><span class="p">:</span> <span class="n">_secs</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">_year</span><span class="p">),</span>  <span class="c"># Any level</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="JobControl"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControl">[docs]</a><span class="k">class</span> <span class="nc">JobControl</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The main JobControl class&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">storage</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="n">storage</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">JobControlConfigMgr</span><span class="p">):</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="n">JobControlConfigMgr</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="JobControl.from_config_file"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControl.from_config_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_config_file</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">config_file</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize JobControl by loading configuration from a file.</span>
+<span class="sd">        Will also initialize storage taking values from the configuration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">config</span> <span class="o">=</span> <span class="n">JobControlConfigMgr</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">cls</span><span class="p">(</span><span class="n">storage</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">get_storage</span><span class="p">(),</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="JobControl.from_config"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControl.from_config">[docs]</a>    <span class="k">def</span> <span class="nf">from_config</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize JobControl from some configuration.</span>
+
+<span class="sd">        :param config:</span>
+<span class="sd">            Either a :py:class:`jobcontrol.job_conf.JobControlConfigMgr`</span>
+<span class="sd">            instance, or a dict to be passed as argument to constructor.</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">            a :py:class:`JobControl` instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">JobControlConfigMgr</span><span class="p">):</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="n">JobControlConfigMgr</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">cls</span><span class="p">(</span><span class="n">storage</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">get_storage</span><span class="p">(),</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj</span>
+</div>
+<div class="viewcode-block" id="JobControl.get_job"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControl.get_job">[docs]</a>    <span class="k">def</span> <span class="nf">get_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a job, by id.</span>
+
+<span class="sd">        :param job_id: The job id</span>
+<span class="sd">        :return:</span>
+<span class="sd">            a :py:class:`JobInfo` class instance associated with the</span>
+<span class="sd">            requested job.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">job_cfg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">job_cfg</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NotFound</span><span class="p">(</span><span class="s">&#39;No such job: {0!r}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">JobInfo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">job_cfg</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobControl.iter_jobs"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControl.iter_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">iter_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generator yielding all the jobs, one by one.</span>
+
+<span class="sd">        :yields:</span>
+<span class="sd">            for each job, a :py:class:`JobInfo` class instance associated</span>
+<span class="sd">            with the job.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">iter_jobs</span><span class="p">():</span>
+            <span class="k">yield</span> <span class="n">JobInfo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">],</span> <span class="n">config</span><span class="o">=</span><span class="n">job</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobControl.get_build"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControl.get_build">[docs]</a>    <span class="k">def</span> <span class="nf">get_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a build, by id.</span>
+
+<span class="sd">        :return: a :py:class:`BuildInfo` instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">build</span> <span class="o">=</span> <span class="n">BuildInfo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">)</span>
+        <span class="n">build</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>  <span class="c"># To get 404 early..</span>
+        <span class="k">return</span> <span class="n">build</span>
+</div>
+<div class="viewcode-block" id="JobControl.create_build"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControl.create_build">[docs]</a>    <span class="k">def</span> <span class="nf">create_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a build from a job configuration.</span>
+
+<span class="sd">        Currently, we require that all the dependencies have already</span>
+<span class="sd">        been built; in the future, it will be possible to build them</span>
+<span class="sd">        automatically.</span>
+
+<span class="sd">        Also, current implementation doesn&#39;t allow for customizations</span>
+<span class="sd">        to either the job configuration nor the build one (pinning,</span>
+<span class="sd">        dep/revdep building, ...).</span>
+
+<span class="sd">        :param job_id:</span>
+<span class="sd">            Id of the job for which to start a build</span>
+<span class="sd">        :return: a :py:class:`BuildInfo` instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="n">build_config</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;build_deps&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+            <span class="s">&#39;build_revdeps&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+            <span class="s">&#39;dependency_builds&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="p">}</span>
+
+        <span class="c"># Make sure all dependencies have a successful build.</span>
+        <span class="c"># Otherwise, raise an exception to abort everything.</span>
+
+        <span class="k">for</span> <span class="n">dep</span> <span class="ow">in</span> <span class="n">job</span><span class="o">.</span><span class="n">get_deps</span><span class="p">():</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dep</span><span class="p">,</span> <span class="n">JobInfo</span><span class="p">)</span>
+
+            <span class="n">dep_build</span> <span class="o">=</span> <span class="n">dep</span><span class="o">.</span><span class="n">get_latest_successful_build</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">dep_build</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">MissingDependencies</span><span class="p">(</span>
+                    <span class="s">&#39;Dependency job {0!r} has no successful builds!&#39;</span><span class="p">)</span>
+
+            <span class="n">build_config</span><span class="p">[</span><span class="s">&#39;dependency_builds&#39;</span><span class="p">][</span><span class="n">dep</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">dep_build</span><span class="o">.</span><span class="n">id</span>
+
+        <span class="c"># Actually create a record for this build</span>
+        <span class="n">build_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">create_build</span><span class="p">(</span>
+            <span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_config</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="n">build_config</span><span class="o">=</span><span class="n">build_config</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_build</span><span class="p">(</span><span class="n">build_id</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobControl.build_job"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControl.build_job">[docs]</a>    <span class="k">def</span> <span class="nf">build_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create and run a new build for the specified job</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">build</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_build</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_build</span><span class="p">(</span><span class="n">build</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobControl.run_build"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControl.run_build">[docs]</a>    <span class="k">def</span> <span class="nf">run_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Actually run a build.</span>
+
+<span class="sd">        - take the build configuration</span>
+<span class="sd">        - make sure all the dependencies are built</span>
+<span class="sd">        - take return values from the dependencies -&gt; pass as arguments</span>
+<span class="sd">        - run the build</span>
+<span class="sd">        - build the reverse dependencies as well, if required to do so</span>
+
+<span class="sd">        :param build_id: either a :py:class:`BuildInfo` instance, or a build id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">build_id</span><span class="p">,</span> <span class="n">BuildInfo</span><span class="p">):</span>
+            <span class="n">build</span> <span class="o">=</span> <span class="n">build_id</span>
+            <span class="n">build_id</span> <span class="o">=</span> <span class="n">build_id</span><span class="o">.</span><span class="n">id</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">build</span> <span class="o">=</span> <span class="n">BuildInfo</span><span class="p">(</span><span class="n">app</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">build_id</span><span class="o">=</span><span class="n">build_id</span><span class="p">)</span>
+
+        <span class="n">build</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>  <span class="c"># Make sure we have up-to-date information</span>
+
+        <span class="c"># Make sure the log handler is installed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_install_log_handler</span><span class="p">()</span>
+
+        <span class="c"># Actually run the build</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_build</span><span class="p">(</span><span class="n">build</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_run_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">build</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">jobcontrol.job_conf</span> <span class="kn">import</span> <span class="n">prepare_args</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Starting execution of job {0} / build {1}&#39;</span>
+                    <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">build</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">build</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+
+        <span class="n">log_prefix</span> <span class="o">=</span> <span class="s">&#39;[job: {0}, build: {1}] &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">build</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">build</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+        <span class="c"># Mark the build as started</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">start_build</span><span class="p">(</span><span class="n">build</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+        <span class="c"># Create and push the global context</span>
+        <span class="n">ctx</span> <span class="o">=</span> <span class="n">JobExecutionContext</span><span class="p">(</span>
+            <span class="n">app</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="o">=</span><span class="n">build</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">build_id</span><span class="o">=</span><span class="n">build</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">push</span><span class="p">()</span>
+
+        <span class="c"># note: from now on, we must make sure the context is popped</span>
+        <span class="c">#       no matter what -&gt; no risky code must be executed outside</span>
+        <span class="c">#       the &quot;try&quot; block below.</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">function</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_runner_function</span><span class="p">(</span><span class="n">build</span><span class="o">.</span><span class="n">job_config</span><span class="p">[</span><span class="s">&#39;function&#39;</span><span class="p">])</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">log_prefix</span> <span class="o">+</span> <span class="s">&#39;Function is {0!r}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">function</span><span class="p">))</span>
+
+            <span class="n">args</span> <span class="o">=</span> <span class="n">prepare_args</span><span class="p">(</span><span class="n">build</span><span class="o">.</span><span class="n">job_config</span><span class="p">[</span><span class="s">&#39;args&#39;</span><span class="p">],</span> <span class="n">build</span><span class="p">)</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="n">prepare_args</span><span class="p">(</span><span class="n">build</span><span class="o">.</span><span class="n">job_config</span><span class="p">[</span><span class="s">&#39;kwargs&#39;</span><span class="p">],</span> <span class="n">build</span><span class="p">)</span>
+
+            <span class="c"># Run!</span>
+            <span class="n">retval</span> <span class="o">=</span> <span class="n">function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+            <span class="c"># todo: what if the function is a generator? Should we iterate it</span>
+            <span class="c">#       or just leave it alone?</span>
+
+        <span class="k">except</span> <span class="n">SkipBuild</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">log_prefix</span> <span class="o">+</span> <span class="s">&#39;Build SKIPPED&#39;</span><span class="p">)</span>
+
+            <span class="c"># Indicates no need to build this..</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">finish_build</span><span class="p">(</span>
+                <span class="n">build</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">success</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">skipped</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">retval</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                <span class="n">exception</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">log_prefix</span> <span class="o">+</span> <span class="s">&#39;Build FAILED&#39;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">finish_build</span><span class="p">(</span>
+                <span class="n">build</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">success</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">skipped</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">retval</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                <span class="n">exception</span><span class="o">=</span><span class="n">exc</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">())</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">log_prefix</span> <span class="o">+</span> <span class="s">&#39;Build SUCCESSFUL&#39;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">finish_build</span><span class="p">(</span>
+                <span class="n">build</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">success</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">skipped</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">retval</span><span class="o">=</span><span class="n">retval</span><span class="p">,</span>
+                <span class="n">exception</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="c"># POP context from the stack</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_create_job_depgraph</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">complete</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="n">processed</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">DEPGRAPH</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">def</span> <span class="nf">_explore_deps</span><span class="p">(</span><span class="n">jid</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">jid</span> <span class="ow">in</span> <span class="n">processed</span><span class="p">:</span>
+                <span class="c"># Already processed</span>
+                <span class="k">return</span>
+
+            <span class="c"># Early, to prevent infinite recursion</span>
+            <span class="n">processed</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">jid</span><span class="p">)</span>
+
+            <span class="n">DEPGRAPH</span><span class="p">[</span><span class="n">jid</span><span class="p">]</span> <span class="o">=</span> <span class="n">deps</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get_job_deps</span><span class="p">(</span><span class="n">jid</span><span class="p">))</span>
+
+            <span class="k">for</span> <span class="n">dep</span> <span class="ow">in</span> <span class="n">deps</span><span class="p">:</span>
+                <span class="n">_explore_deps</span><span class="p">(</span><span class="n">dep</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">complete</span><span class="p">:</span>
+                <span class="n">revdeps</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get_job_revdeps</span><span class="p">(</span><span class="n">jid</span><span class="p">))</span>
+
+                <span class="k">for</span> <span class="n">rdid</span> <span class="ow">in</span> <span class="n">revdeps</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">rdid</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">DEPGRAPH</span><span class="p">:</span>
+                        <span class="n">DEPGRAPH</span><span class="p">[</span><span class="n">rdid</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">if</span> <span class="n">jid</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">DEPGRAPH</span><span class="p">[</span><span class="n">rdid</span><span class="p">]:</span>
+                        <span class="n">DEPGRAPH</span><span class="p">[</span><span class="n">rdid</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">jid</span><span class="p">)</span>
+                    <span class="n">_explore_deps</span><span class="p">(</span><span class="n">rdid</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Building dependency graph for job {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="n">_explore_deps</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">DEPGRAPH</span>
+
+    <span class="k">def</span> <span class="nf">_resolve_deps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">depgraph</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="c"># Allow changing dependency resolution function</span>
+        <span class="k">return</span> <span class="n">resolve_deps</span><span class="p">(</span><span class="n">depgraph</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_latest_successful_build_date</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="n">builds</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">get_job_builds</span><span class="p">(</span>
+            <span class="n">job_id</span><span class="p">,</span> <span class="n">started</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">finished</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">success</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">skipped</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">order</span><span class="o">=</span><span class="s">&#39;desc&#39;</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">builds</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>  <span class="c"># No build!</span>
+        <span class="k">return</span> <span class="n">builds</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s">&#39;end_time&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_get_runner_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Function name must be a string&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Cannot get function for empty name!&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">import_object</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+<div class="viewcode-block" id="JobControl.prune_logs"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControl.prune_logs">[docs]</a>    <span class="k">def</span> <span class="nf">prune_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">policy</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">policy</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">policy</span> <span class="o">=</span> <span class="n">DEFAULT_LOG_RETENTION_POLICY</span>
+
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">policy</span><span class="p">):</span>
+            <span class="n">max_age</span> <span class="o">=</span> <span class="n">policy</span><span class="p">[</span><span class="n">level</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">prune_log_messages</span><span class="p">(</span><span class="n">max_age</span><span class="o">=</span><span class="n">max_age</span><span class="p">,</span> <span class="n">leve</span><span class="o">=</span><span class="n">level</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_install_log_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">_root_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">_root_logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">_log_handler</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_root_logger</span><span class="o">.</span><span class="n">handlers</span><span class="p">:</span>
+            <span class="n">_root_logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">_log_handler</span><span class="p">)</span>
+
+    <span class="c"># ------------------------------------------------------------</span>
+    <span class="c"># Reporting methods, which require an execution context</span>
+    <span class="c"># to be active.</span>
+    <span class="c"># ------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="JobControl.report_progress"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControl.report_progress">[docs]</a>    <span class="k">def</span> <span class="nf">report_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group_name</span><span class="p">,</span> <span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">status_line</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Report progress for the currently running build.</span>
+
+<span class="sd">        :param group_name:</span>
+<span class="sd">            The report &quot;group name&quot;: either a tuple representing</span>
+<span class="sd">            the &quot;path&quot;, or None for the top-level.</span>
+
+<span class="sd">        :param current:</span>
+<span class="sd">            Current progress</span>
+
+<span class="sd">        :param total:</span>
+<span class="sd">            Total progress</span>
+
+<span class="sd">        :param status_line:</span>
+<span class="sd">            An optional line of text, describing the currently running</span>
+<span class="sd">            operation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">execution_context</span> <span class="k">as</span> <span class="n">ctx</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">report_build_progress</span><span class="p">(</span>
+            <span class="n">build_id</span><span class="o">=</span><span class="n">ctx</span><span class="o">.</span><span class="n">build_id</span><span class="p">,</span>
+            <span class="n">group_name</span><span class="o">=</span><span class="n">group_name</span><span class="p">,</span>
+            <span class="n">current</span><span class="o">=</span><span class="n">current</span><span class="p">,</span>
+            <span class="n">total</span><span class="o">=</span><span class="n">total</span><span class="p">,</span>
+            <span class="n">status_line</span><span class="o">=</span><span class="n">status_line</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="JobExecutionContext"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobExecutionContext">[docs]</a><span class="k">class</span> <span class="nc">JobExecutionContext</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class to hold &quot;global&quot; context during job execution.</span>
+
+<span class="sd">    This class can also act as a context manager for temporary</span>
+<span class="sd">    context:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        with JobExecutionContext(app, job_id, build_id):</span>
+<span class="sd">            pass # do stuff in an execution context</span>
+
+<span class="sd">    :param app: The JobControl instance running jobs</span>
+<span class="sd">    :param job_id: Id of the currently running job</span>
+<span class="sd">    :param build_id: Id of the currently running build</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">build_id</span><span class="p">):</span>
+        <span class="c"># Kwargs: app, job_id, build_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">build_id</span> <span class="o">=</span> <span class="n">build_id</span>
+
+<div class="viewcode-block" id="JobExecutionContext.push"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobExecutionContext.push">[docs]</a>    <span class="k">def</span> <span class="nf">push</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Push this context in the global stack&quot;&quot;&quot;</span>
+        <span class="n">_execution_ctx_stack</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobExecutionContext.pop"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobExecutionContext.pop">[docs]</a>    <span class="k">def</span> <span class="nf">pop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Pop this context from the global stack&quot;&quot;&quot;</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">_execution_ctx_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="n">rv</span> <span class="ow">is</span> <span class="bp">self</span><span class="p">,</span> \
+            <span class="s">&#39;Popped wrong context: {0!r} instead of {1!r}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rv</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">tb</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="JobExecutionContext.current_app"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobExecutionContext.current_app">[docs]</a>    <span class="k">def</span> <span class="nf">current_app</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the currently running app&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span>
+</div>
+    <span class="nd">@cached_property</span>
+<div class="viewcode-block" id="JobExecutionContext.current_job"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobExecutionContext.current_job">[docs]</a>    <span class="k">def</span> <span class="nf">current_job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a :py:class:`JobInfo` instance associated with the</span>
+<span class="sd">        currently running job.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">get_job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+</div>
+    <span class="nd">@cached_property</span>
+<div class="viewcode-block" id="JobExecutionContext.current_build"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobExecutionContext.current_build">[docs]</a>    <span class="k">def</span> <span class="nf">current_build</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a :py:class:`BuildInfo` instance associated with the</span>
+<span class="sd">        currently running build.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">get_build</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">build_id</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="JobControlLogHandler"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControlLogHandler">[docs]</a><span class="k">class</span> <span class="nc">JobControlLogHandler</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">Handler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Logging handler sending messages to the appropriate</span>
+<span class="sd">    JobControl instance that will dispatch them to storage.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">JobControlLogHandler</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="JobControlLogHandler.flush"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControlLogHandler.flush">[docs]</a>    <span class="k">def</span> <span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;No-op, as we don&#39;t need to flush anything&quot;&quot;&quot;</span>
+        <span class="k">pass</span>  <span class="c"># Nothing to flush!</span>
+</div>
+<div class="viewcode-block" id="JobControlLogHandler.emit"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobControlLogHandler.emit">[docs]</a>    <span class="k">def</span> <span class="nf">emit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        &quot;Emit&quot; the log record (if there is an execution context, store</span>
+<span class="sd">        the log record appropriately; otherwise, just ignore it).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">current_app</span><span class="p">,</span> <span class="n">execution_context</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c"># If we have no build, do nothing.</span>
+            <span class="c"># Note that execution_context.build_id should raise an exception</span>
+            <span class="c"># itself, as there will not be any execution_context..</span>
+            <span class="k">if</span> <span class="n">execution_context</span><span class="o">.</span><span class="n">build_id</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c"># Replace traceback with text representation, as traceback</span>
+        <span class="c"># objects cannot be pickled</span>
+        <span class="c"># if record.exc_info is not None:</span>
+        <span class="c">#     tb = traceback.format_exception(*record.exc_info)</span>
+        <span class="c">#     record.exc_info = record.exc_info[0], record.exc_info[1], tb</span>
+
+        <span class="c"># NOTE: This will be done by the storage!</span>
+
+        <span class="n">current_app</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">log_message</span><span class="p">(</span>
+            <span class="n">build_id</span><span class="o">=</span><span class="n">execution_context</span><span class="o">.</span><span class="n">build_id</span><span class="p">,</span>
+            <span class="n">record</span><span class="o">=</span><span class="n">record</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="JobInfo"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo">[docs]</a><span class="k">class</span> <span class="nc">JobInfo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;High-level interface to jobs&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span> <span class="o">=</span> <span class="n">job_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;args&#39;</span><span class="p">:</span> <span class="p">(),</span>
+            <span class="s">&#39;kwargs&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s">&#39;function&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;dependencies&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&#39;&lt;Job {0!r}&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="JobInfo.id"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.id">[docs]</a>    <span class="k">def</span> <span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="JobInfo.config"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.config">[docs]</a>    <span class="k">def</span> <span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span>
+</div>
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+
+<div class="viewcode-block" id="JobInfo.get_deps"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.get_deps">[docs]</a>    <span class="k">def</span> <span class="nf">get_deps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iterate over jobs this job depends upon.</span>
+
+<span class="sd">        :yields: :py:class:`JobInfo` instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">dep_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get_job_deps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">):</span>
+            <span class="n">dep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get_job</span><span class="p">(</span><span class="n">dep_id</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">JobInfo</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="p">,</span> <span class="n">dep</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">],</span> <span class="n">config</span><span class="o">=</span><span class="n">dep</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobInfo.get_status"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.get_status">[docs]</a>    <span class="k">def</span> <span class="nf">get_status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a label describing the current status of the job.</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">          - ``&#39;not_built&#39;`` the job has no builds</span>
+<span class="sd">          - ``&#39;running&#39;`` the job has running builds</span>
+<span class="sd">          - ``&#39;success&#39;`` the job has at least a successful build</span>
+<span class="sd">          - ``&#39;failed&#39;`` the job only has failed builds</span>
+<span class="sd">          - ``&#39;outdated&#39;`` the job has at least a successful build,</span>
+<span class="sd">            but older than one dependency build</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_running_builds</span><span class="p">():</span>
+            <span class="k">return</span> <span class="s">&#39;running&#39;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_builds</span><span class="p">():</span>
+            <span class="k">return</span> <span class="s">&#39;not_built&#39;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_outdated</span><span class="p">():</span>
+            <span class="k">return</span> <span class="s">&#39;outdated&#39;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_successful_builds</span><span class="p">():</span>
+            <span class="k">return</span> <span class="s">&#39;success&#39;</span>
+
+        <span class="k">return</span> <span class="s">&#39;failed&#39;</span>
+</div>
+<div class="viewcode-block" id="JobInfo.get_revdeps"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.get_revdeps">[docs]</a>    <span class="k">def</span> <span class="nf">get_revdeps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iterate over jobs depending on this one</span>
+
+<span class="sd">        :yields: :py:class:`JobInfo` instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">revdep_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get_job_revdeps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">):</span>
+            <span class="n">revdep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get_job</span><span class="p">(</span><span class="n">revdep_id</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">JobInfo</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="p">,</span> <span class="n">revdep</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">],</span> <span class="n">config</span><span class="o">=</span><span class="n">revdep</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobInfo.iter_builds"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.iter_builds">[docs]</a>    <span class="k">def</span> <span class="nf">iter_builds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iterate over builds for this job.</span>
+
+<span class="sd">        Accepts the same arguments as</span>
+<span class="sd">        :py:meth:`jobcontrol.interfaces.StorageBase.get_job_builds`</span>
+
+<span class="sd">        :yields: :py:class:`BuildInfo` instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">build</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">get_job_builds</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">BuildInfo</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="p">,</span> <span class="n">build</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">],</span> <span class="n">info</span><span class="o">=</span><span class="n">build</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobInfo.get_builds"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.get_builds">[docs]</a>    <span class="k">def</span> <span class="nf">get_builds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;DEPRECATED alias for iter_builds()&quot;&quot;&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="ne">DeprecationWarning</span><span class="p">(</span>
+            <span class="s">&#39;The get_builds() method is deprecated. &#39;</span>
+            <span class="s">&#39;Use iter_builds() instead.&#39;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_builds</span><span class="p">(</span><span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+
+    <span class="c"># def create_build(self):</span>
+    <span class="c">#     # Meant for future usage, when builds will support .run()</span>
+    <span class="c">#     build_id = self.app.storage.create_build(self.job_id)</span>
+    <span class="c">#     return BuildInfo(self.app, build_id)</span>
+</div>
+<div class="viewcode-block" id="JobInfo.run"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Trigger run for this job (will automatically create</span>
+<span class="sd">        a build, etc.)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">build_job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobInfo.get_latest_successful_build"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.get_latest_successful_build">[docs]</a>    <span class="k">def</span> <span class="nf">get_latest_successful_build</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get latest successful build for this job, if any.</span>
+<span class="sd">        Otherwise, returns ``None``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">build</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">get_latest_successful_build</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">build</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">return</span> <span class="n">BuildInfo</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="p">,</span> <span class="n">build</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">],</span> <span class="n">info</span><span class="o">=</span><span class="n">build</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobInfo.get_docs"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.get_docs">[docs]</a>    <span class="k">def</span> <span class="nf">get_docs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get documentation for this job.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_job_docs</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="JobInfo.get_conf_as_yaml"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.get_conf_as_yaml">[docs]</a>    <span class="k">def</span> <span class="nf">get_conf_as_yaml</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the job configuration as serialized YAML, mostly</span>
+<span class="sd">        for displaying on user interfaces.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">jobcontrol.job_conf</span> <span class="kn">import</span> <span class="n">dump</span>
+        <span class="k">return</span> <span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="JobInfo.has_builds"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.has_builds">[docs]</a>    <span class="k">def</span> <span class="nf">has_builds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check whether this job has any build.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">builds</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_builds</span><span class="p">(</span>
+            <span class="n">started</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">finished</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s">&#39;desc&#39;</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">builds</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+</div>
+<div class="viewcode-block" id="JobInfo.has_successful_builds"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.has_successful_builds">[docs]</a>    <span class="k">def</span> <span class="nf">has_successful_builds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check whether this job has any successful build.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">builds</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_builds</span><span class="p">(</span>
+            <span class="n">started</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">finished</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">success</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">skipped</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">order</span><span class="o">=</span><span class="s">&#39;desc&#39;</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">builds</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+</div>
+<div class="viewcode-block" id="JobInfo.has_running_builds"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.has_running_builds">[docs]</a>    <span class="k">def</span> <span class="nf">has_running_builds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check whether this job has any running build.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">builds</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_builds</span><span class="p">(</span><span class="n">started</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">finished</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">builds</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+</div>
+<div class="viewcode-block" id="JobInfo.is_outdated"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo.is_outdated">[docs]</a>    <span class="k">def</span> <span class="nf">is_outdated</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check whether any dependency has builds more recent than the newest</span>
+<span class="sd">        build for this job.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">latest_build</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_latest_successful_build</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">latest_build</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>  <span class="c"># Unknown (no build)</span>
+
+        <span class="k">for</span> <span class="n">dep</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_deps</span><span class="p">():</span>
+            <span class="n">_build</span> <span class="o">=</span> <span class="n">dep</span><span class="o">.</span><span class="n">get_latest_successful_build</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">_build</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">None</span>  <span class="c"># Unknown (no dep build) [error!]</span>
+
+            <span class="k">if</span> <span class="n">_build</span><span class="p">[</span><span class="s">&#39;end_time&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">latest_build</span><span class="p">[</span><span class="s">&#39;end_time&#39;</span><span class="p">]:</span>
+                <span class="c"># dependency build is newer</span>
+                <span class="k">return</span> <span class="bp">True</span>
+
+        <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="c"># todo: move all the docs / ... utilities outside this class</span>
+    <span class="c">#       -&gt; maybe move to some &quot;job config&quot; class?</span>
+    <span class="c">#       -&gt; we need them for the job_config in the build as well!</span>
+</div>
+    <span class="k">def</span> <span class="nf">_get_job_docs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">call_code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_call_code</span><span class="p">()</span>
+
+        <span class="n">docs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;call_code&#39;</span><span class="p">:</span> <span class="n">call_code</span><span class="p">,</span>
+            <span class="s">&#39;call_code_html&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_highlight_code_html</span><span class="p">(</span><span class="n">call_code</span><span class="p">),</span>
+        <span class="p">}</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="n">import_object</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s">&#39;function&#39;</span><span class="p">])</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">docs</span><span class="p">[</span><span class="s">&#39;function_doc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">escape</span><span class="p">(</span><span class="s">u&quot;Error: {0!r}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">docs</span><span class="p">[</span><span class="s">&#39;function_doc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_function_doc</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+            <span class="n">docs</span><span class="p">[</span><span class="s">&#39;function_argspec&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_function_argspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+            <span class="n">docs</span><span class="p">[</span><span class="s">&#39;function_argspec_human&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">_make_human_argspec</span><span class="p">(</span><span class="n">docs</span><span class="p">[</span><span class="s">&#39;function_argspec&#39;</span><span class="p">])</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">docs</span><span class="p">[</span><span class="s">&#39;function_module&#39;</span><span class="p">],</span> <span class="n">docs</span><span class="p">[</span><span class="s">&#39;function_name&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="bp">self</span><span class="p">[</span><span class="s">&#39;function&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">docs</span><span class="p">[</span><span class="s">&#39;function_module&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;???&#39;</span>
+            <span class="n">docs</span><span class="p">[</span><span class="s">&#39;function_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;function&#39;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">docs</span>
+
+    <span class="k">def</span> <span class="nf">_get_call_code</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">module</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;function&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;# Invalid function: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s">&#39;function&#39;</span><span class="p">])</span>
+
+        <span class="n">call_args</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;args&#39;</span><span class="p">]:</span>
+            <span class="n">call_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">arg</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s">&#39;kwargs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()):</span>
+            <span class="n">call_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;{0}={1!r}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">call_args</span><span class="p">):</span>
+            <span class="n">_args</span> <span class="o">=</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">    {1}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&quot;,</span><span class="se">\n</span><span class="s">    &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">call_args</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_args</span> <span class="o">=</span> <span class="s">&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
+            <span class="s">&quot;from {0} import {1}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">func</span><span class="p">),</span>
+            <span class="s">&quot;{0}({1})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">_args</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">_highlight_code_html</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">code</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">pygments</span> <span class="kn">import</span> <span class="n">highlight</span>
+        <span class="kn">from</span> <span class="nn">pygments.lexers</span> <span class="kn">import</span> <span class="n">PythonLexer</span>
+        <span class="kn">from</span> <span class="nn">pygments.formatters</span> <span class="kn">import</span> <span class="n">HtmlFormatter</span>
+        <span class="k">return</span> <span class="n">highlight</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">PythonLexer</span><span class="p">(),</span> <span class="n">HtmlFormatter</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">_format_function_doc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">inspect</span>
+        <span class="kn">import</span> <span class="nn">docutils.core</span>
+
+        <span class="n">doc</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getdoc</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">doc</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;No docstring available.&#39;</span>
+        <span class="k">return</span> <span class="n">docutils</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">publish_parts</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="n">writer_name</span><span class="o">=</span><span class="s">&#39;html&#39;</span><span class="p">)[</span><span class="s">&#39;fragment&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_get_function_argspec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="n">aspec</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">aspec</span><span class="o">.</span><span class="n">defaults</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">optargs</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">aspec</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">aspec</span><span class="o">.</span><span class="n">defaults</span><span class="p">):],</span> <span class="n">aspec</span><span class="o">.</span><span class="n">defaults</span><span class="p">)</span>
+            <span class="n">reqargs</span> <span class="o">=</span> <span class="n">aspec</span><span class="o">.</span><span class="n">args</span><span class="p">[:</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">aspec</span><span class="o">.</span><span class="n">defaults</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">optargs</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">reqargs</span> <span class="o">=</span> <span class="n">aspec</span><span class="o">.</span><span class="n">args</span><span class="p">[:]</span>
+
+        <span class="c"># ============================================================ #</span>
+        <span class="c">#   Note:                                                      #</span>
+        <span class="c"># ============================================================ #</span>
+        <span class="c">#                                                              #</span>
+        <span class="c"># Terminology used by the AST is:                              #</span>
+        <span class="c"># - args -&gt; positional arguments                               #</span>
+        <span class="c"># - keywords -&gt; arguments with default values                  #</span>
+        <span class="c"># - startargs -&gt; name of *args                                 #</span>
+        <span class="c"># - kwargs -&gt; name of **kwargs                                 #</span>
+        <span class="c">#                                                              #</span>
+        <span class="c"># Terminology used by inspect is quite different;              #</span>
+        <span class="c"># - varargs -&gt; *args                                           #</span>
+        <span class="c"># - keywords -&gt; **kwargs                                       #</span>
+        <span class="c"># - args -&gt; all the named arguments                            #</span>
+        <span class="c"># - defaults -&gt; default values, for keyword arguments          #</span>
+        <span class="c">#                                                              #</span>
+        <span class="c"># Maybe we should use the AST terminology here, as it better   #</span>
+        <span class="c"># reflect the structure? (the bad part is the different        #</span>
+        <span class="c"># meaning of the &quot;keywords&quot; term here..)                       #</span>
+        <span class="c">#                                                              #</span>
+        <span class="c"># ============================================================ #</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s">&#39;varargs&#39;</span><span class="p">:</span> <span class="n">aspec</span><span class="o">.</span><span class="n">varargs</span><span class="p">,</span>
+            <span class="s">&#39;keywords&#39;</span><span class="p">:</span> <span class="n">aspec</span><span class="o">.</span><span class="n">keywords</span><span class="p">,</span>
+            <span class="s">&#39;reqargs&#39;</span><span class="p">:</span> <span class="n">reqargs</span><span class="p">,</span>
+            <span class="s">&#39;optargs&#39;</span><span class="p">:</span> <span class="n">optargs</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_make_human_argspec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argspec</span><span class="p">):</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">argspec</span><span class="p">[</span><span class="s">&#39;reqargs&#39;</span><span class="p">]:</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">arg</span><span class="p">,</span> <span class="n">default</span> <span class="ow">in</span> <span class="n">argspec</span><span class="p">[</span><span class="s">&#39;optargs&#39;</span><span class="p">]:</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;{0}={1!r}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">default</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">argspec</span><span class="p">[</span><span class="s">&#39;varargs&#39;</span><span class="p">]:</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;*&#39;</span> <span class="o">+</span> <span class="n">argspec</span><span class="p">[</span><span class="s">&#39;varargs&#39;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">argspec</span><span class="p">[</span><span class="s">&#39;keywords&#39;</span><span class="p">]:</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;**&#39;</span> <span class="o">+</span> <span class="n">argspec</span><span class="p">[</span><span class="s">&#39;keywords&#39;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="BuildInfo"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo">[docs]</a><span class="k">class</span> <span class="nc">BuildInfo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    High-level interface to builds.</span>
+
+<span class="sd">    :param app:</span>
+<span class="sd">        The JobControl instance this build was retrieved from</span>
+<span class="sd">    :param build_id:</span>
+<span class="sd">        The build id</span>
+<span class="sd">    :param info:</span>
+<span class="sd">        Optionally, this can be used to pre-populate the build</span>
+<span class="sd">        information (useful, eg. if we are retrieving a bunch</span>
+<span class="sd">        of builds from the database at once).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="n">build_id</span><span class="p">,</span> <span class="n">info</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">build_id</span> <span class="o">=</span> <span class="n">build_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_info</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_info</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_info</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">info</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&#39;&lt;Build {0} (job={1}, status={2})&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">build_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">descriptive_status</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BuildInfo.id"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.id">[docs]</a>    <span class="k">def</span> <span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The build id&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_id</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BuildInfo.job_id"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.job_id">[docs]</a>    <span class="k">def</span> <span class="nf">job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The job id&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s">&#39;job_id&#39;</span><span class="p">]</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BuildInfo.info"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.info">[docs]</a>    <span class="k">def</span> <span class="nf">info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property used to lazily access the build attributes.</span>
+
+<span class="sd">        Returns a dict with the following keys:</span>
+
+<span class="sd">        - ``&#39;id&#39;``</span>
+<span class="sd">        - ``&#39;job_id&#39;``</span>
+<span class="sd">        - ``&#39;start_time&#39;``</span>
+<span class="sd">        - ``&#39;end_time&#39;``</span>
+<span class="sd">        - ``&#39;started&#39;``</span>
+<span class="sd">        - ``&#39;finished&#39;``</span>
+<span class="sd">        - ``&#39;success&#39;``</span>
+<span class="sd">        - ``&#39;skipped&#39;``</span>
+<span class="sd">        - ``&#39;job_config&#39;``</span>
+<span class="sd">        - ``&#39;build_config&#39;``</span>
+<span class="sd">        - ``&#39;retval&#39;``</span>
+<span class="sd">        - ``&#39;exception&#39;``</span>
+<span class="sd">        - ``&#39;exception_tb&#39;``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_info&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_info</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BuildInfo.job_config"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.job_config">[docs]</a>    <span class="k">def</span> <span class="nf">job_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property to access the job configuration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s">&#39;job_config&#39;</span><span class="p">]</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BuildInfo.build_config"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.build_config">[docs]</a>    <span class="k">def</span> <span class="nf">build_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property to access the build configuration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s">&#39;build_config&#39;</span><span class="p">]</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BuildInfo.descriptive_status"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.descriptive_status">[docs]</a>    <span class="k">def</span> <span class="nf">descriptive_status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a label describing the current status of the build.</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">          - ``&#39;CREATED&#39;`` if the build was not started yet</span>
+<span class="sd">          - ``&#39;RUNNING&#39;`` if the build was started but did not finish</span>
+<span class="sd">          - ``&#39;SUCCESSFUL&#39;`` if the build run with success</span>
+<span class="sd">          - ``&#39;SKIPPED&#39;`` if the build was skipped</span>
+<span class="sd">          - ``&#39;FAILED&#39;`` if the build execution failed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;started&#39;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="s">&#39;CREATED&#39;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;finished&#39;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="s">&#39;RUNNING&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;success&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;skipped&#39;</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="s">&#39;SKIPPED&#39;</span>
+            <span class="k">return</span> <span class="s">&#39;SUCCESSFUL&#39;</span>
+        <span class="k">return</span> <span class="s">&#39;FAILED&#39;</span>
+</div>
+<div class="viewcode-block" id="BuildInfo.refresh"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.refresh">[docs]</a>    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Refresh the build status information from database&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">get_build</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">build_id</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="c"># if name not in self.info:</span>
+        <span class="c">#     if name == &#39;progress_info&#39;:</span>
+        <span class="c">#         self._info[&#39;progress_info&#39;] = self.get_progress_info()</span>
+        <span class="c">#         return self._info[&#39;progress_info&#39;]</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+
+<div class="viewcode-block" id="BuildInfo.get_progress_info"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.get_progress_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_progress_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get information about the build progress&quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">jobcontrol.utils</span> <span class="kn">import</span> <span class="n">ProgressReport</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">get_build_progress_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">build_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ProgressReport</span><span class="o">.</span><span class="n">from_table</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BuildInfo.get_job"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.get_job">[docs]</a>    <span class="k">def</span> <span class="nf">get_job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a :py:class:`JobInfo` associated with this build&#39;s job&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">JobInfo</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BuildInfo.delete"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.delete">[docs]</a>    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete all information related to this build from database&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">delete_build</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">build_id</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BuildInfo.run"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calls run_build() on the main app for this build&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_build</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BuildInfo.iter_log_messages"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.BuildInfo.iter_log_messages">[docs]</a>    <span class="k">def</span> <span class="nf">iter_log_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iterate over log messages for this build.</span>
+
+<span class="sd">        Keywords are passed directly to the underlying ``iter_log_messages()``</span>
+<span class="sd">        method of the storage.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">iter_log_messages</span><span class="p">(</span><span class="n">build_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">build_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+
+
+<span class="c"># We need just *one* handler -&gt; create here</span></div></div>
+<span class="n">_log_handler</span> <span class="o">=</span> <span class="n">JobControlLogHandler</span><span class="p">()</span>
+<span class="n">_log_handler</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

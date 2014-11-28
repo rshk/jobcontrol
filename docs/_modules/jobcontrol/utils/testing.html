@@ -1,0 +1,344 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.utils.testing &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../../../index.html" />
+    <link rel="up" title="jobcontrol.utils" href="../utils.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../utils.html" accesskey="U">jobcontrol.utils</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for jobcontrol.utils.testing</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+
+<div class="viewcode-block" id="job_simple_echo"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_simple_echo">[docs]</a><span class="k">def</span> <span class="nf">job_simple_echo</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+
+</div>
+<span class="n">_cached_words</span> <span class="o">=</span> <span class="bp">None</span>
+
+
+<span class="k">def</span> <span class="nf">_get_words</span><span class="p">():</span>
+    <span class="k">global</span> <span class="n">_cached_words</span>
+
+    <span class="k">if</span> <span class="n">_cached_words</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_cached_words</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;/usr/share/dict/words&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+            <span class="n">_cached_words</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">fp</span><span class="p">]</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">_cached_words</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">return</span> <span class="n">_cached_words</span>
+
+
+<span class="k">def</span> <span class="nf">_capfirst</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">+</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+
+
+<span class="k">def</span> <span class="nf">_random_paragraph</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_capfirst</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">_get_words</span><span class="p">(),</span> <span class="n">size</span><span class="p">)))</span>
+
+
+<span class="k">def</span> <span class="nf">_log_random</span><span class="p">(</span><span class="n">logger</span><span class="p">):</span>
+    <span class="n">classes</span> <span class="o">=</span> <span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span> <span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">,</span> <span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">,</span>
+               <span class="n">logging</span><span class="o">.</span><span class="n">CRITICAL</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">num</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">30</span><span class="p">)):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">classes</span><span class="p">),</span>
+                   <span class="n">_random_paragraph</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">)))</span>
+
+
+<div class="viewcode-block" id="testing_job"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.testing_job">[docs]</a><span class="k">def</span> <span class="nf">testing_job</span><span class="p">(</span><span class="n">steps</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">sleep</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">retval</span><span class="o">=</span><span class="s">&#39;DONE&#39;</span><span class="p">,</span> <span class="n">fail</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Job to be used for testing purposes.</span>
+
+<span class="sd">    Provides facilities for simulating various execution scenarios,</span>
+<span class="sd">    such as logging, failures, progress, ..</span>
+
+<span class="sd">    :param steps: How many &quot;steps&quot; this job is composed of</span>
+<span class="sd">    :param sleep: How many seconds to sleep between each &quot;step&quot;</span>
+<span class="sd">    :param retval: What to return</span>
+<span class="sd">    :param fail:</span>
+<span class="sd">        - if ``False``, the build will succeed</span>
+<span class="sd">        - if ``True``, the build will fail</span>
+<span class="sd">        - if an integer, the step at wich the build will fail</span>
+<span class="sd">        - if a float (0 &lt;= x &lt;= 1), the chance of the job failing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">current_app</span><span class="p">,</span> <span class="n">execution_context</span>
+
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">update_progress</span><span class="p">(</span><span class="o">*</span><span class="n">a</span><span class="p">):</span>
+        <span class="n">current_app</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">update_build_progress</span><span class="p">(</span>
+            <span class="n">execution_context</span><span class="o">.</span><span class="n">build_id</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">)</span>
+
+    <span class="n">update_progress</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">_log_random</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="n">update_progress</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">steps</span><span class="p">)</span>
+
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">sleep</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fail</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+            <span class="c"># Float: chance of failing</span>
+            <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="n">fail</span> <span class="o">/</span> <span class="n">steps</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Simulating failure {0:.0f}%&#39;</span>
+                                   <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fail</span> <span class="o">*</span> <span class="mi">100</span><span class="p">))</span>
+
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fail</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">long</span><span class="p">))</span> <span class="ow">and</span> <span class="n">fail</span> <span class="o">==</span> <span class="n">i</span><span class="p">:</span>
+            <span class="c"># Int: where to fail</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Simulating failure at step {0}&#39;</span>
+                               <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fail</span><span class="p">))</span>
+
+    <span class="n">_log_random</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">fail</span> <span class="ow">is</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Simulating failure at end&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="s">&quot;DONE&quot;</span>
+
+</div>
+<div class="viewcode-block" id="job_with_logging"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_with_logging">[docs]</a><span class="k">def</span> <span class="nf">job_with_logging</span><span class="p">():</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;This is a debug message&#39;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;This is a info message&#39;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;This is a warning message&#39;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&#39;This is an error message&#39;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&#39;This is a critical message&#39;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Foobar&#39;</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s">&#39;This is an exception message&#39;</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="job_with_tracer_log"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_with_tracer_log">[docs]</a><span class="k">def</span> <span class="nf">job_with_tracer_log</span><span class="p">():</span>
+    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">execution_context</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Message from job={0}, build={1}&#39;</span>
+                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">execution_context</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span>
+                        <span class="n">execution_context</span><span class="o">.</span><span class="n">build_id</span><span class="p">))</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="job_failing_once"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_failing_once">[docs]</a><span class="k">def</span> <span class="nf">job_failing_once</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This job will fail exactly once; retry will be successful</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">current_job</span>
+    <span class="n">exec_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">current_job</span><span class="o">.</span><span class="n">iter_runs</span><span class="p">()))</span>
+
+    <span class="k">if</span> <span class="n">exec_count</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="c"># This is the first run</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Simulating failure&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">exec_count</span>
+
+</div>
+<div class="viewcode-block" id="job_dep_A"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_dep_A">[docs]</a><span class="k">def</span> <span class="nf">job_dep_A</span><span class="p">():</span>
+    <span class="k">return</span> <span class="s">&#39;A&#39;</span>
+
+</div>
+<div class="viewcode-block" id="job_dep_B"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_dep_B">[docs]</a><span class="k">def</span> <span class="nf">job_dep_B</span><span class="p">():</span>
+    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">current_job</span>
+    <span class="n">dependencies</span> <span class="o">=</span> <span class="n">current_job</span><span class="o">.</span><span class="n">dependencies</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dependencies</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Expected 1 dependency, got {0}&quot;</span>
+                           <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dependencies</span><span class="p">)))</span>
+
+    <span class="n">latest_run</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dependencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">iter_runs</span><span class="p">())[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">latest_run</span><span class="o">.</span><span class="n">get_result</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">res</span> <span class="o">+</span> <span class="s">&#39;B&#39;</span>
+
+</div>
+<div class="viewcode-block" id="job_dep_C"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_dep_C">[docs]</a><span class="k">def</span> <span class="nf">job_dep_C</span><span class="p">():</span>
+    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">current_job</span>
+    <span class="n">dependencies</span> <span class="o">=</span> <span class="n">current_job</span><span class="o">.</span><span class="n">dependencies</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dependencies</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Expected 1 dependency, got {0}&quot;</span>
+                           <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dependencies</span><span class="p">)))</span>
+
+    <span class="n">latest_run</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dependencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">iter_runs</span><span class="p">())[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">latest_run</span><span class="o">.</span><span class="n">get_result</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">res</span> <span class="o">+</span> <span class="s">&#39;C&#39;</span>
+
+</div>
+<div class="viewcode-block" id="job_echo_config"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_echo_config">[docs]</a><span class="k">def</span> <span class="nf">job_echo_config</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Simple job, &quot;echoing&quot; back the current configuration.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">current_job</span><span class="p">,</span> <span class="n">current_build</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s">&#39;args&#39;</span><span class="p">:</span> <span class="n">args</span><span class="p">,</span>
+        <span class="s">&#39;kwargs&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="p">,</span>
+        <span class="s">&#39;build_id&#39;</span><span class="p">:</span> <span class="n">current_build</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+        <span class="s">&#39;job_id&#39;</span><span class="p">:</span> <span class="n">current_job</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+        <span class="s">&#39;dependencies&#39;</span><span class="p">:</span> <span class="n">current_build</span><span class="p">[</span><span class="s">&#39;job_config&#39;</span><span class="p">][</span><span class="s">&#39;dependencies&#39;</span><span class="p">],</span>
+        <span class="s">&#39;job_config&#39;</span><span class="p">:</span> <span class="n">current_build</span><span class="p">[</span><span class="s">&#39;job_config&#39;</span><span class="p">],</span>
+        <span class="s">&#39;build_config&#39;</span><span class="p">:</span> <span class="n">current_build</span><span class="p">[</span><span class="s">&#39;build_config&#39;</span><span class="p">],</span>
+    <span class="p">}</span>
+
+</div>
+<div class="viewcode-block" id="job_with_progress"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_with_progress">[docs]</a><span class="k">def</span> <span class="nf">job_with_progress</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Job to be used for testing purposes.</span>
+
+<span class="sd">    The configuration is a list of tuples: ``(name, steps)``</span>
+<span class="sd">    Progress will be reported in a random order.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">execution_context</span>
+    <span class="kn">import</span> <span class="nn">random</span>
+
+    <span class="n">totals</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">counters</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="n">progress_report_items</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">steps</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="c"># Safe YAML doesn&#39;t have tuples</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">name</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Name must be a tuple or None&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
+            <span class="n">progress_report_items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">totals</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">steps</span>
+        <span class="n">counters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">progress_report_items</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">report_progress</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">cur</span><span class="p">,</span> <span class="n">tot</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">app</span> <span class="o">=</span> <span class="n">execution_context</span><span class="o">.</span><span class="n">current_app</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">report_progress</span><span class="p">(</span>
+            <span class="n">group_name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">current</span><span class="o">=</span><span class="n">cur</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">tot</span><span class="p">,</span>
+            <span class="n">status_line</span><span class="o">=</span><span class="n">status</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">progress_report_items</span><span class="p">:</span>
+        <span class="n">counters</span><span class="p">[</span><span class="n">item</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">report_progress</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">counters</span><span class="p">[</span><span class="n">item</span><span class="p">],</span> <span class="n">totals</span><span class="p">[</span><span class="n">item</span><span class="p">],</span>
+                        <span class="s">&#39;Doing action {0} [{1}/{2}]&#39;</span>
+                        <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">counters</span><span class="p">[</span><span class="n">item</span><span class="p">],</span> <span class="n">totals</span><span class="p">[</span><span class="n">item</span><span class="p">]))</span>
+
+</div>
+<div class="viewcode-block" id="RecordingLogHandler"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.RecordingLogHandler">[docs]</a><span class="k">class</span> <span class="nc">RecordingLogHandler</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">Handler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Log handler that records messages&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">RecordingLogHandler</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_messages</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="RecordingLogHandler.flush"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.RecordingLogHandler.flush">[docs]</a>    <span class="k">def</span> <span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>  <span class="c"># Nothing to flush!</span>
+</div>
+<div class="viewcode-block" id="RecordingLogHandler.emit"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.RecordingLogHandler.emit">[docs]</a>    <span class="k">def</span> <span class="nf">emit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="RecordingLogHandler.print_messages"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.RecordingLogHandler.print_messages">[docs]</a>    <span class="k">def</span> <span class="nf">print_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">nicelog.formatters</span> <span class="kn">import</span> <span class="n">ColorLineFormatter</span>
+        <span class="n">formatter</span> <span class="o">=</span> <span class="n">ColorLineFormatter</span><span class="p">(</span>
+            <span class="n">show_date</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">show_function</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">show_filename</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">message_inline</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_messages</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">formatter</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="RecordingLogHandler.clear_messages"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.RecordingLogHandler.clear_messages">[docs]</a>    <span class="k">def</span> <span class="nf">clear_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_messages</span> <span class="o">=</span> <span class="p">[]</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../utils.html" >jobcontrol.utils</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

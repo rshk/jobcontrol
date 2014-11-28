@@ -1,0 +1,621 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.core &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../index.html" />
+    <link rel="up" title="jobcontrol" href="index.html" />
+    <link rel="next" title="jobcontrol.exceptions" href="exceptions.html" />
+    <link rel="prev" title="jobcontrol" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="exceptions.html" title="jobcontrol.exceptions"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="jobcontrol"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">jobcontrol</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-jobcontrol.core">
+<span id="jobcontrol-core"></span><h1>jobcontrol.core<a class="headerlink" href="#module-jobcontrol.core" title="Permalink to this headline">¶</a></h1>
+<p>Objects responsible for JobControl core functionality.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Important objects from this module should be imported in
+main __init___, in order to &#8220;abstract away&#8221; the namespace
+and have them in a more nicely accessible place.</p>
+</div>
+<dl class="class">
+<dt id="jobcontrol.core.JobControl">
+<em class="property">class </em><tt class="descclassname">jobcontrol.core.</tt><tt class="descname">JobControl</tt><big>(</big><em>storage</em>, <em>config</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl" title="Permalink to this definition">¶</a></dt>
+<dd><p>The main JobControl class</p>
+<dl class="classmethod">
+<dt id="jobcontrol.core.JobControl.from_config_file">
+<em class="property">classmethod </em><tt class="descname">from_config_file</tt><big>(</big><em>config_file</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.from_config_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.from_config_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize JobControl by loading configuration from a file.
+Will also initialize storage taking values from the configuration.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="jobcontrol.core.JobControl.from_config">
+<em class="property">classmethod </em><tt class="descname">from_config</tt><big>(</big><em>config</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.from_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.from_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize JobControl from some configuration.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>config</strong> &#8211; Either a <a class="reference internal" href="job_conf.html#jobcontrol.job_conf.JobControlConfigMgr" title="jobcontrol.job_conf.JobControlConfigMgr"><tt class="xref py py-class docutils literal"><span class="pre">jobcontrol.job_conf.JobControlConfigMgr</span></tt></a>
+instance, or a dict to be passed as argument to constructor.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#jobcontrol.core.JobControl" title="jobcontrol.core.JobControl"><tt class="xref py py-class docutils literal"><span class="pre">JobControl</span></tt></a> instance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobControl.get_job">
+<tt class="descname">get_job</tt><big>(</big><em>job_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.get_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.get_job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a job, by id.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>job_id</strong> &#8211; The job id</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#jobcontrol.core.JobInfo" title="jobcontrol.core.JobInfo"><tt class="xref py py-class docutils literal"><span class="pre">JobInfo</span></tt></a> class instance associated with the
+requested job.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobControl.iter_jobs">
+<tt class="descname">iter_jobs</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.iter_jobs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.iter_jobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generator yielding all the jobs, one by one.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Yields:</th><td class="field-body">for each job, a <a class="reference internal" href="#jobcontrol.core.JobInfo" title="jobcontrol.core.JobInfo"><tt class="xref py py-class docutils literal"><span class="pre">JobInfo</span></tt></a> class instance associated
+with the job.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobControl.get_build">
+<tt class="descname">get_build</tt><big>(</big><em>build_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.get_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.get_build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a build, by id.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#jobcontrol.core.BuildInfo" title="jobcontrol.core.BuildInfo"><tt class="xref py py-class docutils literal"><span class="pre">BuildInfo</span></tt></a> instance.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobControl.create_build">
+<tt class="descname">create_build</tt><big>(</big><em>job_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.create_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.create_build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a build from a job configuration.</p>
+<p>Currently, we require that all the dependencies have already
+been built; in the future, it will be possible to build them
+automatically.</p>
+<p>Also, current implementation doesn&#8217;t allow for customizations
+to either the job configuration nor the build one (pinning,
+dep/revdep building, ...).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>job_id</strong> &#8211; Id of the job for which to start a build</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#jobcontrol.core.BuildInfo" title="jobcontrol.core.BuildInfo"><tt class="xref py py-class docutils literal"><span class="pre">BuildInfo</span></tt></a> instance.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobControl.build_job">
+<tt class="descname">build_job</tt><big>(</big><em>job_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.build_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.build_job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create and run a new build for the specified job</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobControl.run_build">
+<tt class="descname">run_build</tt><big>(</big><em>build_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.run_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.run_build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Actually run a build.</p>
+<ul class="simple">
+<li>take the build configuration</li>
+<li>make sure all the dependencies are built</li>
+<li>take return values from the dependencies -&gt; pass as arguments</li>
+<li>run the build</li>
+<li>build the reverse dependencies as well, if required to do so</li>
+</ul>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>build_id</strong> &#8211; either a <a class="reference internal" href="#jobcontrol.core.BuildInfo" title="jobcontrol.core.BuildInfo"><tt class="xref py py-class docutils literal"><span class="pre">BuildInfo</span></tt></a> instance, or a build id</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobControl.prune_logs">
+<tt class="descname">prune_logs</tt><big>(</big><em>policy=None</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.prune_logs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.prune_logs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobControl.report_progress">
+<tt class="descname">report_progress</tt><big>(</big><em>group_name</em>, <em>current</em>, <em>total</em>, <em>status_line=''</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.report_progress"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.report_progress" title="Permalink to this definition">¶</a></dt>
+<dd><p>Report progress for the currently running build.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>group_name</strong> &#8211; The report &#8220;group name&#8221;: either a tuple representing
+the &#8220;path&#8221;, or None for the top-level.</li>
+<li><strong>current</strong> &#8211; Current progress</li>
+<li><strong>total</strong> &#8211; Total progress</li>
+<li><strong>status_line</strong> &#8211; An optional line of text, describing the currently running
+operation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.core.JobExecutionContext">
+<em class="property">class </em><tt class="descclassname">jobcontrol.core.</tt><tt class="descname">JobExecutionContext</tt><big>(</big><em>app</em>, <em>job_id</em>, <em>build_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobExecutionContext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobExecutionContext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class to hold &#8220;global&#8221; context during job execution.</p>
+<p>This class can also act as a context manager for temporary
+context:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">with</span> <span class="n">JobExecutionContext</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">build_id</span><span class="p">):</span>
+    <span class="k">pass</span> <span class="c"># do stuff in an execution context</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>app</strong> &#8211; The JobControl instance running jobs</li>
+<li><strong>job_id</strong> &#8211; Id of the currently running job</li>
+<li><strong>build_id</strong> &#8211; Id of the currently running build</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="jobcontrol.core.JobExecutionContext.push">
+<tt class="descname">push</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobExecutionContext.push"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobExecutionContext.push" title="Permalink to this definition">¶</a></dt>
+<dd><p>Push this context in the global stack</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobExecutionContext.pop">
+<tt class="descname">pop</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobExecutionContext.pop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobExecutionContext.pop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pop this context from the global stack</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.core.JobExecutionContext.current_app">
+<tt class="descname">current_app</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#JobExecutionContext.current_app"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobExecutionContext.current_app" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the currently running app</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.core.JobExecutionContext.current_job">
+<tt class="descname">current_job</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#JobExecutionContext.current_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobExecutionContext.current_job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a <a class="reference internal" href="#jobcontrol.core.JobInfo" title="jobcontrol.core.JobInfo"><tt class="xref py py-class docutils literal"><span class="pre">JobInfo</span></tt></a> instance associated with the
+currently running job.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.core.JobExecutionContext.current_build">
+<tt class="descname">current_build</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#JobExecutionContext.current_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobExecutionContext.current_build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a <a class="reference internal" href="#jobcontrol.core.BuildInfo" title="jobcontrol.core.BuildInfo"><tt class="xref py py-class docutils literal"><span class="pre">BuildInfo</span></tt></a> instance associated with the
+currently running build.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.core.JobControlLogHandler">
+<em class="property">class </em><tt class="descclassname">jobcontrol.core.</tt><tt class="descname">JobControlLogHandler</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControlLogHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControlLogHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Logging handler sending messages to the appropriate
+JobControl instance that will dispatch them to storage.</p>
+<dl class="method">
+<dt id="jobcontrol.core.JobControlLogHandler.flush">
+<tt class="descname">flush</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControlLogHandler.flush"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControlLogHandler.flush" title="Permalink to this definition">¶</a></dt>
+<dd><p>No-op, as we don&#8217;t need to flush anything</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobControlLogHandler.emit">
+<tt class="descname">emit</tt><big>(</big><em>record</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControlLogHandler.emit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControlLogHandler.emit" title="Permalink to this definition">¶</a></dt>
+<dd><p>&#8220;Emit&#8221; the log record (if there is an execution context, store
+the log record appropriately; otherwise, just ignore it).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.core.JobInfo">
+<em class="property">class </em><tt class="descclassname">jobcontrol.core.</tt><tt class="descname">JobInfo</tt><big>(</big><em>app</em>, <em>job_id</em>, <em>config</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>High-level interface to jobs</p>
+<dl class="attribute">
+<dt id="jobcontrol.core.JobInfo.id">
+<tt class="descname">id</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.core.JobInfo.config">
+<tt class="descname">config</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.config" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.get_deps">
+<tt class="descname">get_deps</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.get_deps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.get_deps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over jobs this job depends upon.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Yields:</th><td class="field-body"><a class="reference internal" href="#jobcontrol.core.JobInfo" title="jobcontrol.core.JobInfo"><tt class="xref py py-class docutils literal"><span class="pre">JobInfo</span></tt></a> instances</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.get_status">
+<tt class="descname">get_status</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.get_status"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.get_status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a label describing the current status of the job.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><ul class="simple">
+<li><tt class="docutils literal"><span class="pre">'not_built'</span></tt> the job has no builds</li>
+<li><tt class="docutils literal"><span class="pre">'running'</span></tt> the job has running builds</li>
+<li><tt class="docutils literal"><span class="pre">'success'</span></tt> the job has at least a successful build</li>
+<li><tt class="docutils literal"><span class="pre">'failed'</span></tt> the job only has failed builds</li>
+<li><tt class="docutils literal"><span class="pre">'outdated'</span></tt> the job has at least a successful build,
+but older than one dependency build</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.get_revdeps">
+<tt class="descname">get_revdeps</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.get_revdeps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.get_revdeps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over jobs depending on this one</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Yields:</th><td class="field-body"><a class="reference internal" href="#jobcontrol.core.JobInfo" title="jobcontrol.core.JobInfo"><tt class="xref py py-class docutils literal"><span class="pre">JobInfo</span></tt></a> instances</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.iter_builds">
+<tt class="descname">iter_builds</tt><big>(</big><em>*a</em>, <em>**kw</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.iter_builds"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.iter_builds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over builds for this job.</p>
+<p>Accepts the same arguments as
+<a class="reference internal" href="interfaces.html#jobcontrol.interfaces.StorageBase.get_job_builds" title="jobcontrol.interfaces.StorageBase.get_job_builds"><tt class="xref py py-meth docutils literal"><span class="pre">jobcontrol.interfaces.StorageBase.get_job_builds()</span></tt></a></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Yields:</th><td class="field-body"><a class="reference internal" href="#jobcontrol.core.BuildInfo" title="jobcontrol.core.BuildInfo"><tt class="xref py py-class docutils literal"><span class="pre">BuildInfo</span></tt></a> instances</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.get_builds">
+<tt class="descname">get_builds</tt><big>(</big><em>*a</em>, <em>**kw</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.get_builds"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.get_builds" title="Permalink to this definition">¶</a></dt>
+<dd><p>DEPRECATED alias for iter_builds()</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.run">
+<tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Trigger run for this job (will automatically create
+a build, etc.)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.get_latest_successful_build">
+<tt class="descname">get_latest_successful_build</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.get_latest_successful_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.get_latest_successful_build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get latest successful build for this job, if any.
+Otherwise, returns <tt class="docutils literal"><span class="pre">None</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.get_docs">
+<tt class="descname">get_docs</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.get_docs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.get_docs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get documentation for this job.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.get_conf_as_yaml">
+<tt class="descname">get_conf_as_yaml</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.get_conf_as_yaml"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.get_conf_as_yaml" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the job configuration as serialized YAML, mostly
+for displaying on user interfaces.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.has_builds">
+<tt class="descname">has_builds</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.has_builds"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.has_builds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check whether this job has any build.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.has_successful_builds">
+<tt class="descname">has_successful_builds</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.has_successful_builds"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.has_successful_builds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check whether this job has any successful build.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.has_running_builds">
+<tt class="descname">has_running_builds</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.has_running_builds"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.has_running_builds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check whether this job has any running build.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.is_outdated">
+<tt class="descname">is_outdated</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.is_outdated"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.is_outdated" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check whether any dependency has builds more recent than the newest
+build for this job.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.core.BuildInfo">
+<em class="property">class </em><tt class="descclassname">jobcontrol.core.</tt><tt class="descname">BuildInfo</tt><big>(</big><em>app</em>, <em>build_id</em>, <em>info=None</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>High-level interface to builds.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>app</strong> &#8211; The JobControl instance this build was retrieved from</li>
+<li><strong>build_id</strong> &#8211; The build id</li>
+<li><strong>info</strong> &#8211; Optionally, this can be used to pre-populate the build
+information (useful, eg. if we are retrieving a bunch
+of builds from the database at once).</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="jobcontrol.core.BuildInfo.id">
+<tt class="descname">id</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.id" title="Permalink to this definition">¶</a></dt>
+<dd><p>The build id</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.core.BuildInfo.job_id">
+<tt class="descname">job_id</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.job_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.job_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>The job id</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.core.BuildInfo.info">
+<tt class="descname">info</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Property used to lazily access the build attributes.</p>
+<p>Returns a dict with the following keys:</p>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">'id'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'job_id'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'start_time'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'end_time'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'started'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'finished'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'success'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'skipped'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'job_config'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'build_config'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'retval'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'exception'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'exception_tb'</span></tt></li>
+</ul>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.core.BuildInfo.job_config">
+<tt class="descname">job_config</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.job_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.job_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Property to access the job configuration.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.core.BuildInfo.build_config">
+<tt class="descname">build_config</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.build_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.build_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Property to access the build configuration.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.core.BuildInfo.descriptive_status">
+<tt class="descname">descriptive_status</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.descriptive_status"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.descriptive_status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a label describing the current status of the build.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><ul class="simple">
+<li><tt class="docutils literal"><span class="pre">'CREATED'</span></tt> if the build was not started yet</li>
+<li><tt class="docutils literal"><span class="pre">'RUNNING'</span></tt> if the build was started but did not finish</li>
+<li><tt class="docutils literal"><span class="pre">'SUCCESSFUL'</span></tt> if the build run with success</li>
+<li><tt class="docutils literal"><span class="pre">'SKIPPED'</span></tt> if the build was skipped</li>
+<li><tt class="docutils literal"><span class="pre">'FAILED'</span></tt> if the build execution failed</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.BuildInfo.refresh">
+<tt class="descname">refresh</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.refresh"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.refresh" title="Permalink to this definition">¶</a></dt>
+<dd><p>Refresh the build status information from database</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.BuildInfo.get_progress_info">
+<tt class="descname">get_progress_info</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.get_progress_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.get_progress_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get information about the build progress</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.BuildInfo.get_job">
+<tt class="descname">get_job</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.get_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.get_job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a <a class="reference internal" href="#jobcontrol.core.JobInfo" title="jobcontrol.core.JobInfo"><tt class="xref py py-class docutils literal"><span class="pre">JobInfo</span></tt></a> associated with this build&#8217;s job</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.BuildInfo.delete">
+<tt class="descname">delete</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.delete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete all information related to this build from database</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.BuildInfo.run">
+<tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calls run_build() on the main app for this build</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.BuildInfo.iter_log_messages">
+<tt class="descname">iter_log_messages</tt><big>(</big><em>**kw</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.iter_log_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.iter_log_messages" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over log messages for this build.</p>
+<p>Keywords are passed directly to the underlying <tt class="docutils literal"><span class="pre">iter_log_messages()</span></tt>
+method of the storage.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">jobcontrol</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="exceptions.html"
+                        title="next chapter">jobcontrol.exceptions</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/api/core.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="exceptions.html" title="jobcontrol.exceptions"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="jobcontrol"
+             >previous</a> |</li>
+        <li><a href="../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="index.html" >jobcontrol</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>
