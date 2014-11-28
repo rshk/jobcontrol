@@ -161,6 +161,9 @@ class JobControl(object):
         return self.get_build(build_id)
 
     def build_job(self, job_id):
+        """
+        Create and run a new build for the specified job
+        """
         build = self.create_build(job_id)
         return self.run_build(build)
 
@@ -359,7 +362,7 @@ class JobExecutionContext(object):
     .. code-block:: python
 
         with JobExecutionContext(app, job_id, build_id):
-            # do stuff in an execution context
+            pass # do stuff in an execution context
 
     :param app: The JobControl instance running jobs
     :param job_id: Id of the currently running job
