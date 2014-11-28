@@ -1,0 +1,199 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Configuration &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="index.html" />
+    <link rel="next" title="Deployment instructions" href="deploy.html" />
+    <link rel="prev" title="Welcome to JobControl’s documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="deploy.html" title="Deployment instructions"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to JobControl’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">JobControl 0.1a documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="configuration">
+<h1>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h1>
+<p>The configuration file is written entirely in YAML.</p>
+<div class="section" id="storage">
+<h2>Storage<a class="headerlink" href="#storage" title="Permalink to this headline">¶</a></h2>
+<p>Define an URL pointing to the storage (for build status).</p>
+<div class="highlight-yaml"><div class="highlight"><pre><span class="l-Scalar-Plain">storage</span><span class="p-Indicator">:</span> <span class="s">&quot;postgresql://jobcontrol_test:test@localhost:5432/jc-harvester-141125&quot;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="webapp">
+<h2>Webapp<a class="headerlink" href="#webapp" title="Permalink to this headline">¶</a></h2>
+<p>Configuration for the web application.</p>
+<p>Uppercase names will be merged with standard Flask configuration.</p>
+<div class="highlight-yaml"><div class="highlight"><pre><span class="l-Scalar-Plain">webapp</span><span class="p-Indicator">:</span>
+    <span class="l-Scalar-Plain">PORT</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">5050</span>
+    <span class="l-Scalar-Plain">DEBUG</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">False</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="celery">
+<h2>Celery<a class="headerlink" href="#celery" title="Permalink to this headline">¶</a></h2>
+<p><strong>TODO</strong></p>
+<p>Configuration for Celery (the asynchronous task running library).</p>
+<div class="highlight-yaml"><div class="highlight"><pre><span class="l-Scalar-Plain">celery</span><span class="p-Indicator">:</span>
+    <span class="l-Scalar-Plain">BROKER_URL</span><span class="p-Indicator">:</span> <span class="s">&quot;redis://localhost:6379&quot;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="jobs">
+<h2>Jobs<a class="headerlink" href="#jobs" title="Permalink to this headline">¶</a></h2>
+<p>Job definition is a list of objects like this:</p>
+<div class="highlight-yaml"><div class="highlight"><pre><span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">some_job_id</span>
+<span class="l-Scalar-Plain">title</span><span class="p-Indicator">:</span> <span class="s">&quot;Some</span><span class="nv"> </span><span class="s">job</span><span class="nv"> </span><span class="s">title</span><span class="nv"> </span><span class="s">here&quot;</span>
+<span class="l-Scalar-Plain">function</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mypackage.mymodule:myfunction</span>
+<span class="l-Scalar-Plain">args</span><span class="p-Indicator">:</span>
+    <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">spam</span>
+    <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">eggs</span>
+    <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">bacon</span>
+<span class="l-Scalar-Plain">kwargs</span><span class="p-Indicator">:</span>
+    <span class="l-Scalar-Plain">foobar</span><span class="p-Indicator">:</span> <span class="s">&#39;Something</span><span class="nv"> </span><span class="s">completely</span><span class="nv"> </span><span class="s">different&#39;</span>
+    <span class="l-Scalar-Plain">blah</span><span class="p-Indicator">:</span> <span class="kt">!retval</span> <span class="s">&#39;some_other_job&#39;</span>
+<span class="l-Scalar-Plain">dependencies</span><span class="p-Indicator">:</span> <span class="p-Indicator">[</span><span class="s">&#39;some_other_job&#39;</span><span class="p-Indicator">]</span>
+</pre></div>
+</div>
+<p>..which tells JobControl to run something roughly equivalent to:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mypackage.mymodule</span> <span class="kn">import</span> <span class="n">myfunction</span>
+
+<span class="n">myfunction</span><span class="p">(</span><span class="s">&#39;spam&#39;</span><span class="p">,</span> <span class="s">&#39;eggs&#39;</span><span class="p">,</span> <span class="s">&#39;bacon&#39;</span><span class="p">,</span>
+           <span class="n">foobar</span><span class="o">=</span><span class="s">&#39;Something completely different&#39;</span><span class="p">,</span>
+           <span class="n">blah</span><span class="o">=</span><span class="n">get_return_value</span><span class="p">(</span><span class="s">&#39;some_other_job&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Where the (immaginary) <tt class="docutils literal"><span class="pre">get_return_value()</span></tt> function returns the return
+value from the latest successful build of the specified job (which <em>must</em>
+be amongst the job dependencies).</p>
+<div class="section" id="planned-job-configuration-keys">
+<h3>Planned job configuration keys<a class="headerlink" href="#planned-job-configuration-keys" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">protect</span></tt> boolean indicating whether this job must be &#8220;protected&#8221;:
+by &#8220;protect&#8221; we mean &#8220;from accidental mistakes&#8221;; for example, it would
+be handy to prevent accidental builds of jobs that import things in
+production websites. If this flag is set, the &#8220;quick build&#8221; feature
+will be disabled and the build form submit button will need &#8220;arming&#8221;
+(by clicking another button) before being actually usable.</li>
+<li><tt class="docutils literal"><span class="pre">cleanup</span></tt> indicate a function to be called on build deletion to clean up
+any data stored externally. That function requires access to the build
+status, eg. in order to get a pointer to the storage containing the data.</li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Configuration</a><ul>
+<li><a class="reference internal" href="#storage">Storage</a></li>
+<li><a class="reference internal" href="#webapp">Webapp</a></li>
+<li><a class="reference internal" href="#celery">Celery</a></li>
+<li><a class="reference internal" href="#jobs">Jobs</a><ul>
+<li><a class="reference internal" href="#planned-job-configuration-keys">Planned job configuration keys</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to JobControl&#8217;s documentation!</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="deploy.html"
+                        title="next chapter">Deployment instructions</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/configuration.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="deploy.html" title="Deployment instructions"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to JobControl’s documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">JobControl 0.1a documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>
