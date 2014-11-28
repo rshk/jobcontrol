@@ -45,6 +45,7 @@ docs:
 	$(MAKE) -C docs html
 
 publish_docs: docs
-	ghp-import -n -p ./docs/build/html
+	rsync -av --delete ./docs/build/html/ ./website/docs/
+	ghp-import -n -p ./website/
 	@echo
 	@echo "HTML output published on github-pages"
