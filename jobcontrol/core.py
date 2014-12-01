@@ -360,6 +360,23 @@ class JobControl(object):
             total=total,
             status_line=status_line)
 
+    def get_celery_app(self):
+        """
+        Return the Celery application, configured with values
+        from the current configuration.
+
+        .. note:: this is a bit hackish, as we are just *updating*
+                  configuration values in the global object with ones
+                  from the jobcontrol configuration, not replacing
+                  all the configuration at once.
+        """
+
+        from jobcontrol.async.tasks import app as celery_app
+        celery_app.conf['JOBCONTROL'] = self
+        if 'celery' in self.config:
+            celery_app.conf.update(self.config['celery'])
+        return celery_app
+
 
 class JobExecutionContext(object):
     """

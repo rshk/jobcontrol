@@ -95,9 +95,10 @@ class PostgreSQLStorage(StorageBase):
         );
 
         CREATE TABLE "{prefix}build_progress" (
-            build_id INTEGER REFERENCES "{prefix}build" (id)
+            build_id INTEGER NOT NULL
+                REFERENCES "{prefix}build" (id)
                 ON DELETE CASCADE,
-            group_name TEXT[],
+            group_name TEXT[] NOT NULL,
             current INTEGER NOT NULL,
             total INTEGER NOT NULL,
             status_line TEXT,
@@ -106,7 +107,8 @@ class PostgreSQLStorage(StorageBase):
 
         CREATE TABLE "{prefix}log" (
             id SERIAL PRIMARY KEY,
-            build_id INTEGER REFERENCES "{prefix}build" (id)
+            build_id INTEGER NOT NULL
+                REFERENCES "{prefix}build" (id)
                 ON DELETE CASCADE,
             created TIMESTAMP WITHOUT TIME ZONE,
             level INTEGER,
@@ -411,7 +413,7 @@ class PostgreSQLStorage(StorageBase):
             'build_id': build_id,
             'current': current,
             'total': total,
-            'group_name': group_name,
+            'group_name': group_name or [],
             'status_line': status_line,
         }
 

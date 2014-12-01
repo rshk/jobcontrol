@@ -32,9 +32,10 @@ Uppercase names will be merged with standard Flask configuration.
 Celery
 ======
 
-**TODO**
-
 Configuration for Celery (the asynchronous task running library).
+
+See all the possible configuration options here:
+http://docs.celeryproject.org/en/latest/configuration.html
 
 
 .. code-block:: yaml

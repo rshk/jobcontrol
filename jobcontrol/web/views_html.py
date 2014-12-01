@@ -149,7 +149,7 @@ def job_run(job_id):
 def job_run_submit(job_id):
     # todo: CSRF protection!
 
-    from jobcontrol.async.tasks import app as celery_app, run_build
+    from jobcontrol.async.tasks import run_build
 
     # todo: check that the referrer is on the same domain!
     return_to = request.headers.get('Referer')
@@ -157,9 +157,11 @@ def job_run_submit(job_id):
         return_to = url_for('.job_info', job_id=job_id)
 
     jc = get_jc()
-    broker = 'redis://'  # todo: take from configuration
-    celery_app.conf.JOBCONTROL = jc
-    celery_app.conf.BROKER_URL = broker
+    jc.get_celery_app()  # Make sure it's configured
+
+    # broker = 'redis://'  # todo: take from configuration
+    # celery_app.conf.JOBCONTROL = jc
+    # celery_app.conf.BROKER_URL = broker
 
     build = jc.create_build(job_id)
     run_build.delay(build.id)
@@ -228,11 +230,14 @@ def job_action(job_id):
     jc = get_jc()
 
     if action == 'build':
-        from jobcontrol.async.tasks import app as celery_app, build_job
+        from jobcontrol.async.tasks import app as build_job
 
-        broker = 'redis://'  # todo: take from configuration!!
-        celery_app.conf.JOBCONTROL = jc
-        celery_app.conf.BROKER_URL = broker
+        # Just to make sure we update configuration..
+        jc.get_celery_app()
+
+        # broker = 'redis://'  # todo: take from configuration!!
+        # celery_app.conf.JOBCONTROL = jc
+        # celery_app.conf.BROKER_URL = broker
 
         build_job.delay(job_id)
         flash('Job {0} build scheduled'.format(job_id), 'success')

@@ -300,16 +300,19 @@ def web(port, debug):
 
 
 @cli_main_grp.command()
-@click.option('--broker', metavar='URL', help='Broker URL',
-              default='redis://localhost:6379')
+@click.option('--broker', metavar='URL', help='Broker URL')
 def worker(broker):
     """Run the Celery worker"""
 
-    from jobcontrol.async.tasks import app as celery_app
+    # from jobcontrol.async.tasks import app as celery_app
     import jobcontrol.core  # should set up logging..  # noqa  # nope... :(
 
-    celery_app.conf.JOBCONTROL = jc
-    celery_app.conf.BROKER_URL = broker
+    celery_app = jc.get_celery_app()
+
+    # celery_app.conf.JOBCONTROL = jc
+
+    if broker:
+        celery_app.conf.BROKER_URL = broker
 
     # todo: allow passing arguments
     celery_app.worker_main(argv=['jobcontrol-cli'])
