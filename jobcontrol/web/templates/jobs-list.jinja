@@ -33,7 +33,7 @@
           {% elif job_status == 'not_built' %}
             {% set badge_class='default' %}
             {% set badge_status='No builds' %}
-            {% set icon='cog fa-spin' %}
+            {% set icon='question' %}
 
           {% elif job_status == 'outdated' %}
             {% set badge_class='warning' %}
@@ -47,6 +47,7 @@
           {% elif job_status == 'failed' %}
             {% set badge_class='danger' %}
             {% set badge_status='Failed' %}
+            {% set icon='warning' %}
 
           {% endif %}
 

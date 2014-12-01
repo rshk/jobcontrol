@@ -241,22 +241,29 @@ body {
 }
 .status-badge.compact .line-bg {
     position: absolute;
-    top: 10px;
+    top: 8px;
     left: 0;
     right: 0;
     /* bottom: 10px; */
-    color: rgba(0,0,0,.2);
+    color: rgba(255,255,255,.3);
     font-size: 80px;
     line-height: 80px;
     height: 80px;
     vertical-align: middle;
     text-align: center;
 }
-.status-badge.success .line-bg {
-    color: rgba(255,255,255,.4);
+.status-badge.default .line-bg {
+    color: rgba(0,0,0,.2);
 }
+.status-badge.success .line-bg,
+.status-badge.danger .line-bg,
+.status-badge.success .line-bg,
 .status-badge.primary .line-bg {
-    color: rgba(255,255,255,.4);
+    color: rgba(255,255,255,.3);
+    /* text-shadow: rgba(0,0,0,.2) -1px -1px 0; */
+}
+.status-badge.danger .line-bg {
+    top: 2px;  /* To align the "warning" icon.. */
 }
 
 /* $brand-primary: #428bca !default; */

@@ -4,6 +4,7 @@ PostgreSQL-backed Job control class.
 
 from datetime import datetime, timedelta
 from urlparse import urlparse, parse_qs
+import logging
 import traceback
 
 import psycopg2
@@ -11,6 +12,7 @@ import psycopg2.extras
 
 from jobcontrol.interfaces import StorageBase
 from jobcontrol.exceptions import NotFound
+from jobcontrol.utils import NotSerializableRepr
 
 
 class PostgreSQLStorage(StorageBase):
@@ -253,9 +255,9 @@ class PostgreSQLStorage(StorageBase):
 
     def _build_pack(self, build):
         mapping = {
-            'retval': lambda x: buffer(self.pack(x)),
-            'exception': lambda x: buffer(self.pack(x)),
-            'exception_tb': lambda x: buffer(self.pack(x)),
+            'retval': lambda x: buffer(self.pack(x, safe=True)),
+            'exception': lambda x: buffer(self.pack(x, safe=True)),
+            'exception_tb': lambda x: buffer(self.pack(x, safe=True)),
             'job_config': self.yaml_pack,
             'build_config': self.yaml_pack,
         }
@@ -441,8 +443,8 @@ class PostgreSQLStorage(StorageBase):
         row = self._serialize_log_record(record)
         row['build_id'] = build_id
         row['level'] = record.levelno
-        row['record'] = buffer(self.pack(row['record']))
-        row['exception_tb'] = buffer(self.pack(row['exception_tb']))
+        row['record'] = buffer(self.pack(row['record'], safe=True))
+        row['exception_tb'] = buffer(self.pack(row['exception_tb'], safe=True))
         self._do_insert('log', row)
 
     def prune_log_messages(self, build_id=None, max_age=None, level=None):
@@ -522,6 +524,16 @@ class PostgreSQLStorage(StorageBase):
             cur.execute(query, filters)
             for item in cur.fetchall():
                 record = self.unpack(item['record'])
+
+                if isinstance(record, NotSerializableRepr):
+                    # todo: handle this
+                    record = logging.LogRecord(
+                        name='<ERROR>',
+                        level=item['level'], pathname='???',
+                        lineno='???',
+                        msg='Record serialization failed: \n\n {0}'
+                        .format(record), args=(),
+                        exc_info=(), func='???')
 
                 # todo: any better way to do this?
                 # record.job_id = item['job_id']

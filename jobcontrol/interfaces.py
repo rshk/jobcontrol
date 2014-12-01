@@ -83,6 +83,7 @@ import pickle
 import types
 import warnings
 
+from jobcontrol.utils import NotSerializableRepr
 import jobcontrol.job_conf
 
 
@@ -306,8 +307,18 @@ class StorageBase(object):
     # Helper methods for serialization
     # ------------------------------------------------------------
 
-    def pack(self, obj):
-        return pickle.dumps(obj)
+    def pack(self, obj, safe=False):
+        try:
+            return pickle.dumps(obj)
+        except:
+            if not safe:
+                raise
+
+        try:
+            return pickle.dumps(NotSerializableRepr(repr(obj)))
+        except:
+            return pickle.dumps(NotSerializableRepr(
+                'Unable to serialize not repr() the object.'))
 
     def unpack(self, obj, safe=False):
         try:

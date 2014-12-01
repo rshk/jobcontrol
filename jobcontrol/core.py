@@ -153,7 +153,8 @@ class JobControl(object):
             dep_build = dep.get_latest_successful_build()
             if not dep_build:
                 raise MissingDependencies(
-                    'Dependency job {0!r} has no successful builds!')
+                    'Dependency job {0!r} has no successful builds!'
+                    .format(job_id))
 
             build_config['dependency_builds'][dep.id] = dep_build.id
 

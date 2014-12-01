@@ -464,9 +464,9 @@
       <div class="message msg-{{ row_class }}">
 
 	<div class="message-header">
-	  <span class="levelname">{{ record.levelname }}</span>
-	  <span class="date">{{ record.created|strftime }}</span>
-	  <span class="logger-name">{{ record.name }}</span>
+	  <span class="levelname">{{ record.levelname|escape }}</span>
+	  <span class="date">{{ record.created|strftime|escape }}</span>
+	  <span class="logger-name">{{ record.name|escape }}</span>
 	  <span class="file">
 	    <span class="filename">
 	      {{- record.filename|escape -}}

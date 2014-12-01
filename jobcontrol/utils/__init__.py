@@ -395,3 +395,14 @@ class ProgressReport(object):
                 sub_tables[pref], base_name=pref))
 
         return obj
+
+
+class NotSerializableRepr(object):
+    def __init__(self, repr_string):
+        self.repr_string = repr_string
+
+    def __repr__(self):
+        return 'NotSerializableRepr({0})'.format(self.repr_string)
+
+    def __unicode__(self):
+        return unicode(self.__repr__())
