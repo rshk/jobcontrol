@@ -283,16 +283,22 @@ class PostgreSQLStorage(StorageBase):
 
         :param job_id:
             The job id
+
         :param started:
             If set to a boolean, filter on the "started" field
+
         :param finished:
             If set to a boolean, filter on the "finished" field
+
         :param success:
             If set to a boolean, filter on the "success" field
+
         :param skipped:
             If set to a boolean, filter on the "skipped" field
+
         :param order:
             'asc' (default) or 'desc'
+
         :param limit:
             only return the first ``limit`` builds
         """
