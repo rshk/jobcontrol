@@ -330,12 +330,80 @@
 {% endmacro %}
 
 
-{% macro build_progress_report(report, level=0) %}
-  <div style="margin: 0; padding: 5px 0;{% if level > 0 %}margin-left: 20px;border-left: solid 3px #ddd;padding-left: 10px;{% endif %}">
-    <div>
-      <strong>{{ report.name or 'Top level' }}</strong>
-      {{ report.status_line or '' }}
+{% macro build_info_title(job, build) %}
+
+  {% if build.finished %}
+    {% if build.skipped %}
+      {% set badge_class = 'warning' %}
+      {% set badge_status = 'Skipped' %}
+    {% elif build.success %}
+      {% set badge_class = 'success' %}
+      {% set badge_status = 'Success' %}
+    {% else %}
+      {% set badge_class = 'danger' %}
+      {% set badge_status = 'Failed' %}
+    {% endif %}
+  {% else %}
+    {% set badge_class = 'default' %}
+    {% if build.started %}
+      {% set badge_status = 'Running' %}
+    {% else %}
+      {% set badge_status = 'Created' %}
+    {% endif %}
+  {% endif %}
+
+  <div class="media" style="margin-bottom: 20px;">
+    <div class="media-left">
+      {{ status_badge(top='Build', middle=build.id, bottom=badge_status, class='compact ' + badge_class) }}
     </div>
+    <div class="media-body">
+      <h1>
+	<a href="{{ url_for('webui.job_info', job_id=job.id) }}" title="{{ job.id }}">
+	  {{ job.title or job.id }}
+	</a>
+	&raquo;
+	Build #{{ build.id }}
+        <a href="javascript:location.reload()">
+          <span class="fa fa-refresh"></span>
+        </a>
+      </h1>
+      <div>
+
+	{% if build.start_time %}
+	  <strong>Started:</strong>
+	  <abbr title="{{ build.start_time }}">
+	    {{ build.start_time|humanize_timestamp }}
+	  </abbr>
+	{% endif %}
+
+	{% if build.end_time %}
+	  <strong>Finished:</strong>
+	  <abbr title="{{ build.end_time }}">
+	    {{ build.end_time|humanize_timestamp }}
+	  </abbr>
+	{% endif %}
+
+      </div>
+    </div>
+  </div>
+{% endmacro %}
+
+
+{% macro build_progress_report(report, level=0) %}
+  <div style="margin: 0; padding: 5px 0;
+              {%- if level > 0 -%}
+                margin-left: 20px;
+                border-left: solid 3px #ddd;
+                padding-left: 10px;
+              {%- endif -%}">
+
+    {% if report.name or report.status_line %}
+      <div>
+        <strong>{{ report.name or '' }}</strong>
+        {{ report.status_line or '' }}
+      </div>
+    {% endif %}
+
     {{ progress_bar(cur=report.current, total=report.total, color=report.color_css_rgb) }}
     {% for child in report.children %}
       {{ build_progress_report(child, level + 1) }}
@@ -343,3 +411,85 @@
   </div>
 {% endmacro %}
 
+
+{% macro build_info_nav(build_id, current=None) %}
+  <ul class="nav nav-tabs" role="tablist" style="margin-bottom: 10px;">
+
+    {% macro _item(name, title, href) %}
+      <li role="presentation" {% if current == name %}class="active"{% endif %}>
+        <a href="{{ href }}">{{ title }}</a></li>
+    {% endmacro %}
+
+    {{ _item('status', 'Status', url_for('webui.build_info', build_id=build_id)) }}
+    {{ _item('config', 'Configuration', url_for('webui.build_info_config', build_id=build_id)) }}
+    {{ _item('retval', 'Return value', url_for('webui.build_info_retval', build_id=build_id)) }}
+    {{ _item('logs', 'Log messages', url_for('webui.build_info_logs', build_id=build_id)) }}
+
+
+    <li class="pull-right">
+      <div class="btn-group">
+        <a class="btn btn-default" title="Download return value" disabled="true">
+          <span class="fa fa-download"></span>
+        </a>
+        <a class="btn btn-default" title="Run again" disabled="true">
+          <span class="fa fa-cogs"></span>
+        </a>
+        <a class="btn btn-default" title="Delete build" disabled="true">
+          <span class="fa fa-trash"></span>
+        </a>
+      </div>
+    </li>
+
+  </ul>
+{% endmacro %}
+
+
+{% macro log_messages(messages) %}
+  <div class="log-messages">
+
+    {% for record in messages %}
+
+      {% if record.levelno <= 10 %}
+	{% set row_class = 'debug' %}
+      {% elif record.levelno <= 20 %}
+	{% set row_class = 'info' %}
+      {% elif record.levelno <= 30 %}
+	{% set row_class = 'warning' %}
+      {% elif record.levelno <= 40 %}
+	{% set row_class = 'error' %}
+      {% else %}
+	{% set row_class = 'critical' %}
+      {% endif %}
+
+      <div class="message msg-{{ row_class }}">
+
+	<div class="message-header">
+	  <span class="levelname">{{ record.levelname }}</span>
+	  <span class="date">{{ record.created|strftime }}</span>
+	  <span class="logger-name">{{ record.name }}</span>
+	  <span class="file">
+	    <span class="filename">
+	      {{- record.filename|escape -}}
+	    </span>:<span class="lineno">
+	      {{- record.lineno|escape -}}
+	    </span>
+	  </span>
+
+	  <span class="function">
+	    <span class="module">
+	      {{- record.module|escape -}}
+	    </span>.<span class="funcname">
+	      {{- record.funcName|escape -}}
+	    </span>
+	  </span>
+	</div>
+
+	<div class="message-text">
+	  {{ record.message|escape }}
+	</div>
+
+      </div>
+    {% endfor %}
+
+  </div>
+{% endmacro %}

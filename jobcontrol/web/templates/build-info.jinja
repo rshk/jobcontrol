@@ -1,230 +1,110 @@
 {% extends 'base.jinja' %}
 
-{% block page_title %}Job {{ job.title or job.id }}{% endblock %}
+{% block page_title %}Build #{{ build.id }} - Job {{ job.title or job.id }}{% endblock %}
 
 {% block page_body %}
 <div class="container-fluid">
 
-  {% if build.finished %}
-    {% if build.skipped %}
-      {% set badge_class = 'warning' %}
-      {% set badge_status = 'Skipped' %}
-    {% elif build.success %}
-      {% set badge_class = 'success' %}
-      {% set badge_status = 'Success' %}
-    {% else %}
-      {% set badge_class = 'danger' %}
-      {% set badge_status = 'Failed' %}
+  {{ macros.build_info_title(job, build) }}
+  {{ macros.build_info_nav(build.id, current='status') }}
+
+  <div class="well">
+    <strong>Start time:</strong>
+    {% if build.start_time %}
+      <abbr title="{{ build.start_time|strftime }}">
+	{{ build.start_time|humanize_timestamp }}
+      </abbr>
+    {% else %}N/A{% endif %}
+
+    &mdash;
+
+    <strong>End time:</strong>
+    {% if build.end_time %}
+      <abbr title="{{ build.end_time|strftime }}">
+	{{ build.end_time|humanize_timestamp }}
+      </abbr>
+    {% else %}N/A{% endif %}
+
+    {% if build.start_time and build.end_time %}
+      &mdash;
+      <strong>Duration:</strong>
+      {{ (build.end_time - build.start_time)|humanize_timedelta }}
     {% endif %}
-  {% else %}
-    {% set badge_class = 'default' %}
-    {% if build.started %}
-      {% set badge_status = 'Running' %}
-    {% else %}
-      {% set badge_status = 'Created' %}
-    {% endif %}
-  {% endif %}
-
-  <div class="media" style="margin-bottom: 20px;">
-    <div class="media-left">
-      {{ macros.status_badge(top='Build', middle=build.id, bottom=badge_status, class='compact ' + badge_class) }}
-    </div>
-    <div class="media-body">
-      <h1>
-	<a href="{{ url_for('webui.job_info', job_id=job.id) }}" title="{{ job.id }}">
-	  {{ job.title or job.id }}
-	</a>
-	&raquo;
-	Build #{{ build.id }}
-        <a href="javascript:location.reload()">
-          <span class="fa fa-refresh"></span>
-        </a>
-      </h1>
-      <div>
-
-	{% if build.start_time %}
-	  <strong>Started:</strong>
-	  <abbr title="{{ build.start_time }}">
-	    {{ build.start_time|humanize_timestamp }}
-	  </abbr>
-	{% endif %}
-
-	{% if build.end_time %}
-	  <strong>Finished:</strong>
-	  <abbr title="{{ build.end_time }}">
-	    {{ build.end_time|humanize_timestamp }}
-	  </abbr>
-	{% endif %}
-
-      </div>
-    </div>
   </div>
-
-
-  <h2 data-toggle="#job-configuration" data-toggle-default="hidden">
-    <span class="toggle-indicator"></span>
-    Job configuration
-  </h2>
-  <div id="job-configuration">
-    {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
-  </div>
-
-  <h2>Build status</h2>
 
   {{ macros.build_progress_report(build.get_progress_info()) }}
 
-  {# {{ macros.progress_bar(cur=build.progress_current, total=build.progress_total, color=build.progress_info.color) }} #}
+  {# <div class="row row-fluid"> #}
 
-  {% if build.retval %}
-    <div class="panel panel-primary">
-      <div class="panel-heading">
-	<h3 class="panel-title">Return value</h3>
-      </div>
-      <div class="panel-body">
-	<p>{{ build.retval|escape }}</p>
-	{{ build.retval|pprint|highlight(lexer='python') }}
-      </div>
-    </div>
-  {% endif %}
+  {#   <div class="col-md-6"> #}
 
-  {% if build.exception %}
-    <div class="panel panel-danger">
-      <div class="panel-heading">
-	<h3 class="panel-title">
-	  <strong>Exception:</strong>
-	  {{ build.exception|escape }}
-	</h3>
-      </div>
-      <div class="panel-body">
-	<strong>Full traceback:</strong>
-	<pre>{{ build.exception_tb|escape }}</pre>
-      </div>
-    </div>
-  {% endif %}
+  {#     <div class="jumbotron" style="font-size: 200%"> #}
 
-  <div class="row row-fluid">
+  {#       <dl class="dl-horizontal"> #}
 
-    <div class="col-md-6">
+  {#       <dt>Start time:</dt> #}
 
-      <div class="jumbotron" style="font-size: 200%">
+  {#       <dd> #}
+  {#         {% if build.start_time %} #}
+  {#           <abbr title="{{ build.start_time|strftime }}"> #}
+  {#             {{ build.start_time|humanize_timestamp }} #}
+  {#           </abbr> #}
+  {#         {% else %}N/A{% endif %} #}
+  {#       </dd> #}
 
-	<dl class="dl-horizontal">
+  {#       <dt>End time:</dt> #}
 
-	<dt>Start time:</dt>
+  {#       <dd> #}
+  {#         {% if build.end_time %} #}
+  {#           <abbr title="{{ build.end_time|strftime }}"> #}
+  {#             {{ build.end_time|humanize_timestamp }} #}
+  {#           </abbr> #}
+  {#         {% else %}N/A{% endif %} #}
+  {#       </dd> #}
 
-	<dd>
-	  {% if build.start_time %}
-	    <abbr title="{{ build.start_time|strftime }}">
-	      {{ build.start_time|humanize_timestamp }}
-	    </abbr>
-	  {% else %}N/A{% endif %}
-	</dd>
+  {#       {% if build.start_time and build.end_time %} #}
+  {#         <dt>Duration:</dt> #}
+  {#         <dd>{{ (build.end_time - build.start_time)|humanize_timedelta }}</dd> #}
+  {#       {% endif %} #}
 
-	<dt>End time:</dt>
+  {#       </dl> #}
 
-	<dd>
-	  {% if build.end_time %}
-	    <abbr title="{{ build.end_time|strftime }}">
-	      {{ build.end_time|humanize_timestamp }}
-	    </abbr>
-	  {% else %}N/A{% endif %}
-	</dd>
-
-	{% if build.start_time and build.end_time %}
-	  <dt>Duration:</dt>
-	  <dd>{{ (build.end_time - build.start_time)|humanize_timedelta }}</dd>
-	{% endif %}
-
-	</dl>
-
-      </div>
-    </div>
+  {#     </div> #}
+  {#   </div> #}
 
 
-    <div class="col-md-6">
+  {#   <div class="col-md-6"> #}
 
-      <div class="row row-fluid">
+  {#     <div class="row row-fluid"> #}
 
-	<div class="col-xs-3">
-	  {{ macros.flag_panel('Started', build.started, fcls='warning', ftxt='No') }}
-	</div>
+  {#       <div class="col-xs-3"> #}
+  {#         {{ macros.flag_panel('Started', build.started, fcls='warning', ftxt='No') }} #}
+  {#       </div> #}
 
-	<div class="col-xs-3">
-	  {{ macros.flag_panel('Finished', build.finished, fcls='warning', ftxt='No') }}
-	</div>
+  {#       <div class="col-xs-3"> #}
+  {#         {{ macros.flag_panel('Finished', build.finished, fcls='warning', ftxt='No') }} #}
+  {#       </div> #}
 
-        <div class="col-xs-3">
-          {% if build.finished %}
-	    {{ macros.flag_panel('Success', build.success) }}
-          {% else %}
-	    {{ macros.flag_panel('Success', None) }}
-          {% endif %}
-        </div>
+  {#       <div class="col-xs-3"> #}
+  {#         {% if build.finished %} #}
+  {#           {{ macros.flag_panel('Success', build.success) }} #}
+  {#         {% else %} #}
+  {#           {{ macros.flag_panel('Success', None) }} #}
+  {#         {% endif %} #}
+  {#       </div> #}
 
-        <div class="col-xs-3">
-          {% if build.finished %}
-	    {{ macros.flag_panel('Skipped', build.skipped, 'warning', 'Yes', 'success', 'No') }}
-          {% else %}
-	    {{ macros.flag_panel('Skipped', None) }}
-          {% endif %}
-        </div>
+  {#       <div class="col-xs-3"> #}
+  {#         {% if build.finished %} #}
+  {#           {{ macros.flag_panel('Skipped', build.skipped, 'warning', 'Yes', 'success', 'No') }} #}
+  {#         {% else %} #}
+  {#           {{ macros.flag_panel('Skipped', None) }} #}
+  {#         {% endif %} #}
+  {#       </div> #}
 
-      </div>
+  {#     </div> #}
 
-    </div>
-  </div>
-
-  <h2>Log messages</h2>
-
-  <div class="log-messages">
-
-    {% for record in messages %}
-
-      {% if record.levelno <= 10 %}
-	{% set row_class = 'debug' %}
-      {% elif record.levelno <= 20 %}
-	{% set row_class = 'info' %}
-      {% elif record.levelno <= 30 %}
-	{% set row_class = 'warning' %}
-      {% elif record.levelno <= 40 %}
-	{% set row_class = 'error' %}
-      {% else %}
-	{% set row_class = 'critical' %}
-      {% endif %}
-
-      <div class="message msg-{{ row_class }}">
-
-	<div class="message-header">
-	  <span class="levelname">{{ record.levelname }}</span>
-	  <span class="date">{{ record.created|strftime }}</span>
-	  <span class="logger-name">{{ record.name }}</span>
-	  <span class="file">
-	    <span class="filename">
-	      {{- record.filename|escape -}}
-	    </span>:<span class="lineno">
-	      {{- record.lineno|escape -}}
-	    </span>
-	  </span>
-
-	  <span class="function">
-	    <span class="module">
-	      {{- record.module|escape -}}
-	    </span>.<span class="funcname">
-	      {{- record.funcName|escape -}}
-	    </span>
-	  </span>
-	</div>
-
-	<div class="message-text">
-	  {{ record.message|escape }}
-	</div>
-
-      </div>
-    {% endfor %}
-
-  </div>
-
-    <br></br>
+  {#   </div> #}
+  {# </div> #}
 
 </div>
 {% endblock %}

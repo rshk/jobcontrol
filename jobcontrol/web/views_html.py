@@ -79,7 +79,8 @@ def job_depgraph(job_id, fmt):
     graph.node_attr['fontname'] = 'monospace'
 
     # graph.edge_attr['minlen'] = '2'  # ignored??
-    graph.edge_attr['len'] = '2.5'  # Inches
+    graph.edge_attr['len'] = '1.5'  # Inches
+    # graph.edge_attr['weight'] = '10'
 
     # node = graph.get_node(job_id)
     # node.attr['fontsize'] = '14'
@@ -177,13 +178,35 @@ def job_run_submit(job_id):
 def build_info(build_id):
     jc = get_jc()
     build = jc.get_build(build_id)
-
     job = jc.get_job(build.job_id)
+    return render_template('build-info.jinja', job=job, build=build)
 
+
+@html_views.route('/build/<int:build_id>/config', methods=['GET'])
+def build_info_config(build_id):
+    jc = get_jc()
+    build = jc.get_build(build_id)
+    job = jc.get_job(build.job_id)
+    return render_template('build-info-config.jinja', job=job, build=build)
+
+
+@html_views.route('/build/<int:build_id>/retval', methods=['GET'])
+def build_info_retval(build_id):
+    jc = get_jc()
+    build = jc.get_build(build_id)
+    job = jc.get_job(build.job_id)
+    return render_template('build-info-retval.jinja', job=job, build=build)
+
+
+@html_views.route('/build/<int:build_id>/logs', methods=['GET'])
+def build_info_logs(build_id):
+    jc = get_jc()
+    build = jc.get_build(build_id)
+    job = jc.get_job(build.job_id)
     messages = jc.storage.iter_log_messages(build_id=build_id)
 
     return render_template(
-        'build-info.jinja',
+        'build-info-logs.jinja',
         job=job, build=build, messages=messages)
 
 

@@ -1,0 +1,15 @@
+{% extends 'base.jinja' %}
+
+{% block page_title %}Build #{{ build.id }} - Job {{ job.title or job.id }}{% endblock %}
+
+{% block page_body %}
+<div class="container-fluid">
+
+  {{ macros.build_info_title(job, build) }}
+  {{ macros.build_info_nav(build.id, current='config') }}
+
+  <h2>Job configuration</h2>
+  {% with job=job %}{% include "inc/job-details.jinja" %}{% endwith %}
+
+</div>
+{% endblock %}
