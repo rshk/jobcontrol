@@ -208,12 +208,23 @@
 
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="JobControlConfigMgr.from_file"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.from_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">fp</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">fp</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;read&#39;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">filename</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;filename must be a string or a file-like object&#39;</span><span class="p">)</span>
 </div>
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="JobControlConfigMgr.from_string"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.from_string">[docs]</a>    <span class="k">def</span> <span class="nf">from_string</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_object</span><span class="p">(</span><span class="n">load</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+        <span class="kn">import</span> <span class="nn">jinja2</span>
+
+        <span class="n">tpl</span> <span class="o">=</span> <span class="n">jinja2</span><span class="o">.</span><span class="n">Template</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">rendered</span> <span class="o">=</span> <span class="n">tpl</span><span class="o">.</span><span class="n">render</span><span class="p">()</span>
+        <span class="n">conf_obj</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="n">rendered</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_object</span><span class="p">(</span><span class="n">conf_obj</span><span class="p">)</span>
 </div>
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="JobControlConfigMgr.from_object"><a class="viewcode-back" href="../../api/job_conf.html#jobcontrol.job_conf.JobControlConfigMgr.from_object">[docs]</a>    <span class="k">def</span> <span class="nf">from_object</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>

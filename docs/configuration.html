@@ -54,7 +54,8 @@
             
   <div class="section" id="configuration">
 <h1>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h1>
-<p>The configuration file is written entirely in YAML.</p>
+<p>The main configuration file is written in YAML and pre-processed
+through Jinja, to allow things like defining variables, macros, etc.</p>
 <div class="section" id="storage">
 <h2>Storage<a class="headerlink" href="#storage" title="Permalink to this headline">¶</a></h2>
 <p>Define an URL pointing to the storage (for build status).</p>
@@ -108,8 +109,9 @@
 <p>Where the (immaginary) <tt class="docutils literal"><span class="pre">get_return_value()</span></tt> function returns the return
 value from the latest successful build of the specified job (which <em>must</em>
 be amongst the job dependencies).</p>
+</div>
 <div class="section" id="planned-job-configuration-keys">
-<h3>Planned job configuration keys<a class="headerlink" href="#planned-job-configuration-keys" title="Permalink to this headline">¶</a></h3>
+<h2>Planned job configuration keys<a class="headerlink" href="#planned-job-configuration-keys" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><tt class="docutils literal"><span class="pre">protect</span></tt> boolean indicating whether this job must be &#8220;protected&#8221;:
 by &#8220;protect&#8221; we mean &#8220;from accidental mistakes&#8221;; for example, it would
@@ -121,6 +123,74 @@ will be disabled and the build form submit button will need &#8220;arming&#8221;
 any data stored externally. That function requires access to the build
 status, eg. in order to get a pointer to the storage containing the data.</li>
 </ul>
+</div>
+<div class="section" id="example-macros">
+<h2>Example macros<a class="headerlink" href="#example-macros" title="Permalink to this headline">¶</a></h2>
+<p>For example, let&#8217;s say we want to &#8220;crawl&#8221; and &#8220;process&#8221; a bunch of websites.</p>
+<p>We could use a macro like this to keep repetitions at minimum:</p>
+<div class="highlight-jinja"><div class="highlight"><pre><span class="cp">{%</span> <span class="k">macro</span> <span class="nv">process_website</span><span class="o">(</span><span class="nv">name</span><span class="o">,</span> <span class="nv">url</span><span class="o">)</span> <span class="cp">%}</span><span class="x"></span>
+<span class="x">  - id: crawl_</span><span class="cp">{{</span> <span class="nv">name</span> <span class="cp">}}</span><span class="x"></span>
+<span class="x">    title: &quot;Crawl </span><span class="cp">{{</span> <span class="nv">url</span> <span class="cp">}}</span><span class="x">&quot;</span>
+<span class="x">    function: mycrawler:crawl</span>
+<span class="x">    kwargs:</span>
+<span class="x">      storage: postgresql://.../crawled_data_</span><span class="cp">{{</span> <span class="nv">name</span> <span class="cp">}}</span><span class="x"></span>
+
+<span class="x">  - id: process_</span><span class="cp">{{</span> <span class="nv">name</span> <span class="cp">}}</span><span class="x"></span>
+<span class="x">    title: &quot;Process </span><span class="cp">{{</span> <span class="nv">url</span> <span class="cp">}}</span><span class="x">&quot;</span>
+<span class="x">    function: mycrawler:process</span>
+<span class="x">    kwargs:</span>
+<span class="x">      storage: postgresql://.../processed_data_</span><span class="cp">{{</span> <span class="nv">name</span> <span class="cp">}}</span><span class="x"></span>
+<span class="cp">{%</span> <span class="k">endmacro</span> <span class="cp">%}</span><span class="x"></span>
+
+<span class="x">jobs:</span>
+<span class="cp">{{</span> <span class="nv">process_website</span><span class="o">(</span><span class="s1">&#39;example_com&#39;</span><span class="o">,</span> <span class="s1">&#39;http://www.example.com&#39;</span><span class="o">)</span> <span class="cp">}}</span><span class="x"></span>
+<span class="cp">{{</span> <span class="nv">process_website</span><span class="o">(</span><span class="s1">&#39;example_org&#39;</span><span class="o">,</span> <span class="s1">&#39;http://www.example.org&#39;</span><span class="o">)</span> <span class="cp">}}</span><span class="x"></span>
+<span class="cp">{{</span> <span class="nv">process_website</span><span class="o">(</span><span class="s1">&#39;example_net&#39;</span><span class="o">,</span> <span class="s1">&#39;http://www.example.net&#39;</span><span class="o">)</span> <span class="cp">}}</span><span class="x"></span>
+</pre></div>
+</div>
+<p>Will get expanded to:</p>
+<div class="highlight-yaml"><div class="highlight"><pre><span class="l-Scalar-Plain">jobs</span><span class="p-Indicator">:</span>
+  <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">crawl_example_com</span>
+    <span class="l-Scalar-Plain">title</span><span class="p-Indicator">:</span> <span class="s">&quot;Crawl</span><span class="nv"> </span><span class="s">http://www.example.com&quot;</span>
+    <span class="l-Scalar-Plain">function</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mycrawler:crawl</span>
+    <span class="l-Scalar-Plain">kwargs</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">storage</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">postgresql://.../crawled_data_example_com</span>
+
+  <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">process_example_com</span>
+    <span class="l-Scalar-Plain">title</span><span class="p-Indicator">:</span> <span class="s">&quot;Process</span><span class="nv"> </span><span class="s">http://www.example.com&quot;</span>
+    <span class="l-Scalar-Plain">function</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mycrawler:process</span>
+    <span class="l-Scalar-Plain">kwargs</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">storage</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">postgresql://.../processed_data_example_com</span>
+
+  <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">crawl_example_org</span>
+    <span class="l-Scalar-Plain">title</span><span class="p-Indicator">:</span> <span class="s">&quot;Crawl</span><span class="nv"> </span><span class="s">http://www.example.org&quot;</span>
+    <span class="l-Scalar-Plain">function</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mycrawler:crawl</span>
+    <span class="l-Scalar-Plain">kwargs</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">storage</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">postgresql://.../crawled_data_example_org</span>
+
+  <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">process_example_org</span>
+    <span class="l-Scalar-Plain">title</span><span class="p-Indicator">:</span> <span class="s">&quot;Process</span><span class="nv"> </span><span class="s">http://www.example.org&quot;</span>
+    <span class="l-Scalar-Plain">function</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mycrawler:process</span>
+    <span class="l-Scalar-Plain">kwargs</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">storage</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">postgresql://.../processed_data_example_org</span>
+
+  <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">crawl_example_net</span>
+    <span class="l-Scalar-Plain">title</span><span class="p-Indicator">:</span> <span class="s">&quot;Crawl</span><span class="nv"> </span><span class="s">http://www.example.net&quot;</span>
+    <span class="l-Scalar-Plain">function</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mycrawler:crawl</span>
+    <span class="l-Scalar-Plain">kwargs</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">storage</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">postgresql://.../crawled_data_example_net</span>
+
+  <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">process_example_net</span>
+    <span class="l-Scalar-Plain">title</span><span class="p-Indicator">:</span> <span class="s">&quot;Process</span><span class="nv"> </span><span class="s">http://www.example.net&quot;</span>
+    <span class="l-Scalar-Plain">function</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mycrawler:process</span>
+    <span class="l-Scalar-Plain">kwargs</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">storage</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">postgresql://.../processed_data_example_net</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Mind the indentation! The best way is to use the desired final indentation
+in the macro definition, then call the macro at &#8220;zero&#8221; indentation level.</p>
 </div>
 </div>
 </div>
@@ -137,10 +207,9 @@ status, eg. in order to get a pointer to the storage containing the data.</li>
 <li><a class="reference internal" href="#storage">Storage</a></li>
 <li><a class="reference internal" href="#webapp">Webapp</a></li>
 <li><a class="reference internal" href="#celery">Celery</a></li>
-<li><a class="reference internal" href="#jobs">Jobs</a><ul>
+<li><a class="reference internal" href="#jobs">Jobs</a></li>
 <li><a class="reference internal" href="#planned-job-configuration-keys">Planned job configuration keys</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#example-macros">Example macros</a></li>
 </ul>
 </li>
 </ul>
