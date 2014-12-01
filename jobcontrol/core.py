@@ -55,6 +55,9 @@ class JobControl(object):
         """
         Initialize JobControl by loading configuration from a file.
         Will also initialize storage taking values from the configuration.
+
+        :param config_file:
+            Path to configuration file or open file descriptor
         """
 
         config = JobControlConfigMgr.from_file(config_file)

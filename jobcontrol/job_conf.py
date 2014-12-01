@@ -159,12 +159,23 @@ class JobControlConfigMgr(Mapping):
 
     @classmethod
     def from_file(cls, filename):
-        with open(filename, 'r') as fp:
-            return cls.from_string(fp.read())
+        if isinstance(filename, basestring):
+            with open(filename, 'r') as fp:
+                return cls.from_string(fp.read())
+
+        if hasattr(filename, 'read'):
+            return cls.from_string(filename.read())
+
+        raise TypeError('filename must be a string or a file-like object')
 
     @classmethod
     def from_string(cls, s):
-        return cls.from_object(load(s))
+        import jinja2
+
+        tpl = jinja2.Template(s)
+        rendered = tpl.render()
+        conf_obj = load(rendered)
+        return cls.from_object(conf_obj)
 
     @classmethod
     def from_object(cls, data):
