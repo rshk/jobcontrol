@@ -128,8 +128,8 @@ def short_repr(obj, maxlen=50):
 
     # Cut in the middle..
     cutlen = maxlen - 3
-    p1 = math.ceil(cutlen / 2.0)
-    p2 = math.floor(cutlen / 2.0)
+    p1 = int(math.ceil(cutlen / 2.0))
+    p2 = int(math.floor(cutlen / 2.0))
     return '...'.join((rep[:p1], rep[-p2:]))
 
 

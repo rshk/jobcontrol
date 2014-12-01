@@ -136,54 +136,69 @@ def update_job(job_id, function, args, kwargs, dependencies):
 
 
 @cli_main_grp.command()
-@click.argument('job_id', type=click.INT)
-def get_job(job_id):
-    job = jc.storage.get_job(job_id)
+@click.argument('job_id')
+def show_job(job_id):
+    job = jc.get_job(job_id)
 
-    job['reverse_dependencies'] = [
-        x['id'] for x in jc.storage.get_job_revdeps(job['id'])]
+    # job['reverse_dependencies'] = [
+    #     x['id'] for x in jc.storage.get_job_revdeps(job['id'])]
 
     if output_fmt == 'human':
-        table = PrettyTable(['Key', 'Value'])
-        table.align.update({'Key': 'r', 'Value': 'l'})
-        table.add_row(("Job id:", job['id']))
-        table.add_row(("Created:", _fmt_date(job['ctime'])))
-        table.add_row(("Updated:", _fmt_date(job['mtime'])))
-        table.add_row(("Function:", job['function']))
-        table.add_row(("args:", job['args']))
-        table.add_row(("kwargs:", job['kwargs']))
-        table.add_row(("Deps:", job['dependencies']))
-        table.add_row(("Rev. deps:", job['reverse_dependencies']))
-        click.echo(table)
+        click.echo('Job id: {0}'.format(job.id))
+        click.echo('Title: {0}'.format(job['title']))
+        click.echo('Function: {0}'.format(job['function']))
+        click.echo('Args:\n    {0!r}'.format(job['args']))
+        click.echo('Kwargs:\n    {0!r}'.format(job['kwargs']))
+        click.echo('Dependencies:')
+        for dep in job.get_deps():
+            click.echo('    - {0} - {1!r}'.format(dep.id, dep['title']))
+        click.echo('Reverse dependencies:')
+        for dep in job.get_revdeps():
+            click.echo('    - {0} - {1!r}'.format(dep.id, dep['title']))
+
+        click.echo('')  # Blank line
+        click.echo('Status: {0}'.format(job.get_status()))
+        lsb = job.get_latest_successful_build()
+        click.echo('Latest successful build:')
+        if lsb:
+            click.echo('    Build id: {0}'.format(lsb.id))
+            click.echo('    Started: {0}'.format(lsb['start_time']))
+            click.echo('    Finished: {0}'.format(lsb['end_time']))
+        else:
+            click.echo('    No successful builds')
+
+        # table = PrettyTable(['Key', 'Value'])
+        # table.align.update({'Key': 'r', 'Value': 'l'})
+        # table.add_row(("Job id:", job['id']))
+        # table.add_row(("Created:", _fmt_date(job['ctime'])))
+        # table.add_row(("Updated:", _fmt_date(job['mtime'])))
+        # table.add_row(("Function:", job['function']))
+        # table.add_row(("args:", job['args']))
+        # table.add_row(("kwargs:", job['kwargs']))
+        # table.add_row(("Deps:", job['dependencies']))
+        # table.add_row(("Rev. deps:", job['reverse_dependencies']))
+        # click.echo(table)
 
     elif output_fmt == 'json':
-        click.echo(json_dumps(job))
+        raise NotImplementedError
+        # click.echo(json_dumps(job))
 
     else:
         raise AssertionError('Invalid output format')
 
 
 @cli_main_grp.command()
-@click.argument('job_id', type=click.INT)
-def delete_job(job_id):
-    jc.storage.delete_job(job_id)
-
-
-@cli_main_grp.command()
 def list_jobs():
-    jobs = list(jc.storage.iter_jobs())
+    jobs = list(jc.iter_jobs())
 
     if output_fmt == 'human':
         table = PrettyTable(
-            ['Id', 'Ctime', 'Function', 'Args', 'Kwargs', 'Deps'])
+            ['Id', 'Title', 'Function'])
         for item in jobs:
             table.add_row([
                 item['id'],
-                item['ctime'].strftime('%Y-%m-%d %H:%M'),
+                item['title'],
                 item['function'],
-                short_repr(item['args'], 40),
-                short_repr(item['kwargs'], 40),
-                item['dependencies'],
             ])
         click.echo(table)
 
@@ -288,7 +303,7 @@ def web(port, debug):
 @click.option('--broker', metavar='URL', help='Broker URL',
               default='redis://localhost:6379')
 def worker(broker):
-    """Run the web API service"""
+    """Run the Celery worker"""
 
     from jobcontrol.async.tasks import app as celery_app
     import jobcontrol.core  # should set up logging..  # noqa  # nope... :(

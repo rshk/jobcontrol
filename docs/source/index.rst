@@ -12,6 +12,7 @@ Application usage:
    :maxdepth: 2
 
    configuration
+   cli
    deploy
 
 Internals documentation:

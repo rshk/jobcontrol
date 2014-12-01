@@ -112,6 +112,7 @@ We could use a macro like this to keep repetitions at minimum:
         title: "Process {{ url }}"
         function: mycrawler:process
         kwargs:
+          input_storage: !retval crawl_{{ name }}
           storage: postgresql://.../processed_data_{{ name }}
     {% endmacro %}
 
@@ -135,6 +136,7 @@ Will get expanded to:
         title: "Process http://www.example.com"
         function: mycrawler:process
         kwargs:
+          input_storage: !retval crawl_example_com
           storage: postgresql://.../processed_data_example_com
 
       - id: crawl_example_org
@@ -147,6 +149,7 @@ Will get expanded to:
         title: "Process http://www.example.org"
         function: mycrawler:process
         kwargs:
+          input_storage: !retval crawl_example_org
           storage: postgresql://.../processed_data_example_org
 
       - id: crawl_example_net
@@ -159,6 +162,7 @@ Will get expanded to:
         title: "Process http://www.example.net"
         function: mycrawler:process
         kwargs:
+          input_storage: !retval crawl_example_net
           storage: postgresql://.../processed_data_example_net
 
 .. warning::
