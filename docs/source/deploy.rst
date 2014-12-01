@@ -33,3 +33,5 @@ Steps:
 
 todo
 ====
+
+- Give some better details for production deployment, eg.
