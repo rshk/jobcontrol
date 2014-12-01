@@ -139,6 +139,7 @@ status, eg. in order to get a pointer to the storage containing the data.</li>
 <span class="x">    title: &quot;Process </span><span class="cp">{{</span> <span class="nv">url</span> <span class="cp">}}</span><span class="x">&quot;</span>
 <span class="x">    function: mycrawler:process</span>
 <span class="x">    kwargs:</span>
+<span class="x">      input_storage: !retval crawl_</span><span class="cp">{{</span> <span class="nv">name</span> <span class="cp">}}</span><span class="x"></span>
 <span class="x">      storage: postgresql://.../processed_data_</span><span class="cp">{{</span> <span class="nv">name</span> <span class="cp">}}</span><span class="x"></span>
 <span class="cp">{%</span> <span class="k">endmacro</span> <span class="cp">%}</span><span class="x"></span>
 
@@ -160,6 +161,7 @@ status, eg. in order to get a pointer to the storage containing the data.</li>
     <span class="l-Scalar-Plain">title</span><span class="p-Indicator">:</span> <span class="s">&quot;Process</span><span class="nv"> </span><span class="s">http://www.example.com&quot;</span>
     <span class="l-Scalar-Plain">function</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mycrawler:process</span>
     <span class="l-Scalar-Plain">kwargs</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">input_storage</span><span class="p-Indicator">:</span> <span class="kt">!retval</span> <span class="l-Scalar-Plain">crawl_example_com</span>
       <span class="l-Scalar-Plain">storage</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">postgresql://.../processed_data_example_com</span>
 
   <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">crawl_example_org</span>
@@ -172,6 +174,7 @@ status, eg. in order to get a pointer to the storage containing the data.</li>
     <span class="l-Scalar-Plain">title</span><span class="p-Indicator">:</span> <span class="s">&quot;Process</span><span class="nv"> </span><span class="s">http://www.example.org&quot;</span>
     <span class="l-Scalar-Plain">function</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mycrawler:process</span>
     <span class="l-Scalar-Plain">kwargs</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">input_storage</span><span class="p-Indicator">:</span> <span class="kt">!retval</span> <span class="l-Scalar-Plain">crawl_example_org</span>
       <span class="l-Scalar-Plain">storage</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">postgresql://.../processed_data_example_org</span>
 
   <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">crawl_example_net</span>
@@ -184,6 +187,7 @@ status, eg. in order to get a pointer to the storage containing the data.</li>
     <span class="l-Scalar-Plain">title</span><span class="p-Indicator">:</span> <span class="s">&quot;Process</span><span class="nv"> </span><span class="s">http://www.example.net&quot;</span>
     <span class="l-Scalar-Plain">function</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mycrawler:process</span>
     <span class="l-Scalar-Plain">kwargs</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">input_storage</span><span class="p-Indicator">:</span> <span class="kt">!retval</span> <span class="l-Scalar-Plain">crawl_example_net</span>
       <span class="l-Scalar-Plain">storage</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">postgresql://.../processed_data_example_net</span>
 </pre></div>
 </div>
