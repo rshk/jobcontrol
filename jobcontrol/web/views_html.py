@@ -44,6 +44,8 @@ def job_info(job_id):
     return render_template('job-info.jinja', job=job, builds=builds)
 
 
+@html_views.route('/depgraph.<string:fmt>',
+                  methods=['GET'], defaults={'job_id': None})
 @html_views.route('/job/<string:job_id>/depgraph.<string:fmt>',
                   methods=['GET'])
 def job_depgraph(job_id, fmt):
@@ -58,22 +60,30 @@ def job_depgraph(job_id, fmt):
     except:
         return 'PyGraphviz is not installed', 500
 
-    depgraph = jc._create_job_depgraph(job_id, complete=True)
-    graph = pygraphviz.AGraph(depgraph, directed=True,
-                              name="Job {0} Dependency graph".format(job_id))
+    if job_id is not None:
+        depgraph = jc._create_job_depgraph(job_id, complete=True)
+        graph = pygraphviz.AGraph(
+            depgraph, directed=True,
+            name="Job {0} Dependency graph".format(job_id))
+
+    else:
+        depgraph = jc._create_full_depgraph()
+        graph = pygraphviz.AGraph(
+            depgraph, directed=True, name="Dependency graph")
 
     graph.graph_attr['dpi'] = '70'  # Other values make things go wrong
     graph.graph_attr['splines'] = 'curved'
+    graph.graph_attr['splines'] = 'ortho'
 
     graph.node_attr['fontsize'] = '12'
     graph.node_attr['fontname'] = 'monospace'
 
-    # graph.edge_attr['minlen'] = '1'
-    # graph.edge_attr['len'] = '1.5'  # Inches
+    # graph.edge_attr['minlen'] = '2'  # ignored??
+    graph.edge_attr['len'] = '2.5'  # Inches
 
-    node = graph.get_node(job_id)
-    node.attr['fontsize'] = '14'
-    node.attr['penwidth'] = '3'
+    # node = graph.get_node(job_id)
+    # node.attr['fontsize'] = '14'
+    # node.attr['penwidth'] = '3'
     # node.attr['color'] = '#ff0000'
     # node.attr['label'] = 'Job {0}'.format(job_id)
 
@@ -89,8 +99,10 @@ def job_depgraph(job_id, fmt):
         # node.attr['width'] = '.5'
 
         if node == job_id:
+            node.attr['fontsize'] = '14'
             node.attr['penwidth'] = '3'
             node.attr['color'] = '#000000'
+
         else:
             node.attr['penwidth'] = '0'
 
@@ -110,7 +122,7 @@ def job_depgraph(job_id, fmt):
     # todo: give different color to revdep edges
     # todo: detect loops, color edges in red
 
-    graph.layout()
+    graph.layout(prog='fdp')
 
     if fmt == 'png':
         return graph.draw(format='png'), 200, {'content-type': 'image/png'}

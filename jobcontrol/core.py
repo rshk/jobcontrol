@@ -286,6 +286,12 @@ class JobControl(object):
 
         return DEPGRAPH
 
+    def _create_full_depgraph(self):
+        DEPGRAPH = {}
+        for job in self.iter_jobs():
+            DEPGRAPH[job.id] = list(job['dependencies'])
+        return DEPGRAPH
+
     def _resolve_deps(self, depgraph, job_id):
         # Allow changing dependency resolution function
         return resolve_deps(depgraph, job_id)
