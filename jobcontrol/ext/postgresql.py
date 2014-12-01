@@ -256,7 +256,7 @@ class PostgreSQLStorage(StorageBase):
     def _build_pack(self, build):
         mapping = {
             'retval': lambda x: buffer(self.pack(x, safe=True)),
-            'exception': lambda x: buffer(self.pack(x, safe=True)),
+            'exception': lambda x: buffer(self.pack_exception(x)),
             'exception_tb': lambda x: buffer(self.pack(x, safe=True)),
             'job_config': self.yaml_pack,
             'build_config': self.yaml_pack,
@@ -443,7 +443,7 @@ class PostgreSQLStorage(StorageBase):
         row = self._serialize_log_record(record)
         row['build_id'] = build_id
         row['level'] = record.levelno
-        row['record'] = buffer(self.pack(row['record'], safe=True))
+        row['record'] = buffer(self.pack_log_record(row['record']))
         row['exception_tb'] = buffer(self.pack(row['exception_tb'], safe=True))
         self._do_insert('log', row)
 

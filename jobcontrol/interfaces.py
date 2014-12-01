@@ -83,8 +83,10 @@ import pickle
 import types
 import warnings
 
-from jobcontrol.utils import NotSerializableRepr
+from celery.contrib import rdb
+
 import jobcontrol.job_conf
+from jobcontrol.utils import ExceptionPlaceholder
 
 
 class StorageBase(object):
@@ -308,17 +310,44 @@ class StorageBase(object):
     # ------------------------------------------------------------
 
     def pack(self, obj, safe=False):
-        try:
-            return pickle.dumps(obj)
-        except:
-            if not safe:
-                raise
+        return pickle.dumps(obj)
+
+    def pack_log_record(self, record):
+        """
+        Pack a log record.
+
+        This special-cased function is meant to gracefully handle cases
+        of log messages not being serializable, usually due to some
+        "attr" or the attached exception not being serializable.
+        """
+
+        # Store a hard copy of the message
+        record.message = record.getMessage()
+
+        # If the exception is not serializable, we want to convert
+        # it to an object holding its representation.
 
         try:
-            return pickle.dumps(NotSerializableRepr(repr(obj)))
+            self.pack(record.exc_info)
+
         except:
-            return pickle.dumps(NotSerializableRepr(
-                'Unable to serialize not repr() the object.'))
+            # Just keep the string representation of the exception
+            # if the original exception was not serializable..
+            record.exc_info = (
+                record.exc_info[0],
+                ExceptionPlaceholder(record.exc_info[1]),
+                None)
+
+        # print("Packing record: {0!r}".format(record.__dict__))
+        # rdb.set_trace()
+        # import pdb; pdb.set_trace()
+        return self.pack(record)
+
+    def pack_exception(self, exception):
+        try:
+            return self.pack(exception)
+        except:
+            return self.pack(ExceptionPlaceholder(exception))
 
     def unpack(self, obj, safe=False):
         try:

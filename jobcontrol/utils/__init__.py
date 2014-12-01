@@ -398,11 +398,25 @@ class ProgressReport(object):
 
 
 class NotSerializableRepr(object):
-    def __init__(self, repr_string):
-        self.repr_string = repr_string
+    def __init__(self, obj, exception=None):
+        self.obj = repr(obj)
+        self.exception = repr(exception)
 
     def __repr__(self):
-        return 'NotSerializableRepr({0})'.format(self.repr_string)
+        return ('NotSerializableRepr({0}, exception={1})'
+                .format(self.obj, self.exception))
 
     def __unicode__(self):
         return unicode(self.__repr__())
+
+
+class ExceptionPlaceholder(object):
+    def __init__(self, orig):
+        self._repr = repr(orig)
+        self._str = unicode(orig)
+
+    def __repr__(self):
+        return 'Not serializable exception: {0}'.format(self._repr)
+
+    def __unicode__(self):
+        return u'Not serializable exception: {0}'.format(self._str)
