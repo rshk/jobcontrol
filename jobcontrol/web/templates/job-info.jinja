@@ -78,105 +78,118 @@
       <tr>
         {# <th>Job id</th> #}
         <th>Build id</th>
+        <th>Status</th>
         <th>Start time</th>
         <th>End time</th>
         <th>Duration</th>
-        <th>Started</th>
-        <th>Finished</th>
-        <th>Success</th>
-        <th>Skipped</th>
+        {# <th>Started</th> #}
+        {# <th>Finished</th> #}
+        {# <th>Success</th> #}
+        {# <th>Skipped</th> #}
         <th>Progress</th>
-        <th>Return value / exception</th>
+        {# <th>Return value / exception</th> #}
       </tr>
     </thead>
     <tbody>
       {% for build in builds %}
 
 	{% if build.finished %}
-	  {% if build['skipped'] %}
-	    {% set row_class = 'warning' %}
-	  {% elif build['success'] %}
-	    {% set row_class = 'success' %}
-	  {% else %}
-	    {% set row_class = 'danger' %}
-	  {% endif %}
+          {% if build['skipped'] %}
+            {% set row_class = 'warning' %}
+          {% elif build['success'] %}
+            {% set row_class = 'success' %}
+          {% else %}
+            {% set row_class = 'danger' %}
+          {% endif %}
 	{% else %}
-	  {% set row_class = 'default' %}
+          {% set row_class = 'default' %}
 	{% endif %}
 
 	<tr class="{{ row_class }}">
-	  {# <td style="width: 60px;"> #}
-	  {#   <a href="href="{{ url_for('webui.job_info', job_id=job.id) }}""> #}
-	  {#     <div class="label label-primary label-round"> #}
-	  {# 	{{ build['job_id'] }} #}
-	  {#     </div> #}
-	  {#   </a> #}
-	  {# </td> #}
+          {# <td style="width: 60px;"> #}
+          {#   <a href="href="{{ url_for('webui.job_info', job_id=job.id) }}""> #}
+          {#     <div class="label label-primary label-round"> #}
+          {#    {{ build['job_id'] }} #}
+          {#     </div> #}
+          {#   </a> #}
+          {# </td> #}
 
-	  <td style="width: 60px;">
-	    <a href="{{ url_for('webui.build_info', build_id=build.id) }}">
-	      <div class="label label-{{ row_class }} label-round">
+          <td style="width: 60px;">
+            <a href="{{ url_for('webui.build_info', build_id=build.id) }}">
+              <div class="label label-{{ row_class }} label-round">
 		{{ build.id }}
-	      </div>
-	    </a>
-	  </td>
+              </div>
+            </a>
+          </td>
 
-	  <td class="align-lm">
-	    <abbr title="{{ build.start_time }}">
-	      {{ build.start_time|humanize_timestamp }}
-	    </abbr>
-	  </td>
-	  <td class="align-lm">
-	    <abbr title="{{ build.end_time }}">
-	      {{ build.end_time|humanize_timestamp }}
-	    </abbr>
-	  </td>
+          <td class="align-lm">
+            {{ build.descriptive_status }}
+          </td>
 
-	  <td class="align-lm">
-	    {% if build.end_time and build.start_time %}
-	      {{ (build.end_time - build.start_time)|humanize_timedelta }}
-	    {% endif %}
-	  </td>
+          <td class="align-lm">
+            {% if build.start_time %}
+              <abbr title="{{ build.start_time }}">
+                {{ build.start_time|humanize_timestamp }}
+              </abbr>
+            {% else %}
+              Not started
+            {% endif %}
+          </td>
+          <td class="align-lm">
+            {% if build.end_time %}
+              <abbr title="{{ build.end_time }}">
+                {{ build.end_time|humanize_timestamp }}
+              </abbr>
+            {% else %}
+              Not finished
+            {% endif %}
+          </td>
 
-	  <td class="align-cm {% if build.started %}success{% else %}warning{% endif %}">
-	    {{ build.started|yesno }}
-	  </td>
+          <td class="align-lm">
+            {% if build.end_time and build.start_time %}
+              {{ (build.end_time - build.start_time)|humanize_timedelta }}
+            {% endif %}
+          </td>
 
-	  <td class="align-cm {% if build.finished %}success{% else %}warning{% endif %}">
-	    {{ build.finished|yesno }}
-	  </td>
+          {# <td class="align-cm {% if build.started %}success{% else %}warning{% endif %}"> #}
+          {#   {{ build.started|yesno }} #}
+          {# </td> #}
 
-          {% if build.finished %}
-            <td class="align-cm {% if build.success %}success{% else %}danger{% endif %}">
-              {{ build.success|yesno }}
-            </td>
-            <td class="align-cm {% if build.skipped %}warning{% else %}success{% endif %}">
-              {{ build.skipped|yesno }}
-            </td>
-          {% else %}
-            <td></td>
-            <td></td>
-          {% endif %}
+          {# <td class="align-cm {% if build.finished %}success{% else %}warning{% endif %}"> #}
+          {#   {{ build.finished|yesno }} #}
+          {# </td> #}
 
-	  <td class="align-cm">
+          {# {% if build.finished %} #}
+          {#   <td class="align-cm {% if build.success %}success{% else %}danger{% endif %}"> #}
+          {#     {{ build.success|yesno }} #}
+          {#   </td> #}
+          {#   <td class="align-cm {% if build.skipped %}warning{% else %}success{% endif %}"> #}
+          {#     {{ build.skipped|yesno }} #}
+          {#   </td> #}
+          {# {% else %} #}
+          {#   <td></td> #}
+          {#   <td></td> #}
+          {# {% endif %} #}
+
+          <td class="align-cm">
             {% set progress_info = build.get_progress_info() %}
-	    {{ macros.progress_bar(
+            {{ macros.progress_bar(
                 cur=progress_info.current,
                 total=progress_info.total,
                 color=progress_info.color_css_rgb,
                 size='small') }}
 
-	  </td>
-	  <td class="align-lm">
-	    {% if build.retval %}
-	      <code>{{ build.retval|pprint|escape }}</code>
-	    {% endif %}
+          </td>
+          {# <td class="align-lm"> #}
+          {#   {% if build.retval %} #}
+          {#     <code>{{ build.retval|pprint|escape }}</code> #}
+          {#   {% endif %} #}
 
-	    {% if build.exception %}
-	      <strong>Exception:</strong>
-	      {{ build.exception|pprint|escape }}
-	    {% endif %}
-	  </td>
+          {#   {% if build.exception %} #}
+          {#     <strong>Exception:</strong> #}
+          {#     {{ build.exception|pprint|escape }} #}
+          {#   {% endif %} #}
+          {# </td> #}
 	</tr>
       {% endfor %}
     </tbody>
