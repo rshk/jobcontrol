@@ -596,6 +596,9 @@ class JobInfo(object):
         """
         return self.app.build_job(self.id)
 
+    def create_build(self):
+        return self.app.create_build(self.id)
+
     def get_latest_successful_build(self):
         """
         Get latest successful build for this job, if any.
