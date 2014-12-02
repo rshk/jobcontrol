@@ -2,6 +2,10 @@
 Tests for builds
 """
 
+import pickle
+
+import pytest
+
 from jobcontrol.core import JobControl
 from jobcontrol.job_conf import JobControlConfigMgr
 from jobcontrol.utils import TracebackInfo
@@ -82,3 +86,68 @@ def test_build_failure(storage):
 
     assert isinstance(build['exception'], RuntimeError)
     assert isinstance(build['exception_tb'], TracebackInfo)
+
+    # todo: can we check something more, in the TracebackInfo?
+
+
+def test_nonserializable_objects():
+    """Accessory test for testing objects"""
+
+    from jobcontrol.utils.testing import (
+        NonSerializableObject, NonSerializableException)
+
+    nso = NonSerializableObject()
+    with pytest.raises(Exception):
+        pickle.dumps(nso)
+
+    nse = NonSerializableException()
+    with pytest.raises(Exception):
+        pickle.dumps(nse)
+
+
+def test_build_failure_nonserializable_object(storage):
+
+    config = {
+        'jobs': [
+            {'id': 'job-returning-nso',
+             'function': 'jobcontrol.utils.testing:job_returning_nonserializable'},  # noqa
+        ]
+    }
+
+    jc = JobControl(storage=storage, config=config)
+
+    # Run build for RETURN nonserializable
+    # It should just fail with an exception in the post-run serialization
+    # todo: We might even check the traceback for that..
+
+    # NOTE: The in-memory storage doesn't need to serialize objects
+
+    build = jc.create_build('job-returning-nso')
+    build.run()
+
+    build.refresh()
+    assert build['finished'] is True
+    assert build['success'] is False
+
+
+def test_build_failure_nonserializable_exception(storage):
+
+    config = {
+        'jobs': [
+            {'id': 'job-raising-nso',
+             'function': 'jobcontrol.utils.testing:job_raising_nonserializable'},  # noqa
+        ]
+    }
+
+    jc = JobControl(storage=storage, config=config)
+
+    # Run build for RAISE nonserializable
+    # It should just fail with an exception in the post-run serialization
+    # todo: We might even check the traceback for that..
+
+    build = jc.create_build('job-raising-nso')
+    build.run()
+
+    build.refresh()
+    assert build['finished'] is True
+    assert build['success'] is False

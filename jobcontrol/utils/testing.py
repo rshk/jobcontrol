@@ -181,38 +181,6 @@ def job_failing_once():
     return exec_count
 
 
-def job_dep_A():
-    return 'A'
-
-
-def job_dep_B():
-    from jobcontrol.globals import current_job
-    dependencies = current_job.dependencies
-
-    if len(dependencies) != 1:
-        raise RuntimeError("Expected 1 dependency, got {0}"
-                           .format(len(dependencies)))
-
-    latest_run = list(dependencies[0].iter_runs())[-1]
-    res = latest_run.get_result()
-
-    return res + 'B'
-
-
-def job_dep_C():
-    from jobcontrol.globals import current_job
-    dependencies = current_job.dependencies
-
-    if len(dependencies) != 1:
-        raise RuntimeError("Expected 1 dependency, got {0}"
-                           .format(len(dependencies)))
-
-    latest_run = list(dependencies[0].iter_runs())[-1]
-    res = latest_run.get_result()
-
-    return res + 'C'
-
-
 def job_echo_config(*args, **kwargs):
     """
     Simple job, "echoing" back the current configuration.
@@ -228,50 +196,6 @@ def job_echo_config(*args, **kwargs):
         'job_config': current_build['job_config'],
         'build_config': current_build['build_config'],
     }
-
-
-def job_with_progress(config):
-    """
-    Job to be used for testing purposes.
-
-    The configuration is a list of tuples: ``(name, steps)``
-    Progress will be reported in a random order.
-    """
-
-    from jobcontrol.globals import execution_context
-    import random
-
-    totals = {}
-    counters = {}
-
-    progress_report_items = []
-    for name, steps in config:
-
-        if isinstance(name, list):
-            # Safe YAML doesn't have tuples
-            name = tuple(name)
-
-        if not (name is None or isinstance(name, tuple)):
-            raise TypeError("Name must be a tuple or None")
-
-        for i in xrange(steps):
-            progress_report_items.append(name)
-        totals[name] = steps
-        counters[name] = 0
-
-    random.shuffle(progress_report_items)
-
-    def report_progress(name, cur, tot, status=None):
-        app = execution_context.current_app
-        app.report_progress(
-            group_name=name, current=cur, total=tot,
-            status_line=status)
-
-    for item in progress_report_items:
-        counters[item] += 1
-        report_progress(item, counters[item], totals[item],
-                        'Doing action {0} [{1}/{2}]'
-                        .format(item, counters[item], totals[item]))
 
 
 class RecordingLogHandler(logging.Handler):
@@ -297,3 +221,25 @@ class RecordingLogHandler(logging.Handler):
 
     def clear_messages(self):
         self._messages = []
+
+
+class NonSerializableObject(object):
+    __slots__ = ['foo', 'bar']
+
+    def __init__(self):
+        self.foo = 'foo'
+        self.bar = 'bar'
+
+
+class NonSerializableException(Exception):
+    def __init__(self):
+        super(NonSerializableException, self).__init__()
+        self.nso = NonSerializableObject()
+
+
+def job_returning_nonserializable():
+    return NonSerializableObject()
+
+
+def job_raising_nonserializable():
+    raise NonSerializableException()

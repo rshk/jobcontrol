@@ -30,3 +30,11 @@ class SkipBuild(JobControlException):
     should be skipped, eg. because there is no need for a rebuild.
     """
     pass
+
+
+class SerializationError(JobControlException):
+    """
+    Exception raised when serialization of a build's return value
+    failed.
+    """
+    pass

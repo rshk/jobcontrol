@@ -247,9 +247,20 @@ class JobControl(object):
         else:
             logger.info(log_prefix + 'Build SUCCESSFUL')
 
-            self.storage.finish_build(
-                build.id, success=True, skipped=False, retval=retval,
-                exception=None)
+            try:
+                self.storage.finish_build(
+                    build.id, success=True, skipped=False, retval=retval,
+                    exception=None)
+
+            except Exception as exc:
+                logger.error(
+                    log_prefix + 'Build was SUCCESSFUL, but there was '
+                    'an error storing the results. Maybe the return value '
+                    'is not serializable?')
+
+                self.storage.finish_build(
+                    build.id, success=False, exception=exc,
+                    exception_tb=TracebackInfo.from_current_exc())
 
         finally:
             # POP context from the stack

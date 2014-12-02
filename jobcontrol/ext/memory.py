@@ -125,6 +125,9 @@ class MemoryStorage(StorageBase):
         if build_id not in self._builds:
             raise NotFound('No such build: {0}'.format(build_id))
 
+        # So we can fail coherently if it is not serializable
+        self.pack(retval)
+
         self._builds[build_id]['finished'] = True
         self._builds[build_id]['end_time'] = datetime.now()
         self._builds[build_id]['success'] = success
