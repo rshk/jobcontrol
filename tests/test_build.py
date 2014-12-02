@@ -7,8 +7,11 @@ import pickle
 import pytest
 
 from jobcontrol.core import JobControl
+from jobcontrol.exceptions import SerializationError
 from jobcontrol.job_conf import JobControlConfigMgr
-from jobcontrol.utils import TracebackInfo
+from jobcontrol.utils import TracebackInfo, ExceptionPlaceholder
+from jobcontrol.utils.testing import (
+    NonSerializableObject, NonSerializableException)
 
 
 def test_build_simple(storage):
@@ -93,9 +96,6 @@ def test_build_failure(storage):
 def test_nonserializable_objects():
     """Accessory test for testing objects"""
 
-    from jobcontrol.utils.testing import (
-        NonSerializableObject, NonSerializableException)
-
     nso = NonSerializableObject()
     with pytest.raises(Exception):
         pickle.dumps(nso)
@@ -129,6 +129,8 @@ def test_build_failure_nonserializable_object(storage):
     assert build['finished'] is True
     assert build['success'] is False
 
+    assert isinstance(build['exception'], SerializationError)
+
 
 def test_build_failure_nonserializable_exception(storage):
 
@@ -151,3 +153,10 @@ def test_build_failure_nonserializable_exception(storage):
     build.refresh()
     assert build['finished'] is True
     assert build['success'] is False
+
+    # WARNING! How to tell whether this job failed due to
+    # the raised exception being serialized properly, or due
+    # to the exception serialization failed?
+
+    assert not isinstance(build['exception'], NonSerializableException)
+    assert isinstance(build['exception'], ExceptionPlaceholder)

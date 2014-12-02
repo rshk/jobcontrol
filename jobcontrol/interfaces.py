@@ -87,6 +87,7 @@ import warnings
 # from celery.contrib import rdb
 
 import jobcontrol.job_conf
+from jobcontrol.exceptions import SerializationError
 from jobcontrol.utils import ExceptionPlaceholder
 
 
@@ -311,7 +312,12 @@ class StorageBase(object):
     # ------------------------------------------------------------
 
     def pack(self, obj, safe=False):
-        return pickle.dumps(obj)
+        try:
+            return pickle.dumps(obj)
+        except Exception as exc:
+            raise SerializationError(
+                'Object serialization failed: {0!r}'
+                .format(exc))
 
     def pack_log_record(self, record):
         """

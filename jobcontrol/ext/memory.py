@@ -9,10 +9,10 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from itertools import count
 import copy
-import traceback
 
 from jobcontrol.interfaces import StorageBase
 from jobcontrol.exceptions import NotFound
+from jobcontrol.utils import ExceptionPlaceholder
 
 
 class MemoryStorage(StorageBase):
@@ -127,6 +127,10 @@ class MemoryStorage(StorageBase):
 
         # So we can fail coherently if it is not serializable
         self.pack(retval)
+        try:
+            self.pack(exception)
+        except:
+            exception = ExceptionPlaceholder(exception)
 
         self._builds[build_id]['finished'] = True
         self._builds[build_id]['end_time'] = datetime.now()
