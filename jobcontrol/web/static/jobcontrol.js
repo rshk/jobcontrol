@@ -60,12 +60,7 @@ $(function(){
             $container.find('> .message').each(function(){
                 var $this = $(this),
                     _level = parseInt($this.attr('data-log-level'));
-                if (_level >= level) {  // todo: can we just use .toggle(bool) ?
-                    $this.show();
-                }
-                else {
-                    $this.hide();
-                }
+                $this.toggle(_level >= level);
             });
         };
 
@@ -88,7 +83,5 @@ $(function(){
         filter_bar.append(make_link('danger', 'Critical', 50));
 
         $container.before(filter_bar);
-
-        // $('.log-messages > .message').each(function(){ if(parseInt($(this).attr('data-log-level')) < 30) { $(this).toggle(); } });
     });
 });
