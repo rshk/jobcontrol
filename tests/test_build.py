@@ -82,5 +82,3 @@ def test_build_failure(storage):
 
     assert isinstance(build['exception'], RuntimeError)
     assert isinstance(build['exception_tb'], TracebackInfo)
-
-    assert build['exception_tb'] == ''
