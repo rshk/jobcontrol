@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+"""
+Tests for the jobcontrol state storages.
+"""
+
 from datetime import datetime, timedelta
 
 import pytest
@@ -11,18 +15,41 @@ def test_build_crud(storage):
     assert list(storage.get_job_builds('foobar')) == []
 
     build_id = storage.create_build(
-        'foobar', {'function': 'mymod:myfunction'}, {})
+        job_id='foobar',
+        job_config={'function': 'mymod:myfunction'},
+        build_config={})
+
+    # Retrieve and check the created object
 
     build = storage.get_build(build_id)
+
+    MANDATORY_ATTRS = set([
+        'id', 'job_id', 'job_config', 'build_config',
+        'exception',
+        'exception_tb',
+        'skipped',
+        'success',
+        'title',
+        'started',
+        'start_time',
+        'finished',
+        'retval',
+        'notes',
+        'end_time',
+    ])
+
+    assert all(x in build for x in MANDATORY_ATTRS)
 
     assert build['id'] == build_id
     assert build['job_id'] == 'foobar'
 
+    assert isinstance(build['job_config'], dict)
     assert build['job_config']['function'] == 'mymod:myfunction'
     assert build['job_config']['args'] == ()
     assert build['job_config']['kwargs'] == {}
     assert build['job_config']['dependencies'] == []
 
+    assert isinstance(build['build_config'], dict)
     assert build['build_config']['dependency_builds'] == {}
 
     assert build['start_time'] is None

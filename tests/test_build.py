@@ -4,6 +4,7 @@ Tests for builds
 
 from jobcontrol.core import JobControl
 from jobcontrol.job_conf import JobControlConfigMgr
+from jobcontrol.utils import TracebackInfo
 
 
 def test_build_simple(storage):
@@ -59,3 +60,27 @@ def test_build_simple(storage):
     assert build['finished']
     assert build['success']
     assert isinstance(build['retval'], dict)
+
+
+def test_build_failure(storage):
+    config = {
+        'jobs': [
+            {'id': 'my-first-job',
+             'function': 'jobcontrol.utils.testing:testing_job',
+             'kwargs': {'fail': True}}
+        ]
+    }
+
+    jc = JobControl(storage=storage, config=config)
+
+    build = jc.create_build('my-first-job')
+    build.run()
+
+    build.refresh()
+    assert build['finished'] is True
+    assert build['success'] is False
+
+    assert isinstance(build['exception'], RuntimeError)
+    assert isinstance(build['exception_tb'], TracebackInfo)
+
+    assert build['exception_tb'] == ''
