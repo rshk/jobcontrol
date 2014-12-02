@@ -11,16 +11,15 @@ Objects responsible for JobControl core functionality.
 from datetime import timedelta
 import inspect
 import logging
-import sys
 import warnings
 
 from flask import escape
 
-from jobcontrol.globals import _execution_ctx_stack
 from jobcontrol.exceptions import MissingDependencies, SkipBuild, NotFound
-from jobcontrol.utils import import_object, cached_property
-from jobcontrol.utils.depgraph import resolve_deps
+from jobcontrol.globals import _execution_ctx_stack
 from jobcontrol.job_conf import JobControlConfigMgr
+from jobcontrol.utils import import_object, cached_property, TracebackInfo
+from jobcontrol.utils.depgraph import resolve_deps
 
 logger = logging.getLogger('jobcontrol')
 
@@ -236,16 +235,14 @@ class JobControl(object):
             logger.info(log_prefix + 'Build SKIPPED')
 
             # Indicates no need to build this..
-            self.storage.finish_build(
-                build.id, success=True, skipped=True, retval=None,
-                exception=None)
+            self.storage.finish_build(build.id, skipped=True)
 
         except Exception as exc:
             logger.exception(log_prefix + 'Build FAILED')
 
             self.storage.finish_build(
-                build.id, success=False, skipped=False, retval=None,
-                exception=exc, exc_info=sys.exc_info())
+                build.id, success=False, exception=exc,
+                exception_tb=TracebackInfo.from_current_exc())
 
         else:
             logger.info(log_prefix + 'Build SUCCESSFUL')

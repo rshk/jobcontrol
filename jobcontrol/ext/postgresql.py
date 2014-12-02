@@ -372,11 +372,7 @@ class PostgreSQLStorage(StorageBase):
         })
 
     def finish_build(self, build_id, success=True, skipped=False, retval=None,
-                     exception=None, exc_info=None):
-
-        exc_trace = None
-        if exc_info is not None:
-            exc_trace = ''.join(traceback.format_exception(*exc_info))
+                     exception=None, exception_tb=None):
 
         self._do_update('build', self._build_pack({
             'id': build_id,
@@ -386,7 +382,7 @@ class PostgreSQLStorage(StorageBase):
             'skipped': skipped,
             'retval': retval,
             'exception': exception,
-            'exception_tb': exc_trace,
+            'exception_tb': exception_tb,
         }))
 
     def report_build_progress(self, build_id, current, total, group_name=None,

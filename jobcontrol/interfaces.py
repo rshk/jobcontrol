@@ -83,7 +83,8 @@ import pickle
 import types
 import warnings
 
-from celery.contrib import rdb
+# This needs to be imported here in order for it to work
+# from celery.contrib import rdb
 
 import jobcontrol.job_conf
 from jobcontrol.utils import ExceptionPlaceholder
@@ -189,7 +190,7 @@ class StorageBase(object):
 
     @abc.abstractmethod
     def finish_build(self, build_id, success=None, skipped=None, retval=None,
-                     exception=None, exc_info=None):
+                     exception=None, exception_tb=None):
         """
         Register a build execution end.
         """

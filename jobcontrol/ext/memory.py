@@ -121,7 +121,7 @@ class MemoryStorage(StorageBase):
         self._builds[build_id]['start_time'] = datetime.now()
 
     def finish_build(self, build_id, success=True, skipped=False, retval=None,
-                     exception=None, exc_info=None):
+                     exception=None, exception_tb=None):
         if build_id not in self._builds:
             raise NotFound('No such build: {0}'.format(build_id))
 
@@ -131,11 +131,7 @@ class MemoryStorage(StorageBase):
         self._builds[build_id]['skipped'] = skipped
         self._builds[build_id]['retval'] = retval
         self._builds[build_id]['exception'] = exception
-        if exc_info is not None:
-            self._builds[build_id]['exception_tb'] = \
-                ''.join(traceback.format_exception(*exc_info))
-        else:
-            self._builds[build_id]['exception_tb'] = None
+        self._builds[build_id]['exception_tb'] = exception_tb
 
     def report_build_progress(self, build_id, current, total, group_name=None,
                               status_line=''):
