@@ -2,6 +2,7 @@ from collections import defaultdict
 from datetime import datetime
 from urlparse import urlparse
 import json
+import io
 import linecache
 import math
 import sys
@@ -222,23 +223,91 @@ class TracebackInfo(object):
     def format(self):
         """Format traceback for printing"""
 
-        lst = []
-        for filename, lineno, name, line, locs in self.frames:
-            item = '  File "{0}", line {1}, in {2}\n'.format(
-                filename, lineno, name)
-            if line:
-                item = item + '    {0}\n'.format(line.strip())
-            lst.append(item)
-            for key, val in sorted(locs.iteritems()):
-                lst.append('        {0} = {1}\n'.format(key, val))
-        return lst
+        output = io.StringIO()
+        output.write(u'Traceback (most recent call last):\n\n')
+        output.write(u'\n'.join(
+            self._format_frame(f)
+            for f in self.frames))
+        return output.getvalue()
+
+    def format_color(self):
+        """Format traceback for printing on 256-color terminal"""
+
+        output = io.StringIO()
+        output.write(u'Traceback (most recent call last):\n\n')
+        output.write(u'\n'.join(
+            self._format_frame_color(f)
+            for f in self.frames))
+        return output.getvalue()
+
+    def _format_frame(self, frame):
+        output = io.StringIO()
+        output.write(
+            u'  File "{0}", line {1}, in {2}\n'.format(
+                frame.filename, frame.lineno, frame.name))
+
+        if frame.context:
+            for line in frame.context:
+                fmtstring = u'{0:4d}: {1}\n'
+                if line[0] == frame.lineno:
+                    fmtstring = u'    > ' + fmtstring
+                else:
+                    fmtstring = u'      ' + fmtstring
+                output.write(fmtstring.format(line[0], line[1]))
+
+        if len(frame.locs):
+            output.write(u'\n      Local variables:\n')
+
+            for key, val in sorted(frame.locs.iteritems()):
+                output.write(u'        {0} = {1}\n'.format(key, val))
+
+        return output.getvalue()
+
+    def _format_frame_color(self, frame):
+        from pygments import highlight
+        from pygments.lexers import get_lexer_by_name
+        from pygments.formatters import Terminal256Formatter
+
+        _code_lexer = get_lexer_by_name('python')
+        _code_formatter = Terminal256Formatter(style='monokai')
+        _highlight = lambda code: highlight(code, _code_lexer, _code_formatter)
+
+        output = io.StringIO()
+        output.write(
+            u'  \033[1m'
+            u'File \033[38;5;184m"{0}"\033[39m, '
+            u'line \033[38;5;70m{1}\033[39m, '
+            u'in \033[38;5;39m{2}\033[0m\n\n'
+            .format(frame.filename, frame.lineno, frame.name))
+
+        if frame.context:
+            for line in frame.context:
+                fmtstring = u'{0:4d}: {1}\n'
+                if line[0] == frame.lineno:
+                    fmtstring = (u'    \033[48;5;250m\033[38;5;232m'
+                                 u'{0:4d}\033[0m {1}\n')
+                else:
+                    fmtstring = (u'    \033[48;5;237m\033[38;5;250m'
+                                 u'{0:4d}\033[0m {1}\n')
+
+                color_line = _highlight(line[1])
+                output.write(fmtstring.format(line[0], color_line.rstrip()))
+
+        if len(frame.locs):
+            output.write(u'\n    \033[1mLocal variables:\033[0m\n')
+
+            for key, val in sorted(frame.locs.iteritems()):
+                code_line = _highlight(u'{0} = {1}'.format(key, val)).rstrip()
+                output.write(u'      {0}\n'.format(code_line))
+
+        return output.getvalue()
 
     @classmethod
     def _extract_tb(cls, tb, limit=None):
         if limit is None:
             if hasattr(sys, 'tracebacklimit'):
                 limit = sys.tracebacklimit
-        list = []
+        frames = []
         n = 0
         while tb is not None and (limit is None or n < limit):
             f = tb.tb_frame
@@ -248,34 +317,26 @@ class TracebackInfo(object):
             name = co.co_name
             linecache.checkcache(filename)
             line = linecache.getline(filename, lineno, f.f_globals)
-            locs = cls._dump_locals(f.f_locals)
+            locs = f.f_locals  # Will be converted to repr() by FrameInfo
             if line:
                 line = line.strip()
             else:
                 line = None
-            list.append(FrameInfo(filename, lineno, name, line, locs))
+            frames.append(FrameInfo(filename, lineno, name, line, locs))
             tb = tb.tb_next
             n = n+1
-        return list
+        return frames
 
-    @classmethod
-    def _dump_locals(cls, locs):
-        return dict(((k, trim_string(repr(v), maxlen=1024))
-                     for k, v in locs.iteritems()))
+    # @classmethod
+    # def _dump_locals(cls, locs):
+    #     return dict(((k, trim_string(repr(v), maxlen=1024))
+    #                  for k, v in locs.iteritems()))
 
     def __str__(self):
-        """
-        Returns a printable representation of the traceback information,
-        as a binary string.
-        """
-        return ''.join(self.format())
+        return self.format().encode('utf-8')
 
     def __unicode__(self):
-        """
-        Returns a printable representation of the traceback information,
-        as a unicode string.
-        """
-        return u''.join(unicode(x) for x in self.format())
+        return self.format()
 
 
 class ProgressReport(object):
