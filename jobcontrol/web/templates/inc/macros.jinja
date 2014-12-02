@@ -461,7 +461,7 @@
 	{% set row_class = 'critical' %}
       {% endif %}
 
-      <div class="message msg-{{ row_class }}">
+      <div class="message msg-{{ row_class }}" data-log-level="{{ record.levelno }}">
 
 	<div class="message-header">
 	  <span class="levelname">{{ record.levelname|escape }}</span>
