@@ -665,6 +665,19 @@ class JobInfo(object):
 
         return False
 
+    def can_be_built(self):
+        """
+        Checks whether a job can be built, i.e.: whether all the
+        dependencies have at least one successful build.
+        """
+
+        for dep in self.get_deps():
+            _build = dep.get_latest_successful_build()
+            if _build is None:
+                return False
+
+        return True
+
     # todo: move all the docs / ... utilities outside this class
     #       -> maybe move to some "job config" class?
     #       -> we need them for the job_config in the build as well!

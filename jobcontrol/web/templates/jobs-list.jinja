@@ -97,7 +97,7 @@
           <div class="media-right">
             <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST">
 	      {{ macros.form_csrf_token() }}
-              <button class="btn btn-primary btn-lg">
+              <button class="btn {% if job.can_be_built() %}btn-primary{% else %}btn-default{% endif %} btn-lg">
 	        <span class="fa fa-cog"></span> Run
               </button>
             </form>
