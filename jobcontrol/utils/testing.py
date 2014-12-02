@@ -2,6 +2,8 @@ import logging
 import random
 import time
 
+from jobcontrol.exceptions import SkipBuild
+
 
 def job_simple_echo(*args, **kwargs):
     return (args, kwargs)
@@ -42,56 +44,103 @@ def _log_random(logger):
                    _random_paragraph(random.randint(10, 20)))
 
 
-def testing_job(steps=10, sleep=1, retval='DONE', fail=False):
+def testing_job(progress_steps=None, retval=None, fail=False, skip=False,
+                log_messages=None, step_duration=0):
     """
-    Job to be used for testing purposes.
+    Job used for testing purposes.
 
-    Provides facilities for simulating various execution scenarios,
-    such as logging, failures, progress, ..
+    :param progress_steps:
+        A list of tuples: ``(<group_name>, <steps>)``, where "group_name"
+        is a tuple of name "levels", "steps" an integer representing how
+        many steps should that level have.
 
-    :param steps: How many "steps" this job is composed of
-    :param sleep: How many seconds to sleep between each "step"
-    :param retval: What to return
+        Progress reports will be sent in randomized order.
+
+    :param retval:
+        The return value for the job.
+
     :param fail:
-        - if ``False``, the build will succeed
-        - if ``True``, the build will fail
-        - if an integer, the step at wich the build will fail
-        - if a float (0 <= x <= 1), the chance of the job failing
+        Whether this job should fail.
+
+    :param skip:
+        Whether this job should be skipped.
+
+    :param log_messages:
+        A list of tuples: ``(level, message)``
+
+    :param step_duration:
+        The time to sleep between steps, in milliseconds.
     """
 
-    from jobcontrol.globals import current_app, execution_context
+    from jobcontrol.globals import execution_context
 
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger('jobcontrol.utils.testing_job')
 
-    def update_progress(*a):
-        current_app.storage.update_build_progress(
-            execution_context.build_id, *a)
+    log_messages = list(log_messages or [])
+    if progress_steps is None:
+        progress_steps = [(None, 10)]
 
-    update_progress(0, 10)
-    for i in xrange(1, steps + 1):
-        _log_random(logger)
+    totals = {}
+    counters = {}
 
-        update_progress(i, steps)
+    progress_report_items = []
+    for name, steps in progress_steps:
 
-        time.sleep(sleep)
+        if isinstance(name, list):
+            # Safe YAML doesn't have tuples, but names must be tuples
+            name = tuple(name)
 
-        if isinstance(fail, float):
-            # Float: chance of failing
-            if random.random() <= (fail / steps):
-                raise RuntimeError('Simulating failure {0:.0f}%'
-                                   .format(fail * 100))
+        if not (name is None or isinstance(name, tuple)):
+            raise TypeError("Name must be a tuple or None")
 
-        elif isinstance(fail, (int, long)) and fail == i:
-            # Int: where to fail
-            raise RuntimeError('Simulating failure at step {0}'
-                               .format(fail))
+        for i in xrange(steps):
+            progress_report_items.append(name)
+        totals[name] = steps
+        counters[name] = 0
 
-    _log_random(logger)
+    random.shuffle(progress_report_items)
 
-    if fail is True:
-        raise RuntimeError('Simulating failure at end')
+    sleep_time = step_duration * 1.0 / 1000
 
-    return "DONE"
+    def report_progress(name, cur, tot, status=None):
+        app = execution_context.current_app
+        app.report_progress(
+            group_name=name, current=cur, total=tot,
+            status_line=status)
+
+    def _should_fail():
+        return random.randint(0, len(progress_report_items)) == 0
+
+    for item in progress_report_items:
+        counters[item] += 1
+        report_progress(item, counters[item], totals[item],
+                        'Doing action {0} [{1}/{2}]'
+                        .format(item, counters[item], totals[item]))
+
+        if len(log_messages):
+            lev, msg = log_messages.pop(0)
+            logger.log(lev, msg)
+
+        if fail and _should_fail():
+            raise RuntimeError(
+                'This is a simulated exception in the middle of the loop')
+
+        if skip and _should_fail():
+            raise SkipBuild(
+                'This is a simulated skip in the middle of the loop')
+
+        if sleep_time:
+            time.sleep(sleep_time)
+
+    if skip:
+        # Make sure the job gets skipped
+        raise SkipBuild('This build should be skipped!')
+
+    if fail:
+        # Make sure the job fails
+        raise RuntimeError('This is a simulated exception')
+
+    return retval
 
 
 def job_with_logging():
