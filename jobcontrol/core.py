@@ -909,11 +909,6 @@ class BuildInfo(object):
         self._info = self.app.storage.get_build(self.build_id)
 
     def __getitem__(self, name):
-        # if name not in self.info:
-        #     if name == 'progress_info':
-        #         self._info['progress_info'] = self.get_progress_info()
-        #         return self._info['progress_info']
-
         return self.info[name]
 
     def get_progress_info(self):
