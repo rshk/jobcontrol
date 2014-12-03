@@ -144,10 +144,10 @@ def testing_job(progress_steps=None, retval=None, fail=False, skip=False,
 
 
 def job_with_logging():
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger('jobcontrol.utils.testing.job_with_logging')
     logger.setLevel(logging.DEBUG)
     logger.debug('This is a debug message')
-    logger.info('This is a info message')
+    logger.info('This is an info message')
     logger.warning('This is a warning message')
     logger.error('This is an error message')
     logger.critical('This is a critical message')

@@ -174,10 +174,10 @@ class MemoryStorage(StorageBase):
         return items
 
     def log_message(self, build_id, record):
-        record.build_id = build_id
-        row = self._serialize_log_record(record)
-        row['build_id'] = build_id
-        self._log_messages[build_id].append(row)
+        record = self._prepare_log_record(record)
+        record['build_id'] = build_id
+
+        self._log_messages[build_id].append(record)
 
     def prune_log_messages(self, build_id=None, max_age=None,
                            level=None):
@@ -203,17 +203,17 @@ class MemoryStorage(StorageBase):
         filters = []
 
         if build_id is not None:
-            filters.append(lambda x: x['build_id'] == build_id)
+            filters.append(lambda x: x.build_id == build_id)
 
         if max_date is not None:
-            filters.append(lambda x: x['created'] < max_date)
+            filters.append(lambda x: x.created < max_date)
 
         if min_date is not None:
-            filters.append(lambda x: x['created'] >= min_date)
+            filters.append(lambda x: x.created >= min_date)
 
         if min_level is not None:
-            filters.append(lambda x: x['record'].levelno >= min_level)
+            filters.append(lambda x: x.levelno >= min_level)
 
         for msg in self._log_messages[build_id]:
             if all(f(msg) for f in filters):
-                yield msg['record']
+                yield msg

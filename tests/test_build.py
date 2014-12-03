@@ -2,6 +2,8 @@
 Tests for builds
 """
 
+from datetime import datetime
+import logging
 import pickle
 
 import pytest
@@ -313,3 +315,65 @@ def test_build_deletion(storage):
     # todo: add support for, and test, job cleanup functions -> we need
     #       a job creating some "external resource" (temp file?)
     #       plus a cleanup function that will delete it (unlink?)
+
+
+def test_build_logging(storage):
+    config = {
+        'jobs': [
+            {'id': 'job-with-logging',
+             'function': 'jobcontrol.utils.testing:job_with_logging'},
+        ]
+    }
+
+    jc = JobControl(storage=storage, config=config)
+    job = jc.get_job('job-with-logging')
+
+    build = job.create_build()
+    build.run()
+    build.refresh()
+
+    assert build['finished'] and build['success']
+
+    log_messages = build.iter_log_messages()
+    messages_from_job = [
+        msg for msg in log_messages
+        if msg.name == 'jobcontrol.utils.testing.job_with_logging']
+
+    assert len(messages_from_job) == 6
+
+    assert messages_from_job[0].levelno == logging.DEBUG
+    assert messages_from_job[0].message == 'This is a debug message'
+
+    assert messages_from_job[0].args == ()
+    assert isinstance(messages_from_job[0].created, datetime)
+    assert messages_from_job[0].filename == 'testing.py'
+    assert messages_from_job[0].function == 'job_with_logging'
+    assert messages_from_job[0].level_name == 'DEBUG'
+    assert messages_from_job[0].level == logging.DEBUG
+    assert isinstance(messages_from_job[0].lineno, int)
+    assert messages_from_job[0].module == 'testing'
+    assert messages_from_job[0].message == 'This is a debug message'
+    assert messages_from_job[0].msg == 'This is a debug message'
+    assert messages_from_job[0].name == 'jobcontrol.utils.testing.job_with_logging'  # noqa
+    assert isinstance(messages_from_job[0].pathname, basestring)
+    assert messages_from_job[0].pathname.endswith('jobcontrol/utils/testing.py')  # noqa
+
+    assert messages_from_job[0].exception is None
+    assert messages_from_job[0].exception_tb is None
+
+    assert messages_from_job[1].levelno == logging.INFO
+    assert messages_from_job[1].message == 'This is an info message'
+
+    assert messages_from_job[2].levelno == logging.WARNING
+    assert messages_from_job[2].message == 'This is a warning message'
+
+    assert messages_from_job[3].levelno == logging.ERROR
+    assert messages_from_job[3].message == 'This is an error message'
+
+    assert messages_from_job[4].levelno == logging.CRITICAL
+    assert messages_from_job[4].message == 'This is a critical message'
+
+    assert messages_from_job[5].levelno == logging.ERROR
+    assert messages_from_job[5].message == 'This is an exception message'
+    assert isinstance(messages_from_job[5].exception, ValueError)
+    assert isinstance(messages_from_job[5].exception_tb, TracebackInfo)

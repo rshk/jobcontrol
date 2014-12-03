@@ -1,10 +1,11 @@
-from collections import defaultdict
+from collections import defaultdict, MutableMapping
 from datetime import datetime
 from urlparse import urlparse
-import json
 import io
+import json
 import linecache
 import math
+import pickle
 import sys
 
 _missing = object()
@@ -481,3 +482,131 @@ class ExceptionPlaceholder(object):
 
     def __unicode__(self):
         return u'Not serializable exception: {0}'.format(self._str)
+
+
+class LogRecord(MutableMapping):
+    """
+    Wrapper around logging messages.
+
+    - Guarantees that the contained object can be pickled
+    - Improves things like "created" -> now automatically a datetime object
+    - Stores exception / TracebackInfo in separate attributes
+    - Uses better field names
+    """
+
+    def __init__(self, **kwargs):
+        self._attrs = {
+            'args': None,
+            'created': None,
+            'filename': None,
+            'function': None,
+            'level_name': None,
+            'level': None,
+            'lineno': None,
+            'module': None,
+            'msecs': None,
+            'message': None,
+            'msg': None,
+            'name': None,
+            'pathname': None,
+            'process': None,
+            'process_name': None,
+            'relative_created': None,
+            'thread': None,
+            'thread_name': None,
+
+            # Custom
+            'build_id': None,
+            'exception': None,
+            'exception_tb': None,
+        }
+        self._attrs.update(kwargs)
+
+    @classmethod
+    def from_record(cls, record):
+        obj = cls()
+
+        if getattr(record, 'message', None) is None:
+            record.message = record.getMessage()
+
+        obj.update({
+            'args': record.args,
+            'created': datetime.utcfromtimestamp(record.created),
+            'filename': record.filename,
+            'function': record.funcName,
+            'level_name': record.levelname,
+            'level': record.levelno,
+            'lineno': record.lineno,
+            'module': record.module,
+            'msecs': record.msecs,
+            'message': record.message,
+            'msg': record.msg,
+            'name': record.name,
+            'pathname': record.pathname,
+            'process': record.process,
+            'process_name': record.processName,
+            'relative_created': record.relativeCreated,
+            'thread': record.thread,
+            'thread_name': record.threadName,
+            'exception': None,
+            'exception_tb': None,
+        })
+
+        if record.exc_info:
+            et, ex, tb = record.exc_info
+            obj['exception'] = ex
+            obj['exception_tb'] = TracebackInfo.from_tb(tb)
+
+        return obj
+
+    def __getitem__(self, name):
+        aliases = {
+            'levelno': 'level',
+            'funcName': 'function',
+            'levelname': 'level_name',
+            'processName': 'process_name',
+            'relativeCreated': 'relative_created',
+            'threadName': 'thread_name',
+        }
+
+        name = aliases.get(name, name)
+        return self._attrs[name]
+
+    def __setitem__(self, name, value):
+        if name not in self._attrs:
+            raise KeyError(name)
+
+        if name == 'exception':
+            try:
+                pickle.dumps(value)
+            except:
+                value = ExceptionPlaceholder(value)
+
+        self._attrs[name] = value
+
+    def __delitem__(self, name):
+        if name not in self._attrs:
+            raise KeyError(name)
+        self._attrs[name] = None
+
+    def __iter__(self):
+        return iter(self._attrs)
+
+    def __len__(self):
+        return len(self._attrs)
+
+    def __contains__(self, item):
+        return item in self._attrs
+
+    def __getattr__(self, name):
+        """Emulate the standard LogRecord, wich uses attributes"""
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __getstate__(self):
+        return self._attrs
+
+    def __setstate__(self, state):
+        self._attrs = state

@@ -77,10 +77,8 @@ We want to include the following information:
   just to be on the safe side).
 """
 
-from datetime import datetime
 import abc
 import pickle
-import types
 import warnings
 
 # This needs to be imported here in order for it to work
@@ -88,7 +86,7 @@ import warnings
 
 import jobcontrol.job_conf
 from jobcontrol.exceptions import SerializationError
-from jobcontrol.utils import ExceptionPlaceholder
+from jobcontrol.utils import ExceptionPlaceholder, TracebackInfo, LogRecord
 
 
 class StorageBase(object):
@@ -319,37 +317,6 @@ class StorageBase(object):
                 'Object serialization failed: {0!r}'
                 .format(exc))
 
-    def pack_log_record(self, record):
-        """
-        Pack a log record.
-
-        This special-cased function is meant to gracefully handle cases
-        of log messages not being serializable, usually due to some
-        "attr" or the attached exception not being serializable.
-        """
-
-        # Store a hard copy of the message
-        record.message = record.getMessage()
-
-        # If the exception is not serializable, we want to convert
-        # it to an object holding its representation.
-
-        try:
-            self.pack(record.exc_info)
-
-        except:
-            # Just keep the string representation of the exception
-            # if the original exception was not serializable..
-            record.exc_info = (
-                record.exc_info[0],
-                ExceptionPlaceholder(record.exc_info[1]),
-                None)
-
-        # print("Packing record: {0!r}".format(record.__dict__))
-        # rdb.set_trace()
-        # import pdb; pdb.set_trace()
-        return self.pack(record)
-
     def pack_exception(self, exception):
         try:
             return self.pack(exception)
@@ -441,19 +408,5 @@ class StorageBase(object):
 
         return build_info
 
-    def _serialize_log_record(self, record):
-        from jobcontrol.utils import TracebackInfo
-
-        row = {
-            'record': record,
-            'created': datetime.utcfromtimestamp(record.created),
-            'exception_tb': None,
-        }
-
-        if record.exc_info:
-            etype, exc, tb = record.exc_info
-            record.exc_info = (etype, exc, None)
-            assert isinstance(tb, types.TracebackType)
-            row['exception_tb'] = TracebackInfo.from_tb(tb)
-
-        return row
+    def _prepare_log_record(self, record):
+        return LogRecord.from_record(record)

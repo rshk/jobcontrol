@@ -442,11 +442,16 @@ class PostgreSQLStorage(StorageBase):
         return items
 
     def log_message(self, build_id, record):
-        row = self._serialize_log_record(record)
-        row['build_id'] = build_id
-        row['level'] = record.levelno
-        row['record'] = buffer(self.pack_log_record(row['record']))
-        row['exception_tb'] = buffer(self.pack(row['exception_tb'], safe=True))
+        record = self._prepare_log_record(record)
+        record['build_id'] = build_id
+
+        row = {
+            'build_id': record.build_id,
+            'record': buffer(self.pack(record)),
+            'created': record.created,
+            'level': record.level,
+        }
+
         self._do_insert('log', row)
 
     def prune_log_messages(self, build_id=None, max_age=None, level=None):
@@ -526,28 +531,4 @@ class PostgreSQLStorage(StorageBase):
             cur.execute(query, filters)
             for item in cur.fetchall():
                 record = self.unpack(item['record'])
-
-                if isinstance(record, NotSerializableRepr):
-                    # todo: handle this
-                    record = logging.LogRecord(
-                        name='<ERROR>',
-                        level=item['level'], pathname='???',
-                        lineno='???',
-                        msg='Record serialization failed: \n\n {0}'
-                        .format(record), args=(),
-                        exc_info=(), func='???')
-
-                # todo: any better way to do this?
-                # record.job_id = item['job_id']
-                record.build_id = item['build_id']
-                record.traceback_info = self.unpack(item['exception_tb'])
-
-                # Make sure we're dealing with unicode..
-                if not hasattr(record, 'message'):
-                    # Why is this sometimes not set?
-                    record.message = record.getMessage()
-
-                if isinstance(record.message, bytes):
-                    record.message = record.message.decode('utf-8')
-
                 yield record
