@@ -440,3 +440,81 @@ def test_build_configuration_pinning(storage):
 
     build = job.create_build()
     build_id = build.id  # Then stop using this object
+
+
+@pytest.mark.xfail(True, reason='Not supported yet')
+def test_dependency_pinning(storage):
+    # Test for dependency pinning
+    # ---------------------------
+    #
+    # We want to make sure that a build uses the latest build for
+    # a dependency at the time it was created; so if we run a build
+    # for job-1, then create a build for job-2, then run another build
+    # for job-1, the return values used when running a build for job-2
+    # will be the one from the *first* build.
+    # To ensure this, we are going to change the return value
+    # in the configuration.
+
+    config = dedent("""\
+    jobs:
+        - id: job-1
+          function: jobcontrol.utils.testing:testing_job
+          kwargs:
+              retval: "original-retval"
+
+        - id: job-2
+          function: jobcontrol.utils.testing:testing_job
+          kwargs:
+              retval: !retval 'job-1'
+          dependencies: ['job-1']
+    """)
+
+    config = JobControlConfigMgr.from_string(config)
+    jc = JobControl(storage=storage, config=config)
+
+    build_1_1 = jc.create_build('job-1')
+    build_1_1.run()
+    build_1_1.refresh()
+    assert build_1_1['finished'] and build_1_1['success']
+    assert build_1_1['retval'] == 'original-retval'
+
+    # This should have pinned dependency on build_1_1
+    build_2_1 = jc.create_build('job-2')
+
+    # Update configuration
+    # --------------------
+
+    config = dedent("""\
+    jobs:
+        - id: job-1
+          function: jobcontrol.utils.testing:testing_job
+          kwargs:
+              retval: "new-retval"
+
+        - id: job-2
+          function: jobcontrol.utils.testing:testing_job
+          kwargs:
+              retval: !retval 'job-1'
+          dependencies: ['job-1']
+    """)
+
+    config = JobControlConfigMgr.from_string(config)
+    jc = JobControl(storage=storage, config=config)
+
+    build_1_2 = jc.create_build('job-1')
+    build_1_2.run()
+    build_1_2.refresh()
+    assert build_1_2['finished'] and build_1_2['success']
+    assert build_1_2['retval'] == 'new-retval'
+
+    build_2_1 = jc.get_build(build_2_1.id)  # Get from *new* JC
+    build_2_1.run()
+    build_2_1.refresh()
+    assert build_2_1['finished'] and build_2_1['success']
+    assert build_2_1['retval'] == 'original-retval'
+
+    build_2_2 = jc.create_build('job-2')
+    build_2_2.run()
+    build_2_2.refresh()
+    assert build_2_2['finished'] and build_2_2['success']
+    assert build_2_2['retval'] == 'new-retval'
