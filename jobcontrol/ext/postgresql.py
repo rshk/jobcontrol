@@ -114,8 +114,7 @@ class PostgreSQLStorage(StorageBase):
                 ON DELETE CASCADE,
             created TIMESTAMP WITHOUT TIME ZONE,
             level INTEGER,
-            record BYTEA,
-            exception_tb BYTEA
+            record BYTEA
         );
         """.format(prefix=self._table_prefix)
 
