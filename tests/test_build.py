@@ -3,6 +3,7 @@ Tests for builds
 """
 
 from datetime import datetime
+from textwrap import dedent
 import logging
 import pickle
 
@@ -377,3 +378,65 @@ def test_build_logging(storage):
     assert messages_from_job[5].message == 'This is an exception message'
     assert isinstance(messages_from_job[5].exception, ValueError)
     assert isinstance(messages_from_job[5].exception_tb, TracebackInfo)
+
+
+def test_build_configuration_pinning(storage):
+    config = dedent("""\
+    jobs:
+        - id: job-1
+          function: jobcontrol.utils.testing:testing_job
+          kwargs:
+              retval: "original-retval"
+    """)
+    config = JobControlConfigMgr.from_string(config)
+    jc = JobControl(storage=storage, config=config)
+
+    # ------------------------------------------------------------
+    # Create a build with old configuration
+    # ------------------------------------------------------------
+
+    job = jc.get_job('job-1')
+    build = job.create_build()
+    build.run()
+    build.refresh()
+    assert build['finished'] and build['success']
+    assert build['retval'] == 'original-retval'
+
+    build = job.create_build()
+    build_id = build.id  # Then stop using this object
+
+    # ------------------------------------------------------------
+    # Update the configuration
+    # ------------------------------------------------------------
+
+    config = dedent("""\
+    jobs:
+        - id: job-1
+          function: jobcontrol.utils.testing:testing_job
+          kwargs:
+              retval: "new-retval"
+    """)
+    config = JobControlConfigMgr.from_string(config)
+    jc = JobControl(storage=storage, config=config)
+
+    # ------------------------------------------------------------
+    # Running that build will return the original return value
+
+    build = jc.get_build(build_id)
+    build.run()
+    build.refresh()
+    assert build['finished'] and build['success']
+    assert build['retval'] == 'original-retval'
+
+    # ------------------------------------------------------------
+    # A freshly created build will return the new return value
+
+    job = jc.get_job('job-1')
+    build = job.create_build()
+    build.run()
+    build.refresh()
+    assert build['finished'] and build['success']
+    assert build['retval'] == 'new-retval'
+
+    build = job.create_build()
+    build_id = build.id  # Then stop using this object
