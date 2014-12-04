@@ -3,6 +3,8 @@ include CHANGELOG.rst
 # include *.rst
 include LICENSE
 
+recursive-include jobcontrol/web/templates *.jinja
+
 # Some examples below.
 # See docs at: https://docs.python.org/2/distutils/sourcedist.html#the-manifest-in-template
 
