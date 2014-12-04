@@ -278,14 +278,13 @@ def build_job(job_id):
 
 
 @cli_main_grp.command()
-@click.option('--host', type=click.INT, help='Server host',
-              default='127.0.0.1')
+@click.option('--host', help='Server host', default='127.0.0.1')
 @click.option('--port', type=click.INT, help='Server port',
               default=5000)
 @click.option('--debug/--no-debug',
               help='Whether to enable debug mode (reloader, etc.)',
               default=False)
-def web(port, debug):
+def web(host, port, debug):
     """Run the web API service"""
 
     from jobcontrol.web.app import app
@@ -298,7 +297,7 @@ def web(port, debug):
     # todo: figure out a better way to pass context..
     app.config['JOBCONTROL'] = jc
 
-    app.run(port=server_port, debug=debug)
+    app.run(port=server_port, debug=debug, host=host)
 
 
 @cli_main_grp.command()
