@@ -4,6 +4,7 @@ include CHANGELOG.rst
 include LICENSE
 
 recursive-include jobcontrol/web/templates *.jinja
+recursive-include jobcontrol/web/static *.css *.js
 
 # Some examples below.
 # See docs at: https://docs.python.org/2/distutils/sourcedist.html#the-manifest-in-template
