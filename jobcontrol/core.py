@@ -8,6 +8,7 @@ Objects responsible for JobControl core functionality.
     and have them in a more nicely accessible place.
 """
 
+from collections import MutableMapping
 from datetime import timedelta
 import inspect
 import logging
@@ -497,13 +498,7 @@ class JobInfo(object):
     def __init__(self, app, job_id, config):
         self.app = app
         self._job_id = job_id
-        self._config = {
-            'args': (),
-            'kwargs': {},
-            'function': None,
-            'dependencies': [],
-        }
-        self._config.update(config)
+        self._config = BuildConfig(config)
 
     def __repr__(self):
         return '<Job {0!r}>'.format(self.id)
@@ -517,6 +512,7 @@ class JobInfo(object):
         return self._config
 
     def __getitem__(self, name):
+        # WARNING: This method is deprecated
         return self._config[name]
 
     def get_deps(self):
@@ -938,6 +934,65 @@ class BuildInfo(object):
         method of the storage.
         """
         return self.app.storage.iter_log_messages(build_id=self.build_id, **kw)
+
+
+class BuildConfig(MutableMapping):
+    """
+    Object holding a build configuration, including:
+
+    - function
+    - arguments (args)
+    - keyword arguments (kwargs)
+    - dependencies
+    - pinned builds (pinned_builds)
+    - title, notes, ..
+    """
+
+    def __init__(self, initial=None):
+        self._config = {}
+        if initial is not None:
+            self._config.update(initial)
+
+    def __getitem__(self, name):
+        if name in ('function', 'cleanup_function'):
+            return self._config.get(name)
+
+        if name == 'args':
+            return tuple(self._config.get(name) or ())
+
+        if name == 'kwargs':
+            return self._config.get(name) or {}
+
+        if name == 'dependencies':
+            return list(self._config.get(name) or [])
+
+        # Other "common" fields which should always have a default value
+        if name in ('title', 'notes'):
+            return self._config.get(name)
+
+        # The "protected" flag -> defaults to false
+        if name == 'protected':
+            return self._config.get(name, False)
+
+        return self._config[name]
+
+    def __setitem__(self, name, value):
+        self._config[name] = value
+
+    def __delitem__(self, name):
+        del self._config[name]
+
+    def __iter__(self):
+        return iter(self._config)
+
+    def __len__(self):
+        return len(self._config)
+
+    def __getstate__(self):
+        return self._config
+
+    def __setstate__(self, state):
+        self._config = state
 
 
 # We need just *one* handler -> create here
