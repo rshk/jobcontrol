@@ -11,7 +11,7 @@ import pytest
 
 from jobcontrol.core import JobControl
 from jobcontrol.exceptions import SerializationError
-from jobcontrol.job_conf import JobControlConfigMgr
+from jobcontrol.config import JobControlConfig
 from jobcontrol.utils import TracebackInfo, ExceptionPlaceholder
 from jobcontrol.utils.testing import (
     NonSerializableObject, NonSerializableException)
@@ -27,7 +27,7 @@ def test_build_simple(storage):
     }
 
     jc = JobControl(storage=storage,
-                    config=JobControlConfigMgr({'jobs': [job_config]}))
+                    config=JobControlConfig({'jobs': [job_config]}))
 
     # ------------------------------------------------------------
     # Create build and verify generated configuration
@@ -36,18 +36,24 @@ def test_build_simple(storage):
     build = jc.create_build(job_id=job_id)
 
     assert build['job_id'] == job_id
-    assert build['job_config'] == {
-        'function': 'jobcontrol.utils.testing:job_echo_config',
-        'kwargs': {'foo': 'bar'},
-        'args': (),
-        'dependencies': [],
-        'id': job_id,
-    }
-    assert build['build_config'] == {
-        'dependency_builds': {},
-        'build_deps': False,
-        'build_revdeps': False,
-    }
+    assert build.config['function'] == 'jobcontrol.utils.testing:job_echo_config'  # noqa
+    assert build.config['kwargs'] == {'foo': 'bar'}
+    assert build.config['args'] == ()
+    assert build.config['dependencies'] == []
+    assert build.config['id'] == job_id
+
+    # assert dict(build['job_config']) == {
+    #     'function': 'jobcontrol.utils.testing:job_echo_config',
+    #     'kwargs': {'foo': 'bar'},
+    #     'args': (),
+    #     'dependencies': [],
+    #     'id': job_id,
+    # }
+    # assert build['build_config'] == {
+    #     'dependency_builds': {},
+    #     'build_deps': False,
+    #     'build_revdeps': False,
+    # }
 
     _raw_build = jc.storage.get_build(build.id)
     assert build.info == _raw_build
@@ -388,7 +394,7 @@ def test_build_configuration_pinning(storage):
           kwargs:
               retval: "original-retval"
     """)
-    config = JobControlConfigMgr.from_string(config)
+    config = JobControlConfig.from_string(config)
     jc = JobControl(storage=storage, config=config)
 
     # ------------------------------------------------------------
@@ -416,7 +422,7 @@ def test_build_configuration_pinning(storage):
           kwargs:
               retval: "new-retval"
     """)
-    config = JobControlConfigMgr.from_string(config)
+    config = JobControlConfig.from_string(config)
     jc = JobControl(storage=storage, config=config)
 
     # ------------------------------------------------------------
@@ -469,7 +475,7 @@ def test_dependency_pinning(storage):
           dependencies: ['job-1']
     """)
 
-    config = JobControlConfigMgr.from_string(config)
+    config = JobControlConfig.from_string(config)
     jc = JobControl(storage=storage, config=config)
 
     build_1_1 = jc.create_build('job-1')
@@ -498,7 +504,7 @@ def test_dependency_pinning(storage):
           dependencies: ['job-1']
     """)
 
-    config = JobControlConfigMgr.from_string(config)
+    config = JobControlConfig.from_string(config)
     jc = JobControl(storage=storage, config=config)
 
     build_1_2 = jc.create_build('job-1')

@@ -11,14 +11,13 @@ Interfaces for NEW jobcontrol objects.
             finished BOOLEAN
             success BOOLEAN
             skipped BOOLEAN
-            job_config TEXT (YAML)
-                Copy of the job configuration whan the build was started
-            build_config TEXT (YAML)
-                Extra configuration, such as dependency build "pinning"
-            retval BINARY (Pickled return value)
-            exception BINARY
+            config BINARY (pickled)
+                Copy of the job configuration whan the build was started,
+                along with build-specific configuration (such as pinning)
+            retval BINARY (pickled)
+            exception BINARY (pickled)
                 Pickled exception object (or None)
-            exception_tb BINARY
+            exception_tb BINARY (pickled)
                 Pickled TracebackInfo object
 
     Build progress
@@ -38,8 +37,8 @@ Interfaces for NEW jobcontrol objects.
     ---     build_id INTEGER (references Build.id)
             created TIMESTAMP
             level INTEGER
-            record BINARY
-                Pickled LogRecord
+            record BINARY (pickled)
+                Pickled "custom" LogRecord object
             exception_tb BINARY
                 Pickled TracebackInfo object
 
@@ -84,7 +83,6 @@ import warnings
 # This needs to be imported here in order for it to work
 # from celery.contrib import rdb
 
-import jobcontrol.job_conf
 from jobcontrol.exceptions import SerializationError
 from jobcontrol.utils import ExceptionPlaceholder, TracebackInfo, LogRecord
 
@@ -142,7 +140,7 @@ class StorageBase(object):
         pass
 
     @abc.abstractmethod
-    def create_build(self, job_id, job_config, build_config):
+    def create_build(self, job_id, config=None):
         """
         Create a build.
 
@@ -331,40 +329,21 @@ class StorageBase(object):
                 raise
             return 'Error deserializing object: {0!r}'.format(e)
 
-    def yaml_pack(self, obj):
-        return jobcontrol.job_conf.dump(obj)
+    # def yaml_pack(self, obj):
+    #     return jobcontrol.job_conf.dump(obj)
 
-    def yaml_unpack(self, obj):
-        return jobcontrol.job_conf.load(obj)
+    # def yaml_unpack(self, obj):
+    #     return jobcontrol.job_conf.load(obj)
 
     # ------------------------------------------------------------
     # Generic helper methods
     # ------------------------------------------------------------
 
     def _normalize_job_config(self, job_conf):
-        if job_conf is None:
-            job_conf = {}
+        from jobcontrol.config import BuildConfig
 
-        if not isinstance(job_conf, dict):
-            raise TypeError('job_conf must be a dict, got {0} instead'
-                            .format(type(job_conf).__name__))
-
-        job_conf.setdefault('function', None)
-        job_conf.setdefault('args', ())
-        job_conf.setdefault('kwargs', {})
-
-        if isinstance(job_conf['args'], list):
-            job_conf['args'] = tuple(job_conf['args'])
-
-        if not isinstance(job_conf['args'], tuple):
-            raise TypeError('args must be a tuple')
-
-        if not isinstance(job_conf['kwargs'], dict):
-            raise TypeError('kwargs must be a dict')
-
-        job_conf.setdefault('dependencies', [])
-        if not isinstance(job_conf['dependencies'], (list, tuple)):
-            raise TypeError('dependencies must be a list (or tuple)')
+        if not isinstance(job_conf, BuildConfig):
+            raise TypeError('job_conf must be a BuildConfig instance')
 
         return job_conf
 
@@ -380,7 +359,7 @@ class StorageBase(object):
 
         return build_conf
 
-    def _normalize_build_info(self, build_info):
+    def _normalize_build_info(self, build_info):  # NO NEED FOR THIS?
         if not isinstance(build_info, dict):
             raise TypeError('build_info must be a dict')
 
@@ -392,13 +371,13 @@ class StorageBase(object):
         for key in ('started', 'finished', 'success', 'skipped'):
             build_info.setdefault(key, False)
 
-        build_info.setdefault('job_config', {})
-        build_info['job_config'] = \
-            self._normalize_job_config(build_info['job_config'])
+        # build_info.setdefault('job_config', {})
+        # build_info['job_config'] = \
+        #     self._normalize_job_config(build_info['job_config'])
 
-        build_info.setdefault('build_config', {})
-        build_info['build_config'] = \
-            self._normalize_build_config(build_info['build_config'])
+        # build_info.setdefault('build_config', {})
+        # build_info['build_config'] = \
+        #     self._normalize_build_config(build_info['build_config'])
 
         for key in ('retval', 'exception', 'exception_tb'):
             build_info.setdefault(key, None)

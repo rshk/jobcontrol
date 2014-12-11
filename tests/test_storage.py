@@ -15,16 +15,14 @@ def test_build_crud(storage):
     assert list(storage.get_job_builds('foobar')) == []
 
     build_id = storage.create_build(
-        job_id='foobar',
-        job_config={'function': 'mymod:myfunction'},
-        build_config={})
+        job_id='foobar', config={'function': 'mymod:myfunction'})
 
     # Retrieve and check the created object
 
     build = storage.get_build(build_id)
 
     MANDATORY_ATTRS = set([
-        'id', 'job_id', 'job_config', 'build_config',
+        'id', 'job_id', 'config',
         'exception',
         'exception_tb',
         'skipped',
@@ -38,19 +36,19 @@ def test_build_crud(storage):
         'end_time',
     ])
 
-    assert all(x in build for x in MANDATORY_ATTRS)
+    # assert all(x in build for x in MANDATORY_ATTRS)
+
+    for attr in MANDATORY_ATTRS:
+        assert attr in build
 
     assert build['id'] == build_id
     assert build['job_id'] == 'foobar'
 
-    assert isinstance(build['job_config'], dict)
-    assert build['job_config']['function'] == 'mymod:myfunction'
-    assert build['job_config']['args'] == ()
-    assert build['job_config']['kwargs'] == {}
-    assert build['job_config']['dependencies'] == []
-
-    assert isinstance(build['build_config'], dict)
-    assert build['build_config']['dependency_builds'] == {}
+    assert isinstance(build['config'], dict)
+    assert build['config']['function'] == 'mymod:myfunction'
+    assert build['config'].get('args', ()) == ()
+    assert build['config'].get('kwargs', {}) == {}
+    assert build['config'].get('dependencies', []) == []
 
     assert build['start_time'] is None
     assert build['end_time'] is None
@@ -78,7 +76,7 @@ def test_build_crud(storage):
 
 
 def test_build_actions(storage):
-    build_id = storage.create_build('job-build-actions', {}, {})
+    build_id = storage.create_build('job-build-actions', {})
 
     build = storage.get_build(build_id)
     assert build['start_time'] is None
@@ -121,7 +119,7 @@ def test_build_actions(storage):
 
 
 def test_build_finish_failure(storage):
-    build_id = storage.create_build('job-build-actions', {}, {})
+    build_id = storage.create_build('job-build-actions', {})
 
     build = storage.get_build(build_id)
     storage.start_build(build_id)
@@ -145,10 +143,10 @@ def test_build_iteration(storage):
     job_id = 'job-test-build-iteration'
 
     builds = [
-        storage.create_build(job_id, {}, {}),
-        storage.create_build(job_id, {}, {}),
-        storage.create_build(job_id, {}, {}),
-        storage.create_build(job_id, {}, {}),
+        storage.create_build(job_id, {}),
+        storage.create_build(job_id, {}),
+        storage.create_build(job_id, {}),
+        storage.create_build(job_id, {}),
     ]
 
     def _get_builds(**kw):
@@ -241,7 +239,7 @@ def test_storage_logging_internals(storage):
     import sys
 
     job_id = 'job-test-storage-logging'
-    build_id = storage.create_build(job_id, {}, {})
+    build_id = storage.create_build(job_id, {})
 
     storage.log_message(build_id, logging.LogRecord(**{
         'name': 'mylogger', 'level': logging.DEBUG,
@@ -301,12 +299,12 @@ def test_storage_logging_internals(storage):
 def test_logging_with_context(storage):
     import logging
     from jobcontrol.core import JobExecutionContext, JobControl
-    from jobcontrol.job_conf import JobControlConfigMgr
+    from jobcontrol.config import JobControlConfig
 
     logger = logging.getLogger('foo_logger')
 
-    build_id = storage.create_build('foo', {}, {})
-    jc = JobControl(storage=storage, config=JobControlConfigMgr())
+    build_id = storage.create_build('foo')
+    jc = JobControl(storage=storage, config=JobControlConfig())
 
     jc._install_log_handler()
 

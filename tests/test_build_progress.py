@@ -1,9 +1,9 @@
 from jobcontrol.core import JobControl
-from jobcontrol.job_conf import JobControlConfigMgr
+from jobcontrol.config import JobControlConfig
 
 
 def test_build_progress_reporting(storage):
-    jc = JobControl(storage=storage, config=JobControlConfigMgr())
+    jc = JobControl(storage=storage, config=JobControlConfig())
 
     jc = JobControl(storage=storage, config={
         'jobs': [

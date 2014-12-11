@@ -82,15 +82,18 @@ class PostgreSQLStorage(StorageBase):
         query = """
         CREATE TABLE "{prefix}build" (
             id SERIAL PRIMARY KEY,
+
+            -- Configuration
             job_id TEXT,
+            config BYTEA,
+
+            -- State
             start_time TIMESTAMP WITHOUT TIME ZONE,
             end_time TIMESTAMP WITHOUT TIME ZONE,
             started BOOLEAN DEFAULT false,
             finished BOOLEAN DEFAULT false,
             success BOOLEAN DEFAULT false,
             skipped BOOLEAN DEFAULT false,
-            job_config TEXT,
-            build_config TEXT,
             retval BYTEA,
             exception BYTEA,
             exception_tb BYTEA
@@ -257,8 +260,7 @@ class PostgreSQLStorage(StorageBase):
             'retval': lambda x: buffer(self.pack(x, safe=True)),
             'exception': lambda x: buffer(self.pack_exception(x)),
             'exception_tb': lambda x: buffer(self.pack(x, safe=True)),
-            'job_config': self.yaml_pack,
-            'build_config': self.yaml_pack,
+            'config': lambda x: buffer(self.pack(x, safe=False)),
         }
         return self._convert_object(build, mapping)
 
@@ -268,9 +270,7 @@ class PostgreSQLStorage(StorageBase):
             'retval': lambda x: self.unpack(x, safe=True),
             'exception': lambda x: self.unpack(x, safe=True),
             'exception_tb': lambda x: self.unpack(x, safe=True),
-            'job_config': self.yaml_unpack,
-            'build_config': self.yaml_unpack,
-            'args': tuple,
+            'config': lambda x: self.unpack(x, safe=False),
         }
         return self._normalize_build_info(self._convert_object(row, mapping))
 
@@ -347,11 +347,10 @@ class PostgreSQLStorage(StorageBase):
     # Build CRUD methods
     # ------------------------------------------------------------
 
-    def create_build(self, job_id, job_config, build_config):
+    def create_build(self, job_id, config=None):
         return self._do_insert('build', self._build_pack({
             'job_id': job_id,
-            'job_config': job_config,
-            'build_config': build_config,
+            'config': config or {},
         }))
 
     def get_build(self, build_id):

@@ -2,9 +2,10 @@ from textwrap import dedent
 
 import pytest
 
-from jobcontrol.job_conf import (
-    dump, load, Retval, JobControlConfigMgr)
+# from jobcontrol.job_conf import (
+#     dump, load, Retval, JobControlConfigMgr)
 from jobcontrol.interfaces import StorageBase
+from jobcontrol.config import JobControlConfig, Retval, _yaml_load, _yaml_dump
 from jobcontrol.ext.postgresql import PostgreSQLStorage
 from jobcontrol.exceptions import NotFound
 
@@ -13,7 +14,7 @@ from jobcontrol.exceptions import NotFound
 
 
 def test_simple_conf_loading():
-    assert load("""
+    assert _yaml_load("""
     module: mypkg.mymod
     function: myfunc
     args:
@@ -41,16 +42,16 @@ def test_load_conf_with_retval():
     assert Retval('job-1') != "something completely different"
 
     # Make sure serialization works fine..
-    loaded = load(u'!retval job-1')
+    loaded = _yaml_load(u'!retval job-1')
     assert loaded == Retval('job-1')
 
-    loaded = load(u'!retval "job-1"')
+    loaded = _yaml_load(u'!retval "job-1"')
     assert loaded == Retval('job-1')
 
-    dumped = dump(Retval('job-1'))
+    dumped = _yaml_dump(Retval('job-1'))
     assert dumped == u"!retval 'job-1'\n"
 
-    config = load("""
+    config = _yaml_load("""
     args:
         - foobar
         - !retval job-1
@@ -84,7 +85,7 @@ def test_load_complex_conf():
         function: package.module:othername
     """
 
-    loaded = load(conf)
+    loaded = _yaml_load(conf)
     assert isinstance(loaded, dict)
     assert list(loaded.iterkeys()) == ['jobs']
     assert len(loaded['jobs']) == 2
@@ -110,7 +111,7 @@ def test_conf_with_references():
           api_key: *api_key
     """
 
-    loaded = load(conf)
+    loaded = _yaml_load(conf)
     assert loaded['jobs'][0] == {
         'name': 'one',
         'site': 'http://example.com',
@@ -143,7 +144,7 @@ def test_configuration_with_binary_strings():
         'kwargs': {},
         'id': 'f974e89f-4ae3-40cc-8316-b78e42bd5cc8',
     }
-    dump(obj)
+    _yaml_dump(obj)
 
 
 def test_config_manager():
@@ -164,27 +165,27 @@ def test_config_manager():
         bar: 1234
     """)
 
-    cfgmgr = JobControlConfigMgr.from_string(config)
-    assert cfgmgr.config['storage'] == 'postgresql://user:pass@localhost:5432/mydb'  # noqa
-    assert isinstance(cfgmgr.config['jobs'], list)
-    assert len(cfgmgr.config['jobs']) == 1
-    assert cfgmgr.config['jobs'][0]['id'] == 'job-1'
-    assert cfgmgr.config['jobs'][0]['args'] == ['one', 123]
-    assert cfgmgr.config['webapp'] == {'PORT': 5050, 'DEBUG': True}
+    cfgmgr = JobControlConfig.from_string(config)
+    assert cfgmgr.storage == 'postgresql://user:pass@localhost:5432/mydb'  # noqa
+    assert isinstance(cfgmgr.jobs, list)
+    assert len(cfgmgr.jobs) == 1
+    assert cfgmgr.jobs[0]['id'] == 'job-1'
+    assert cfgmgr.jobs[0]['args'] == ('one', 123)
+    assert cfgmgr.webapp == {'PORT': 5050, 'DEBUG': True}
 
-    jobs = list(cfgmgr.iter_jobs())
+    jobs = list(cfgmgr.jobs)
     assert len(jobs) == 1
     assert jobs[0]['id'] == 'job-1'
 
     assert cfgmgr.get_job('job-1') == jobs[0]
 
-    with pytest.raises(NotFound):
-        cfgmgr.get_job('does-not-exist')
+    # with pytest.raises(NotFound):
+    #     cfgmgr.get_job('does-not-exist')
 
-    assert cfgmgr.get_webapp_config() == {'PORT': 5050, 'DEBUG': True}
+    assert cfgmgr.get_job('does-not-exist') is None
 
-    assert cfgmgr.get_secret('foo') == 'A Foo!'
-    assert cfgmgr.get_secret('bar') == 1234
+    assert cfgmgr.secret['foo'] == 'A Foo!'
+    assert cfgmgr.secret['bar'] == 1234
 
     storage = cfgmgr.get_storage()
     assert isinstance(storage, StorageBase)
@@ -209,7 +210,7 @@ def test_config_manager_job_deps():
           dependencies: [job-2, job-1]
     """)
 
-    cfgmgr = JobControlConfigMgr.from_string(config)
+    cfgmgr = JobControlConfig.from_string(config)
 
     assert list(cfgmgr.get_job_deps('job-1')) == []
     assert list(cfgmgr.get_job_deps('job-2')) == ['job-1']

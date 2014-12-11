@@ -3,7 +3,7 @@ from textwrap import dedent
 import pytest
 
 from jobcontrol.core import JobControl
-from jobcontrol.job_conf import JobControlConfigMgr
+from jobcontrol.config import JobControlConfig
 from jobcontrol.exceptions import NotFound
 
 
@@ -31,7 +31,7 @@ def test_job_configuration(storage):
           function: jobcontrol.utils.testing:testing_job
     """)
 
-    config = JobControlConfigMgr.from_string(config)
+    config = JobControlConfig.from_string(config)
     jc = JobControl(storage=storage, config=config)
 
     job1 = jc.get_job('example-job-1')

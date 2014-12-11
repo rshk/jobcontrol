@@ -192,9 +192,8 @@ def job_echo_config(*args, **kwargs):
         'kwargs': kwargs,
         'build_id': current_build.id,
         'job_id': current_job.id,
-        'dependencies': current_build['job_config']['dependencies'],
-        'job_config': current_build['job_config'],
-        'build_config': current_build['build_config'],
+        'dependencies': current_build.config['dependencies'],
+        'config': current_build.config,
     }
 
 

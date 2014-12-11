@@ -86,14 +86,13 @@ class MemoryStorage(StorageBase):
     # Build CRUD methods
     # ------------------------------------------------------------
 
-    def create_build(self, job_id, job_config, build_config):
+    def create_build(self, job_id, config=None):
         build_id = self._builds_seq.next()
 
         build = self._normalize_build_info({
             'id': build_id,
             'job_id': job_id,
-            'job_config': job_config,
-            'build_config': build_config,
+            'config': config or {},
 
             # Progress is stored in a dict; then we'll have to rebuild it
             # into a proper tree.

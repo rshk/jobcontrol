@@ -8,8 +8,8 @@ Objects responsible for JobControl core functionality.
     and have them in a more nicely accessible place.
 """
 
-from collections import MutableMapping
 from datetime import timedelta
+import copy
 import inspect
 import logging
 import warnings
@@ -18,7 +18,7 @@ from flask import escape
 
 from jobcontrol.exceptions import MissingDependencies, SkipBuild, NotFound
 from jobcontrol.globals import _execution_ctx_stack
-from jobcontrol.job_conf import JobControlConfigMgr
+from jobcontrol.config import JobControlConfig, BuildConfig, Retval
 from jobcontrol.utils import import_object, cached_property, TracebackInfo
 from jobcontrol.utils.depgraph import resolve_deps
 
@@ -41,13 +41,24 @@ DEFAULT_LOG_RETENTION_POLICY = {
 
 
 class JobControl(object):
-    """The main JobControl class"""
+    """
+    The main JobControl class.
+
+    :param storage:
+        A valid storage for the builds state.
+        Must be an instance of a :py:class:`jobcontrol.interfaces.StorageBase`
+        subclass (or a compatible one).
+
+    :param config:
+        A :py:class:`jobcontrol.config.JobControlConfig` instance, or a dict
+        which will be passed to that class constructor.
+    """
 
     def __init__(self, storage, config):
         self.storage = storage
 
-        if not isinstance(config, JobControlConfigMgr):
-            config = JobControlConfigMgr(config)
+        if not isinstance(config, JobControlConfig):
+            config = JobControlConfig(config)
         self.config = config
 
     @classmethod
@@ -57,10 +68,14 @@ class JobControl(object):
         Will also initialize storage taking values from the configuration.
 
         :param config_file:
-            Path to configuration file or open file descriptor
+            Path to configuration file, or an open file descriptor
+            (or file-like object).
+
+        :return:
+            a :py:class:`JobControl` instance
         """
 
-        config = JobControlConfigMgr.from_file(config_file)
+        config = JobControlConfig.from_file(config_file)
         obj = cls(storage=config.get_storage(), config=config)
         return obj
 
@@ -70,15 +85,16 @@ class JobControl(object):
         Initialize JobControl from some configuration.
 
         :param config:
-            Either a :py:class:`jobcontrol.job_conf.JobControlConfigMgr`
-            instance, or a dict to be passed as argument to constructor.
+            Either a :py:class:`jobcontrol.config.JobControlConfig`
+            instance, or a dict to be passed as argument to that
+            class constructor.
 
         :return:
             a :py:class:`JobControl` instance
         """
 
-        if not isinstance(config, JobControlConfigMgr):
-            config = JobControlConfigMgr(config)
+        if not isinstance(config, JobControlConfig):
+            config = JobControlConfig(config)
         obj = cls(storage=config.get_storage(), config=config)
         return obj
 
@@ -86,10 +102,14 @@ class JobControl(object):
         """
         Get a job, by id.
 
-        :param job_id: The job id
+        :param job_id:
+            The job id
         :return:
             a :py:class:`JobInfo` class instance associated with the
             requested job.
+        :raises:
+            :py:exc:`jobcontrol.exceptions.NotFound` if a job with that id
+            was not found in the configuration.
         """
 
         job_cfg = self.config.get_job(job_id)
@@ -113,7 +133,13 @@ class JobControl(object):
         """
         Get a build, by id.
 
-        :return: a :py:class:`BuildInfo` instance.
+        :param build_id:
+            The build id
+        :return:
+            a :py:class:`BuildInfo` instance associated with the build.
+        :raises:
+            :py:exc:`jobcontrol.exceptions.NotFound` if a build with that id
+            was not found in the configuration.
         """
 
         build = BuildInfo(self, build_id)
@@ -122,19 +148,32 @@ class JobControl(object):
 
     def create_build(self, job_id):
         """
-        Create a build from a job configuration.
+        Create a build, from a job configuration.
 
-        Currently, we require that all the dependencies have already
-        been built; in the future, it will be possible to build them
-        automatically.
+        .. note::
 
-        Also, current implementation doesn't allow for customizations
-        to either the job configuration nor the build one (pinning,
-        dep/revdep building, ...).
+            Currently, we require that all the dependencies have already
+            been built; in the future, it will be possible to build them
+            automatically.
+
+        .. note::
+
+            Also, current implementation doesn't allow for customizations
+            to either the job configuration nor the build one (pinning,
+            dep/revdep building, ...).
 
         :param job_id:
             Id of the job for which to start a build
-        :return: a :py:class:`BuildInfo` instance.
+
+        :return:
+            a :py:class:`BuildInfo` instance associated with the newly
+            created build.
+
+        :raises:
+            - :py:exc:`jobcontrol.exceptions.NotFound` if the specified
+              job was not found.
+            - :py:exc:`jobcontrol.exceptions.MissingDependencies` if any
+              required dependency has no successful build.
         """
 
         job = self.get_job(job_id)
@@ -159,14 +198,22 @@ class JobControl(object):
             build_config['dependency_builds'][dep.id] = dep_build.id
 
         # Actually create a record for this build
+        build_config = copy.deepcopy(job.config)
         build_id = self.storage.create_build(
-            job_id=job_id, job_config=job.config, build_config=build_config)
+            job_id=job_id, config=build_config)
 
         return self.get_build(build_id)
 
     def build_job(self, job_id):
         """
-        Create and run a new build for the specified job
+        Create and run a new build for the specified job.
+
+        This is simply a shortcut that runs :py:meth:`create_build`
+        then :py:meth:`run_build`. (Mostly for compatibility reasons).
+
+        :return:
+            a :py:class:`BuildInfo` instance associated with the newly
+            created build.
         """
         build = self.create_build(job_id)
         return self.run_build(build)
@@ -181,7 +228,8 @@ class JobControl(object):
         - run the build
         - build the reverse dependencies as well, if required to do so
 
-        :param build_id: either a :py:class:`BuildInfo` instance, or a build id
+        :param build_id:
+            either a :py:class:`BuildInfo` instance, or a build id
         """
 
         if isinstance(build_id, BuildInfo):
@@ -200,7 +248,6 @@ class JobControl(object):
         self._run_build(build)
 
     def _run_build(self, build):
-        from jobcontrol.job_conf import prepare_args
 
         logger.info('Starting execution of job {0} / build {1}'
                     .format(build.job_id, build.id))
@@ -220,11 +267,11 @@ class JobControl(object):
         #       the "try" block below.
 
         try:
-            function = self._get_runner_function(build.job_config['function'])
+            function = self._get_runner_function(build.config['function'])
             logger.debug(log_prefix + 'Function is {0!r}'.format(function))
 
-            args = prepare_args(build.job_config['args'], build)
-            kwargs = prepare_args(build.job_config['kwargs'], build)
+            args = self._prepare_args(build.config['args'], build)
+            kwargs = self._prepare_args(build.config['kwargs'], build)
 
             # Run!
             retval = function(*args, **kwargs)
@@ -266,6 +313,31 @@ class JobControl(object):
         finally:
             # POP context from the stack
             ctx.pop()
+
+    def _prepare_args(self, args, build):
+        """
+        Prepare arguments for passing to a build execution function.
+
+        Recursively replace ``Retval()`` objects with appropriate
+        return values of job dependencies.
+        """
+
+        if isinstance(args, list):
+            return [self._prepare_args(x, build) for x in args]
+
+        if isinstance(args, tuple):
+            return tuple(self._prepare_args(x, build) for x in args)
+
+        if isinstance(args, dict):
+            return dict((k, self._prepare_args(v, build))
+                        for k, v in args.iteritems())
+
+        if isinstance(args, Retval):
+            # Get return value for the *pinned* build of that
+            # job for the currently running build.
+            pass
+
+        return args
 
     def _create_job_depgraph(self, job_id, complete=False):
         processed = set()
@@ -679,7 +751,7 @@ class JobInfo(object):
 
     # todo: move all the docs / ... utilities outside this class
     #       -> maybe move to some "job config" class?
-    #       -> we need them for the job_config in the build as well!
+    #       -> we need them for the config in the build as well!
 
     def _get_job_docs(self):
         call_code = self._get_call_code()
@@ -817,6 +889,8 @@ class BuildInfo(object):
         of builds from the database at once).
     """
 
+    __slots__ = ['app', 'build_id', '_info']
+
     def __init__(self, app, build_id, info=None):
         self.app = app
         self.build_id = build_id
@@ -854,8 +928,7 @@ class BuildInfo(object):
         - ``'finished'``
         - ``'success'``
         - ``'skipped'``
-        - ``'job_config'``
-        - ``'build_config'``
+        - ``'config'``
         - ``'retval'``
         - ``'exception'``
         - ``'exception_tb'``
@@ -865,18 +938,8 @@ class BuildInfo(object):
         return self._info
 
     @property
-    def job_config(self):
-        """
-        Property to access the job configuration.
-        """
-        return self.info['job_config']
-
-    @property
-    def build_config(self):
-        """
-        Property to access the build configuration.
-        """
-        return self.info['build_config']
+    def config(self):
+        return self.info['config']
 
     @property
     def descriptive_status(self):
@@ -934,65 +997,6 @@ class BuildInfo(object):
         method of the storage.
         """
         return self.app.storage.iter_log_messages(build_id=self.build_id, **kw)
-
-
-class BuildConfig(MutableMapping):
-    """
-    Object holding a build configuration, including:
-
-    - function
-    - arguments (args)
-    - keyword arguments (kwargs)
-    - dependencies
-    - pinned builds (pinned_builds)
-    - title, notes, ..
-    """
-
-    def __init__(self, initial=None):
-        self._config = {}
-        if initial is not None:
-            self._config.update(initial)
-
-    def __getitem__(self, name):
-        if name in ('function', 'cleanup_function'):
-            return self._config.get(name)
-
-        if name == 'args':
-            return tuple(self._config.get(name) or ())
-
-        if name == 'kwargs':
-            return self._config.get(name) or {}
-
-        if name == 'dependencies':
-            return list(self._config.get(name) or [])
-
-        # Other "common" fields which should always have a default value
-        if name in ('title', 'notes'):
-            return self._config.get(name)
-
-        # The "protected" flag -> defaults to false
-        if name == 'protected':
-            return self._config.get(name, False)
-
-        return self._config[name]
-
-    def __setitem__(self, name, value):
-        self._config[name] = value
-
-    def __delitem__(self, name):
-        del self._config[name]
-
-    def __iter__(self):
-        return iter(self._config)
-
-    def __len__(self):
-        return len(self._config)
-
-    def __getstate__(self):
-        return self._config
-
-    def __setstate__(self, state):
-        self._config = state
 
 
 # We need just *one* handler -> create here
