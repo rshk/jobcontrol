@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="top" title="JobControl 0.1a documentation" href="../index.html" />
     <link rel="up" title="jobcontrol" href="index.html" />
-    <link rel="next" title="jobcontrol.job_conf" href="job_conf.html" />
+    <link rel="next" title="jobcontrol.utils" href="utils/index.html" />
     <link rel="prev" title="jobcontrol.globals" href="globals.html" /> 
   </head>
   <body>
@@ -39,7 +39,7 @@
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="job_conf.html" title="jobcontrol.job_conf"
+          <a href="utils/index.html" title="jobcontrol.utils"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="globals.html" title="jobcontrol.globals"
@@ -66,14 +66,13 @@
         finished BOOLEAN
         success BOOLEAN
         skipped BOOLEAN
-        job_config TEXT (YAML)
-            Copy of the job configuration whan the build was started
-        build_config TEXT (YAML)
-            Extra configuration, such as dependency build &quot;pinning&quot;
-        retval BINARY (Pickled return value)
-        exception BINARY
+        config BINARY (pickled)
+            Copy of the job configuration whan the build was started,
+            along with build-specific configuration (such as pinning)
+        retval BINARY (pickled)
+        exception BINARY (pickled)
             Pickled exception object (or None)
-        exception_tb BINARY
+        exception_tb BINARY (pickled)
             Pickled TracebackInfo object
 
 Build progress
@@ -93,8 +92,8 @@ Log     id SERIAL
 ---     build_id INTEGER (references Build.id)
         created TIMESTAMP
         level INTEGER
-        record BINARY
-            Pickled LogRecord
+        record BINARY (pickled)
+            Pickled &quot;custom&quot; LogRecord object
         exception_tb BINARY
             Pickled TracebackInfo object
 </pre></div>
@@ -227,7 +226,7 @@ or <tt class="docutils literal"><span class="pre">None</span></tt> to indicate &
 
 <dl class="method">
 <dt id="jobcontrol.interfaces.StorageBase.finish_build">
-<tt class="descname">finish_build</tt><big>(</big><em>build_id</em>, <em>success=None</em>, <em>skipped=None</em>, <em>retval=None</em>, <em>exception=None</em>, <em>exc_info=None</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.finish_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.finish_build" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">finish_build</tt><big>(</big><em>build_id</em>, <em>success=None</em>, <em>skipped=None</em>, <em>retval=None</em>, <em>exception=None</em>, <em>exception_tb=None</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.finish_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.finish_build" title="Permalink to this definition">¶</a></dt>
 <dd><p>Register a build execution end.</p>
 </dd></dl>
 
@@ -344,22 +343,17 @@ equal to this one</li>
 
 <dl class="method">
 <dt id="jobcontrol.interfaces.StorageBase.pack">
-<tt class="descname">pack</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.pack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.pack" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">pack</tt><big>(</big><em>obj</em>, <em>safe=False</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.pack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.pack" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.interfaces.StorageBase.pack_exception">
+<tt class="descname">pack_exception</tt><big>(</big><em>exception</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.pack_exception"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.pack_exception" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="jobcontrol.interfaces.StorageBase.unpack">
 <tt class="descname">unpack</tt><big>(</big><em>obj</em>, <em>safe=False</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.unpack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.unpack" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="jobcontrol.interfaces.StorageBase.yaml_pack">
-<tt class="descname">yaml_pack</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.yaml_pack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.yaml_pack" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="jobcontrol.interfaces.StorageBase.yaml_unpack">
-<tt class="descname">yaml_unpack</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/interfaces.html#StorageBase.yaml_unpack"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.interfaces.StorageBase.yaml_unpack" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -376,8 +370,8 @@ equal to this one</li>
   <p class="topless"><a href="globals.html"
                         title="previous chapter">jobcontrol.globals</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="job_conf.html"
-                        title="next chapter">jobcontrol.job_conf</a></p>
+  <p class="topless"><a href="utils/index.html"
+                        title="next chapter">jobcontrol.utils</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="../_sources/api/interfaces.txt"
@@ -410,7 +404,7 @@ equal to this one</li>
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="job_conf.html" title="jobcontrol.job_conf"
+          <a href="utils/index.html" title="jobcontrol.utils"
              >next</a> |</li>
         <li class="right" >
           <a href="globals.html" title="jobcontrol.globals"

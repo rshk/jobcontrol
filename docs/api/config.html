@@ -1,0 +1,225 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.config &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../index.html" />
+    <link rel="up" title="jobcontrol" href="index.html" />
+    <link rel="next" title="jobcontrol.core" href="core.html" />
+    <link rel="prev" title="jobcontrol.cli" href="cli.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="core.html" title="jobcontrol.core"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cli.html" title="jobcontrol.cli"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">jobcontrol</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-jobcontrol.config">
+<span id="jobcontrol-config"></span><h1>jobcontrol.config<a class="headerlink" href="#module-jobcontrol.config" title="Permalink to this headline">¶</a></h1>
+<p>Objects to manage the configuration.</p>
+<p>The configuration object (stored as YAML in the configuration file)
+must be a dict. Supported keys for the &#8220;main&#8221; dict are:</p>
+<ul class="simple">
+<li>storage: URL to a supported &#8220;state&#8221; storage</li>
+<li>webapp: Configuration for the webapp, passed to Flask</li>
+<li>celery: Configuration for celery</li>
+<li>jobs: List of job configuration blocks</li>
+<li>secret: Dictionary of &#8220;secrets&#8221;, which can be referenced by the configuration
+but are never shown on administration pages, ...</li>
+</ul>
+<dl class="class">
+<dt id="jobcontrol.config.JobControlConfig">
+<em class="property">class </em><tt class="descclassname">jobcontrol.config.</tt><tt class="descname">JobControlConfig</tt><big>(</big><em>initial=None</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="classmethod">
+<dt id="jobcontrol.config.JobControlConfig.from_file">
+<em class="property">classmethod </em><tt class="descname">from_file</tt><big>(</big><em>filename</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.from_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.from_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize configuration from a file, or a file-like providing
+a <tt class="docutils literal"><span class="pre">read()</span></tt> method.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="jobcontrol.config.JobControlConfig.from_string">
+<em class="property">classmethod </em><tt class="descname">from_string</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.from_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.from_string" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize configuration from a string.</p>
+<p>The string will first be pre-processed through jinja, then
+passed to the <tt class="xref py py-meth docutils literal"><span class="pre">from_object()</span></tt> constructor.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="jobcontrol.config.JobControlConfig.preprocess_config">
+<em class="property">static </em><tt class="descname">preprocess_config</tt><big>(</big><em>s</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.preprocess_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.preprocess_config" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.config.JobControlConfig.storage">
+<tt class="descname">storage</tt><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.storage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.storage" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.config.JobControlConfig.jobs">
+<tt class="descname">jobs</tt><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.jobs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.jobs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.config.JobControlConfig.webapp">
+<tt class="descname">webapp</tt><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.webapp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.webapp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.config.JobControlConfig.celery">
+<tt class="descname">celery</tt><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.celery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.celery" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.config.JobControlConfig.secret">
+<tt class="descname">secret</tt><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.secret"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.secret" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.config.JobControlConfig.get_storage">
+<tt class="descname">get_storage</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.get_storage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.get_storage" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.config.JobControlConfig.get_job_config">
+<tt class="descname">get_job_config</tt><big>(</big><em>job_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.get_job_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.get_job_config" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.config.JobControlConfig.get_job">
+<tt class="descname">get_job</tt><big>(</big><em>job_id</em><big>)</big><a class="headerlink" href="#jobcontrol.config.JobControlConfig.get_job" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.config.JobControlConfig.get_job_deps">
+<tt class="descname">get_job_deps</tt><big>(</big><em>job_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.get_job_deps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.get_job_deps" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.config.JobControlConfig.get_job_revdeps">
+<tt class="descname">get_job_revdeps</tt><big>(</big><em>job_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/config.html#JobControlConfig.get_job_revdeps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.JobControlConfig.get_job_revdeps" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.config.BuildConfig">
+<em class="property">class </em><tt class="descclassname">jobcontrol.config.</tt><tt class="descname">BuildConfig</tt><big>(</big><em>initial=None</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/config.html#BuildConfig"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.BuildConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Object holding a build configuration, including:</p>
+<ul class="simple">
+<li>function</li>
+<li>arguments (args)</li>
+<li>keyword arguments (kwargs)</li>
+<li>dependencies</li>
+<li>pinned builds (pinned_builds)</li>
+<li>title, notes, ..</li>
+</ul>
+</dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.config.Retval">
+<em class="property">class </em><tt class="descclassname">jobcontrol.config.</tt><tt class="descname">Retval</tt><big>(</big><em>job_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/config.html#Retval"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.Retval" title="Permalink to this definition">¶</a></dt>
+<dd><p>Placeholder object for <tt class="docutils literal"><span class="pre">!retval</span> <span class="pre">&lt;n&gt;</span></tt></p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="cli.html"
+                        title="previous chapter">jobcontrol.cli</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="core.html"
+                        title="next chapter">jobcontrol.core</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/api/config.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="core.html" title="jobcontrol.core"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cli.html" title="jobcontrol.cli"
+             >previous</a> |</li>
+        <li><a href="../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="index.html" >jobcontrol</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

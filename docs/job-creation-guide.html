@@ -1,0 +1,227 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Writing a job function &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="index.html" />
+    <link rel="next" title="jobcontrol" href="api/index.html" />
+    <link rel="prev" title="Deployment instructions" href="deploy.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="api/index.html" title="jobcontrol"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="deploy.html" title="Deployment instructions"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">JobControl 0.1a documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="writing-a-job-function">
+<h1>Writing a job function<a class="headerlink" href="#writing-a-job-function" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="first-rule-keep-it-simple">
+<h2>First rule: keep it simple<a class="headerlink" href="#first-rule-keep-it-simple" title="Permalink to this headline">¶</a></h2>
+<p>That is, for basic usage, you don&#8217;t have to do anything &#8220;fancy&#8221;.</p>
+<p>Just create a Python function, drop it inside a module somewhere
+in the path of the interpreter running jobcontrol, list it in the
+configuration file and that&#8217;s it.</p>
+<p>An example project can be found here: <a class="reference external" href="https://github.com/rshk/ckan_crawl_demo">https://github.com/rshk/ckan_crawl_demo</a></p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Although not strictly necessary, it is a good practice to create
+a setup.py in order to make your project properly installable, then
+install it in your virtualenv using <tt class="docutils literal"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">...</span></tt> or <tt class="docutils literal"><span class="pre">python</span> <span class="pre">setup.py</span> <span class="pre">install</span></tt>.</p>
+</div>
+</div>
+<div class="section" id="logging-messages">
+<h2>Logging messages<a class="headerlink" href="#logging-messages" title="Permalink to this headline">¶</a></h2>
+<p>Just use the standard Python <a class="reference external" href="https://docs.python.org/2/library/logging.html">logging</a> facilities:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Hello, world&#39;</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;Aw, snap!&#39;</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&#39;Dammit!!&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="reporting-progress">
+<h2>Reporting progress<a class="headerlink" href="#reporting-progress" title="Permalink to this headline">¶</a></h2>
+<p>Unluckily Python doesn&#8217;t provide any facility to &#8220;report progress&#8221;, so
+we had to implement our own. But no fear, as it gets as simple as:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">current_app</span>
+<span class="n">current_app</span><span class="o">.</span><span class="n">report_progress</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>  <span class="c"># 20%</span>
+</pre></div>
+</div>
+<p>Ok, let me explain the arguments a bit more in detail:</p>
+<ul>
+<li><p class="first">The first one, <tt class="docutils literal"><span class="pre">group_name</span></tt>, is used for building &#8220;trees&#8221; of progress
+reports. It can be either <tt class="docutils literal"><span class="pre">None</span></tt>, indicating the top level, or a tuple
+of name &#8220;parts&#8221;, used to build the tree.</p>
+<p>For example, let&#8217;s suppose we need to perform two different &#8220;kinds&#8221; of steps
+in our function: first we want to download a bunch of web pages, then we
+want to extract links from all of them and import to somewhere.</p>
+<p>The first iteration will report progress like this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">current_app</span><span class="o">.</span><span class="n">report_progress</span><span class="p">((</span><span class="s">&#39;Download webpages&#39;</span><span class="p">,),</span> <span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The second one:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">current_app</span><span class="o">.</span><span class="n">report_progress</span><span class="p">((</span><span class="s">&#39;Extracting links&#39;</span><span class="p">,),</span> <span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This will create three progress bars on the UIs, pretty much like this:</p>
+<div class="highlight-python"><div class="highlight"><pre>[0/20] Total
+  |-- [0/10] Downloading webpages
+  &#39;-- [0/10] Extracting links
+</pre></div>
+</div>
+<p>Multiple name parts can be used like this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">current_ap</span><span class="o">.</span><span class="n">report_progress</span><span class="p">((</span><span class="s">&#39;http://example.com/foo.zip&#39;</span><span class="p">,</span> <span class="s">&#39;downloading&#39;</span><span class="p">),</span> <span class="o">...</span><span class="p">)</span>
+<span class="n">current_ap</span><span class="o">.</span><span class="n">report_progress</span><span class="p">((</span><span class="s">&#39;http://example.com/foo.zip&#39;</span><span class="p">,</span> <span class="s">&#39;extracting&#39;</span><span class="p">),</span> <span class="o">...</span><span class="p">)</span>
+<span class="n">current_ap</span><span class="o">.</span><span class="n">report_progress</span><span class="p">((</span><span class="s">&#39;http://example.com/bar.zip&#39;</span><span class="p">,</span> <span class="s">&#39;downloading&#39;</span><span class="p">),</span> <span class="o">...</span><span class="p">)</span>
+<span class="n">current_ap</span><span class="o">.</span><span class="n">report_progress</span><span class="p">((</span><span class="s">&#39;http://example.com/bar.zip&#39;</span><span class="p">,</span> <span class="s">&#39;extracting&#39;</span><span class="p">),</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Will generate the following progress bars:</p>
+<div class="highlight-python"><div class="highlight"><pre>[../400] Total
+|-- [../200] http://www.example.com/foo.zip
+|   |-- [../100] downloading
+|   &#39;-- [../100] extracting
+&#39;-- [../200] http://www.example.com/bar.zip
+    |-- [../100] downloading
+    &#39;-- [../100] extracting
+</pre></div>
+</div>
+<p>(And, of course, intermediate &#8220;branches&#8221; can be overridden by specifying them manually)</p>
+</li>
+<li><p class="first">The second and third ones, <tt class="docutils literal"><span class="pre">current</span></tt> and <tt class="docutils literal"><span class="pre">total</span></tt> must be integers
+indicating, respectively, the current amount of items completed and the
+total number of items.</p>
+</li>
+<li><p class="first">A fourth optional argument, <tt class="docutils literal"><span class="pre">status_line</span></tt>, may be used to report a (brief)
+description of what&#8217;s currently going on (eg, <tt class="docutils literal"><span class="pre">&quot;Downloading</span> <span class="pre">http://www.example.com&quot;</span></tt>)</p>
+</li>
+</ul>
+</div>
+<div class="section" id="generator-functions">
+<h2>Generator functions<a class="headerlink" href="#generator-functions" title="Permalink to this headline">¶</a></h2>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p>Generator functions are <em>not</em> supported yet, that means, they will be
+executed, a generator will be obtained and stored (not sure it can be
+pickled, though..) but it will <em>not</em> be iterated, meaning the execution
+will have no effect whatsoever.</p>
+<p class="last">If you really need to run a generator function, just wrap it in something
+like <tt class="docutils literal"><span class="pre">list(myfunction())</span></tt>.</p>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">There are future plans of changing this, probably using generator functions
+to return &#8220;multiple&#8221; values that can be then used for &#8220;parametrized&#8221; builds..</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Writing a job function</a><ul>
+<li><a class="reference internal" href="#first-rule-keep-it-simple">First rule: keep it simple</a></li>
+<li><a class="reference internal" href="#logging-messages">Logging messages</a></li>
+<li><a class="reference internal" href="#reporting-progress">Reporting progress</a></li>
+<li><a class="reference internal" href="#generator-functions">Generator functions</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="deploy.html"
+                        title="previous chapter">Deployment instructions</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="api/index.html"
+                        title="next chapter">jobcontrol</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/job-creation-guide.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="api/index.html" title="jobcontrol"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="deploy.html" title="Deployment instructions"
+             >previous</a> |</li>
+        <li><a href="index.html">JobControl 0.1a documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

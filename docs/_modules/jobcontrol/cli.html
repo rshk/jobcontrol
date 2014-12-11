@@ -1,0 +1,430 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>jobcontrol.cli &mdash; JobControl 0.1a documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="JobControl 0.1a documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for jobcontrol.cli</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">ast</span>
+
+<span class="kn">import</span> <span class="nn">click</span>
+<span class="kn">from</span> <span class="nn">flask.config</span> <span class="kn">import</span> <span class="n">Config</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">nicelog.formatters</span> <span class="kn">import</span> <span class="n">ColorLineFormatter</span>
+<span class="kn">from</span> <span class="nn">prettytable</span> <span class="kn">import</span> <span class="n">PrettyTable</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">from</span> <span class="nn">jobcontrol.core</span> <span class="kn">import</span> <span class="n">JobControl</span>
+<span class="kn">from</span> <span class="nn">jobcontrol.utils</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">get_storage_from_url</span><span class="p">,</span> <span class="n">get_storage_from_config</span><span class="p">,</span> <span class="n">short_repr</span><span class="p">,</span>
+    <span class="n">json_dumps</span><span class="p">)</span>
+
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+
+<span class="n">handler</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+<span class="n">handler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">ColorLineFormatter</span><span class="p">(</span>
+    <span class="n">show_date</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">show_function</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">show_filename</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+    <span class="n">message_inline</span><span class="o">=</span><span class="bp">False</span><span class="p">))</span>
+<span class="n">handler</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+
+<span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="cli_main"><a class="viewcode-back" href="../../api/cli.html#jobcontrol.cli.cli_main">[docs]</a><span class="k">def</span> <span class="nf">cli_main</span><span class="p">(</span><span class="n">jc_app</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+</div>
+<span class="n">config</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="n">jc</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="n">output_fmt</span> <span class="o">=</span> <span class="bp">None</span>
+
+
+<span class="n">DATE_FMT</span> <span class="o">=</span> <span class="s">&#39;%Y-%m-</span><span class="si">%d</span><span class="s"> %H:%M&#39;</span>
+
+
+<span class="k">def</span> <span class="nf">_fmt_date</span><span class="p">(</span><span class="n">dt</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">dt</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span>
+    <span class="k">return</span> <span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">DATE_FMT</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_fmt_bool</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">inv</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="n">col</span> <span class="o">=</span> <span class="s">&#39;</span><span class="se">\x1b</span><span class="s">[32m&#39;</span> <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">val</span><span class="p">)</span> <span class="o">^</span> <span class="nb">bool</span><span class="p">(</span><span class="n">inv</span><span class="p">)</span> <span class="k">else</span> <span class="s">&#39;</span><span class="se">\x1b</span><span class="s">[31m&#39;</span>
+    <span class="k">return</span> <span class="s">&#39;{0}{1}</span><span class="se">\x1b</span><span class="s">[0m&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_fmt_progress</span><span class="p">(</span><span class="n">cur</span><span class="p">,</span> <span class="n">tot</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">tot</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s">&#39;N/A&#39;</span>
+    <span class="k">return</span> <span class="s">&#39;{0}/{1} ({2:.1f}%)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cur</span><span class="p">,</span> <span class="n">tot</span><span class="p">,</span> <span class="n">cur</span> <span class="o">*</span> <span class="mf">100.0</span> <span class="o">/</span> <span class="n">tot</span><span class="p">)</span>
+
+
+<span class="nd">@click.group</span><span class="p">()</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--config-file&#39;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s">&#39;FILE&#39;</span><span class="p">,</span>
+              <span class="n">help</span><span class="o">=</span><span class="s">&#39;Path to YAML configuration file&#39;</span><span class="p">)</span>
+<span class="c"># @click.option(&#39;--storage&#39;, metavar=&#39;FILE&#39;, help=&#39;Storage URL&#39;)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--format&#39;</span><span class="p">,</span> <span class="s">&#39;outfmt&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;human&#39;</span><span class="p">,</span>
+              <span class="n">help</span><span class="o">=</span><span class="s">&#39;Output format. &quot;human&quot; or &quot;json&quot; (default: &quot;human&quot;).&#39;</span><span class="p">,</span>
+              <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">Choice</span><span class="p">((</span><span class="s">&#39;json&#39;</span><span class="p">,</span> <span class="s">&#39;human&#39;</span><span class="p">)))</span>
+<span class="k">def</span> <span class="nf">cli_main_grp</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="n">outfmt</span><span class="p">):</span>
+    <span class="c"># todo: use pass_context for passing context instead of global objects?</span>
+
+    <span class="k">global</span> <span class="n">jc</span><span class="p">,</span> <span class="n">output_fmt</span>
+
+    <span class="n">output_fmt</span> <span class="o">=</span> <span class="n">outfmt</span>
+
+    <span class="k">if</span> <span class="n">config_file</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Configuration file missing&#39;</span><span class="p">)</span>
+
+    <span class="n">jc</span> <span class="o">=</span> <span class="n">JobControl</span><span class="o">.</span><span class="n">from_config_file</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">install</span><span class="p">():</span>
+    <span class="n">jc</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">install</span><span class="p">()</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">uninstall</span><span class="p">():</span>
+    <span class="n">jc</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">uninstall</span><span class="p">()</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--function&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&quot;Function to be called&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--args&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&quot;Arguments, as a Python tuple&quot;</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--kwargs&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&quot;Keyword arguments, as a Python dict&quot;</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--dependencies&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&quot;Comma-separated list of job ids&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">create_job</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">dependencies</span><span class="p">):</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="k">if</span> <span class="n">args</span> <span class="k">else</span> <span class="p">()</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="n">kwargs</span> <span class="k">else</span> <span class="p">{}</span>
+
+    <span class="k">if</span> <span class="n">dependencies</span><span class="p">:</span>
+        <span class="n">dependencies</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dependencies</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">dependencies</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">retval</span> <span class="o">=</span> <span class="n">jc</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
+                                   <span class="n">dependencies</span><span class="o">=</span><span class="n">dependencies</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">output_fmt</span> <span class="o">==</span> <span class="s">&#39;human&#39;</span><span class="p">:</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;Job id: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">retval</span><span class="p">))</span>
+
+    <span class="k">elif</span> <span class="n">output_fmt</span> <span class="o">==</span> <span class="s">&#39;json&#39;</span><span class="p">:</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">json_dumps</span><span class="p">({</span><span class="s">&#39;id&#39;</span><span class="p">:</span> <span class="n">retval</span><span class="p">}))</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s">&#39;Invalid output format&#39;</span><span class="p">)</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="nd">@click.argument</span><span class="p">(</span><span class="s">&#39;job_id&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">INT</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--function&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&quot;Function to be called&quot;</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--args&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&quot;Arguments, as a Python tuple&quot;</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--kwargs&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&quot;Keyword arguments, as a Python dict&quot;</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--dependencies&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&quot;Comma-separated list of job ids&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">update_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">dependencies</span><span class="p">):</span>
+    <span class="n">_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">if</span> <span class="n">function</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">_kwargs</span><span class="p">[</span><span class="s">&#39;function&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">function</span>
+
+    <span class="k">if</span> <span class="n">args</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">_kwargs</span><span class="p">[</span><span class="s">&#39;args&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">_kwargs</span><span class="p">[</span><span class="s">&#39;kwargs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">dependencies</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">_kwargs</span><span class="p">[</span><span class="s">&#39;dependencies&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dependencies</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)]</span>
+
+    <span class="n">jc</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">update_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="o">**</span><span class="n">_kwargs</span><span class="p">)</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="nd">@click.argument</span><span class="p">(</span><span class="s">&#39;job_id&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">show_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">):</span>
+    <span class="n">job</span> <span class="o">=</span> <span class="n">jc</span><span class="o">.</span><span class="n">get_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="c"># job[&#39;reverse_dependencies&#39;] = [</span>
+    <span class="c">#     x[&#39;id&#39;] for x in jc.storage.get_job_revdeps(job[&#39;id&#39;])]</span>
+
+    <span class="k">if</span> <span class="n">output_fmt</span> <span class="o">==</span> <span class="s">&#39;human&#39;</span><span class="p">:</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;Job id: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;Title: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s">&#39;title&#39;</span><span class="p">]))</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;Function: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s">&#39;function&#39;</span><span class="p">]))</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;Args:</span><span class="se">\n</span><span class="s">    {0!r}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s">&#39;args&#39;</span><span class="p">]))</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;Kwargs:</span><span class="se">\n</span><span class="s">    {0!r}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s">&#39;kwargs&#39;</span><span class="p">]))</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;Dependencies:&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">dep</span> <span class="ow">in</span> <span class="n">job</span><span class="o">.</span><span class="n">get_deps</span><span class="p">():</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;    - {0} - {1!r}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dep</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">dep</span><span class="p">[</span><span class="s">&#39;title&#39;</span><span class="p">]))</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;Reverse dependencies:&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">dep</span> <span class="ow">in</span> <span class="n">job</span><span class="o">.</span><span class="n">get_revdeps</span><span class="p">():</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;    - {0} - {1!r}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dep</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">dep</span><span class="p">[</span><span class="s">&#39;title&#39;</span><span class="p">]))</span>
+
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">)</span>  <span class="c"># Blank line</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;Status: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get_status</span><span class="p">()))</span>
+        <span class="n">lsb</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_latest_successful_build</span><span class="p">()</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;Latest successful build:&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">lsb</span><span class="p">:</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;    Build id: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lsb</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;    Started: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lsb</span><span class="p">[</span><span class="s">&#39;start_time&#39;</span><span class="p">]))</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;    Finished: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lsb</span><span class="p">[</span><span class="s">&#39;end_time&#39;</span><span class="p">]))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;    No successful builds&#39;</span><span class="p">)</span>
+
+        <span class="c"># table = PrettyTable([&#39;Key&#39;, &#39;Value&#39;])</span>
+        <span class="c"># table.align.update({&#39;Key&#39;: &#39;r&#39;, &#39;Value&#39;: &#39;l&#39;})</span>
+        <span class="c"># table.add_row((&quot;Job id:&quot;, job[&#39;id&#39;]))</span>
+        <span class="c"># table.add_row((&quot;Created:&quot;, _fmt_date(job[&#39;ctime&#39;])))</span>
+        <span class="c"># table.add_row((&quot;Updated:&quot;, _fmt_date(job[&#39;mtime&#39;])))</span>
+        <span class="c"># table.add_row((&quot;Function:&quot;, job[&#39;function&#39;]))</span>
+        <span class="c"># table.add_row((&quot;args:&quot;, job[&#39;args&#39;]))</span>
+        <span class="c"># table.add_row((&quot;kwargs:&quot;, job[&#39;kwargs&#39;]))</span>
+        <span class="c"># table.add_row((&quot;Deps:&quot;, job[&#39;dependencies&#39;]))</span>
+        <span class="c"># table.add_row((&quot;Rev. deps:&quot;, job[&#39;reverse_dependencies&#39;]))</span>
+        <span class="c"># click.echo(table)</span>
+
+    <span class="k">elif</span> <span class="n">output_fmt</span> <span class="o">==</span> <span class="s">&#39;json&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+        <span class="c"># click.echo(json_dumps(job))</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s">&#39;Invalid output format&#39;</span><span class="p">)</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">list_jobs</span><span class="p">():</span>
+    <span class="n">jobs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">jc</span><span class="o">.</span><span class="n">iter_jobs</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="n">output_fmt</span> <span class="o">==</span> <span class="s">&#39;human&#39;</span><span class="p">:</span>
+        <span class="n">table</span> <span class="o">=</span> <span class="n">PrettyTable</span><span class="p">(</span>
+            <span class="p">[</span><span class="s">&#39;Id&#39;</span><span class="p">,</span> <span class="s">&#39;Title&#39;</span><span class="p">,</span> <span class="s">&#39;Function&#39;</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">jobs</span><span class="p">:</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">add_row</span><span class="p">([</span>
+                <span class="n">item</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">],</span>
+                <span class="n">item</span><span class="p">[</span><span class="s">&#39;title&#39;</span><span class="p">],</span>
+                <span class="n">item</span><span class="p">[</span><span class="s">&#39;function&#39;</span><span class="p">],</span>
+            <span class="p">])</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">output_fmt</span> <span class="o">==</span> <span class="s">&#39;json&#39;</span><span class="p">:</span>
+        <span class="c"># todo: serialize datetimes</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">json_dumps</span><span class="p">(</span><span class="n">jobs</span><span class="p">))</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s">&#39;Invalid output format&#39;</span><span class="p">)</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="nd">@click.argument</span><span class="p">(</span><span class="s">&#39;job_id&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">INT</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--started&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">BOOL</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--finished&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">BOOL</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--success&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">BOOL</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--skipped&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">BOOL</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--order&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">Choice</span><span class="p">((</span><span class="s">&#39;asc&#39;</span><span class="p">,</span> <span class="s">&#39;desc&#39;</span><span class="p">)),</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;asc&#39;</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--limit&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">INT</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">list_builds</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">started</span><span class="p">,</span> <span class="n">finished</span><span class="p">,</span> <span class="n">success</span><span class="p">,</span> <span class="n">skipped</span><span class="p">,</span> <span class="n">order</span><span class="p">,</span> <span class="n">limit</span><span class="p">):</span>
+    <span class="n">builds</span> <span class="o">=</span> <span class="n">jc</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">get_job_builds</span><span class="p">(</span>
+        <span class="n">job_id</span><span class="p">,</span> <span class="n">started</span><span class="o">=</span><span class="n">started</span><span class="p">,</span> <span class="n">finished</span><span class="o">=</span><span class="n">finished</span><span class="p">,</span> <span class="n">success</span><span class="o">=</span><span class="n">success</span><span class="p">,</span>
+        <span class="n">skipped</span><span class="o">=</span><span class="n">skipped</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">output_fmt</span> <span class="o">==</span> <span class="s">&#39;human&#39;</span><span class="p">:</span>
+        <span class="n">table</span> <span class="o">=</span> <span class="n">PrettyTable</span><span class="p">(</span>
+            <span class="p">[</span><span class="s">&#39;Job id&#39;</span><span class="p">,</span> <span class="s">&#39;Build id&#39;</span><span class="p">,</span> <span class="s">&#39;Start time&#39;</span><span class="p">,</span> <span class="s">&#39;End time&#39;</span><span class="p">,</span> <span class="s">&#39;Started&#39;</span><span class="p">,</span>
+             <span class="s">&#39;Finished&#39;</span><span class="p">,</span> <span class="s">&#39;Success&#39;</span><span class="p">,</span> <span class="s">&#39;Skipped&#39;</span><span class="p">,</span> <span class="s">&#39;Progress&#39;</span><span class="p">,</span> <span class="s">&#39;Return value&#39;</span><span class="p">,</span>
+             <span class="s">&#39;Exception&#39;</span><span class="p">])</span>
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">builds</span><span class="p">:</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">add_row</span><span class="p">([</span>
+                <span class="n">item</span><span class="p">[</span><span class="s">&#39;job_id&#39;</span><span class="p">],</span>
+                <span class="n">item</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">],</span>
+
+                <span class="n">item</span><span class="p">[</span><span class="s">&#39;start_time&#39;</span><span class="p">],</span>
+                <span class="n">item</span><span class="p">[</span><span class="s">&#39;end_time&#39;</span><span class="p">],</span>
+
+                <span class="n">_fmt_bool</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s">&#39;started&#39;</span><span class="p">]),</span>
+                <span class="n">_fmt_bool</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s">&#39;finished&#39;</span><span class="p">]),</span>
+                <span class="n">_fmt_bool</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s">&#39;success&#39;</span><span class="p">]),</span>
+                <span class="n">_fmt_bool</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s">&#39;skipped&#39;</span><span class="p">],</span> <span class="n">inv</span><span class="o">=</span><span class="bp">True</span><span class="p">),</span>
+
+                <span class="n">_fmt_progress</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s">&#39;progress_current&#39;</span><span class="p">],</span>
+                              <span class="n">item</span><span class="p">[</span><span class="s">&#39;progress_total&#39;</span><span class="p">]),</span>
+                <span class="n">item</span><span class="p">[</span><span class="s">&#39;retval&#39;</span><span class="p">],</span>
+                <span class="n">item</span><span class="p">[</span><span class="s">&#39;exception&#39;</span><span class="p">],</span>
+            <span class="p">])</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">output_fmt</span> <span class="o">==</span> <span class="s">&#39;json&#39;</span><span class="p">:</span>
+        <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">json_dumps</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">builds</span><span class="p">)))</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s">&#39;Invalid output format&#39;</span><span class="p">)</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="nd">@click.argument</span><span class="p">(</span><span class="s">&#39;build_id&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">INT</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_build</span><span class="p">(</span><span class="n">build_id</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="nd">@click.argument</span><span class="p">(</span><span class="s">&#39;build_id&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">INT</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">delete_build</span><span class="p">(</span><span class="n">build_id</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="nd">@click.argument</span><span class="p">(</span><span class="s">&#39;job_id&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">INT</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">build_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run a new build for a job&quot;&quot;&quot;</span>
+
+    <span class="n">build_id</span> <span class="o">=</span> <span class="n">jc</span><span class="o">.</span><span class="n">build_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+    <span class="n">click</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s">&#39;Build id: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">build_id</span><span class="p">))</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--host&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;Server host&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;127.0.0.1&#39;</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--port&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">INT</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;Server port&#39;</span><span class="p">,</span>
+              <span class="n">default</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--debug/--no-debug&#39;</span><span class="p">,</span>
+              <span class="n">help</span><span class="o">=</span><span class="s">&#39;Whether to enable debug mode (reloader, etc.)&#39;</span><span class="p">,</span>
+              <span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">web</span><span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">debug</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run the web API service&quot;&quot;&quot;</span>
+
+    <span class="kn">from</span> <span class="nn">jobcontrol.web.app</span> <span class="kn">import</span> <span class="n">app</span>
+
+    <span class="k">if</span> <span class="s">&#39;webapp&#39;</span> <span class="ow">in</span> <span class="n">jc</span><span class="o">.</span><span class="n">config</span><span class="p">:</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">jc</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&#39;webapp&#39;</span><span class="p">])</span>
+
+    <span class="n">server_port</span> <span class="o">=</span> <span class="n">port</span> <span class="ow">or</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;PORT&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">5000</span>
+
+    <span class="c"># todo: figure out a better way to pass context..</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&#39;JOBCONTROL&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">jc</span>
+
+    <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="n">server_port</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">)</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--broker&#39;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s">&#39;URL&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;Broker URL&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">worker</span><span class="p">(</span><span class="n">broker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run the Celery worker&quot;&quot;&quot;</span>
+
+    <span class="c"># from jobcontrol.async.tasks import app as celery_app</span>
+    <span class="kn">import</span> <span class="nn">jobcontrol.core</span>  <span class="c"># should set up logging..  # noqa  # nope... :(</span>
+
+    <span class="n">celery_app</span> <span class="o">=</span> <span class="n">jc</span><span class="o">.</span><span class="n">get_celery_app</span><span class="p">()</span>
+
+    <span class="c"># celery_app.conf.JOBCONTROL = jc</span>
+
+    <span class="k">if</span> <span class="n">broker</span><span class="p">:</span>
+        <span class="n">celery_app</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">BROKER_URL</span> <span class="o">=</span> <span class="n">broker</span>
+
+    <span class="c"># todo: allow passing arguments</span>
+    <span class="n">celery_app</span><span class="o">.</span><span class="n">worker_main</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;jobcontrol-cli&#39;</span><span class="p">])</span>
+
+
+<span class="nd">@cli_main_grp.command</span><span class="p">()</span>
+<span class="nd">@click.argument</span><span class="p">(</span><span class="s">&#39;job_id&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">click</span><span class="o">.</span><span class="n">INT</span><span class="p">)</span>
+<span class="nd">@click.option</span><span class="p">(</span><span class="s">&#39;--broker&#39;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s">&#39;URL&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;Broker URL&#39;</span><span class="p">,</span>
+              <span class="n">default</span><span class="o">=</span><span class="s">&#39;redis://localhost:6379&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">async_build_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">broker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run a new build for a job, via Celery&quot;&quot;&quot;</span>
+
+    <span class="kn">from</span> <span class="nn">jobcontrol.async.tasks</span> <span class="kn">import</span> <span class="n">app</span> <span class="k">as</span> <span class="n">celery_app</span><span class="p">,</span> <span class="n">build_job</span>
+
+    <span class="n">celery_app</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">JOBCONTROL</span> <span class="o">=</span> <span class="n">jc</span>
+    <span class="n">celery_app</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">BROKER_URL</span> <span class="o">=</span> <span class="n">broker</span>
+
+    <span class="n">build_job</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../../api/cli.html#jobcontrol.cli.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">cli_main_grp</span><span class="p">(</span><span class="n">obj</span><span class="o">=</span><span class="p">{})</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Samuele Santi.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

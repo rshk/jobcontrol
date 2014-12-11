@@ -26,7 +26,7 @@
     <link rel="top" title="JobControl 0.1a documentation" href="../../index.html" />
     <link rel="up" title="jobcontrol" href="../index.html" />
     <link rel="next" title="jobcontrol.utils.depgraph" href="depgraph.html" />
-    <link rel="prev" title="jobcontrol.job_conf" href="../job_conf.html" /> 
+    <link rel="prev" title="jobcontrol.interfaces" href="../interfaces.html" /> 
   </head>
   <body>
     <div class="related">
@@ -42,7 +42,7 @@
           <a href="depgraph.html" title="jobcontrol.utils.depgraph"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="../job_conf.html" title="jobcontrol.job_conf"
+          <a href="../interfaces.html" title="jobcontrol.interfaces"
              accesskey="P">previous</a> |</li>
         <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
           <li><a href="../index.html" accesskey="U">jobcontrol</a> &raquo;</li> 
@@ -180,6 +180,12 @@ instance.</p>
 <dd><p>Format traceback for printing</p>
 </dd></dl>
 
+<dl class="method">
+<dt id="jobcontrol.utils.TracebackInfo.format_color">
+<tt class="descname">format_color</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#TracebackInfo.format_color"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.TracebackInfo.format_color" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format traceback for printing on 256-color terminal</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="class">
@@ -241,6 +247,33 @@ sub-objects</li>
 
 </dd></dl>
 
+<dl class="class">
+<dt id="jobcontrol.utils.NotSerializableRepr">
+<em class="property">class </em><tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">NotSerializableRepr</tt><big>(</big><em>obj</em>, <em>exception=None</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#NotSerializableRepr"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.NotSerializableRepr" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.utils.ExceptionPlaceholder">
+<em class="property">class </em><tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">ExceptionPlaceholder</tt><big>(</big><em>orig</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#ExceptionPlaceholder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.ExceptionPlaceholder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.utils.LogRecord">
+<em class="property">class </em><tt class="descclassname">jobcontrol.utils.</tt><tt class="descname">LogRecord</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#LogRecord"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.LogRecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper around logging messages.</p>
+<ul class="simple">
+<li>Guarantees that the contained object can be pickled</li>
+<li>Improves things like &#8220;created&#8221; -&gt; now automatically a datetime object</li>
+<li>Stores exception / TracebackInfo in separate attributes</li>
+<li>Uses better field names</li>
+</ul>
+<dl class="classmethod">
+<dt id="jobcontrol.utils.LogRecord.from_record">
+<em class="property">classmethod </em><tt class="descname">from_record</tt><big>(</big><em>record</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils.html#LogRecord.from_record"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.LogRecord.from_record" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
 </div>
 
 
@@ -250,8 +283,8 @@ sub-objects</li>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
-  <p class="topless"><a href="../job_conf.html"
-                        title="previous chapter">jobcontrol.job_conf</a></p>
+  <p class="topless"><a href="../interfaces.html"
+                        title="previous chapter">jobcontrol.interfaces</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="depgraph.html"
                         title="next chapter">jobcontrol.utils.depgraph</a></p>
@@ -290,7 +323,7 @@ sub-objects</li>
           <a href="depgraph.html" title="jobcontrol.utils.depgraph"
              >next</a> |</li>
         <li class="right" >
-          <a href="../job_conf.html" title="jobcontrol.job_conf"
+          <a href="../interfaces.html" title="jobcontrol.interfaces"
              >previous</a> |</li>
         <li><a href="../../index.html">JobControl 0.1a documentation</a> &raquo;</li>
           <li><a href="../index.html" >jobcontrol</a> &raquo;</li> 

@@ -64,25 +64,23 @@
 
 <dl class="function">
 <dt id="jobcontrol.utils.testing.testing_job">
-<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">testing_job</tt><big>(</big><em>steps=10</em>, <em>sleep=1</em>, <em>retval='DONE'</em>, <em>fail=False</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#testing_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.testing_job" title="Permalink to this definition">¶</a></dt>
-<dd><p>Job to be used for testing purposes.</p>
-<p>Provides facilities for simulating various execution scenarios,
-such as logging, failures, progress, ..</p>
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">testing_job</tt><big>(</big><em>progress_steps=None</em>, <em>retval=None</em>, <em>fail=False</em>, <em>skip=False</em>, <em>log_messages=None</em>, <em>step_duration=0</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#testing_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.testing_job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Job used for testing purposes.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>steps</strong> &#8211; How many &#8220;steps&#8221; this job is composed of</li>
-<li><strong>sleep</strong> &#8211; How many seconds to sleep between each &#8220;step&#8221;</li>
-<li><strong>retval</strong> &#8211; What to return</li>
-<li><strong>fail</strong> &#8211; <ul>
-<li>if <tt class="docutils literal"><span class="pre">False</span></tt>, the build will succeed</li>
-<li>if <tt class="docutils literal"><span class="pre">True</span></tt>, the build will fail</li>
-<li>if an integer, the step at wich the build will fail</li>
-<li>if a float (0 &lt;= x &lt;= 1), the chance of the job failing</li>
-</ul>
+<li><strong>progress_steps</strong> &#8211; <p>A list of tuples: <tt class="docutils literal"><span class="pre">(&lt;group_name&gt;,</span> <span class="pre">&lt;steps&gt;)</span></tt>, where &#8220;group_name&#8221;
+is a tuple of name &#8220;levels&#8221;, &#8220;steps&#8221; an integer representing how
+many steps should that level have.</p>
+<p>Progress reports will be sent in randomized order.</p>
 </li>
+<li><strong>retval</strong> &#8211; The return value for the job.</li>
+<li><strong>fail</strong> &#8211; Whether this job should fail.</li>
+<li><strong>skip</strong> &#8211; Whether this job should be skipped.</li>
+<li><strong>log_messages</strong> &#8211; A list of tuples: <tt class="docutils literal"><span class="pre">(level,</span> <span class="pre">message)</span></tt></li>
+<li><strong>step_duration</strong> &#8211; The time to sleep between steps, in milliseconds.</li>
 </ul>
 </td>
 </tr>
@@ -107,32 +105,9 @@ such as logging, failures, progress, ..</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="jobcontrol.utils.testing.job_dep_A">
-<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_dep_A</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_dep_A"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_dep_A" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="jobcontrol.utils.testing.job_dep_B">
-<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_dep_B</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_dep_B"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_dep_B" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="jobcontrol.utils.testing.job_dep_C">
-<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_dep_C</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_dep_C"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_dep_C" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
 <dt id="jobcontrol.utils.testing.job_echo_config">
 <tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_echo_config</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_echo_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_echo_config" title="Permalink to this definition">¶</a></dt>
 <dd><p>Simple job, &#8220;echoing&#8221; back the current configuration.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="jobcontrol.utils.testing.job_with_progress">
-<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_with_progress</tt><big>(</big><em>config</em><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_with_progress"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_with_progress" title="Permalink to this definition">¶</a></dt>
-<dd><p>Job to be used for testing purposes.</p>
-<p>The configuration is a list of tuples: <tt class="docutils literal"><span class="pre">(name,</span> <span class="pre">steps)</span></tt>
-Progress will be reported in a random order.</p>
 </dd></dl>
 
 <dl class="class">
@@ -160,6 +135,36 @@ Progress will be reported in a random order.</p>
 <dd></dd></dl>
 
 </dd></dl>
+
+<dl class="class">
+<dt id="jobcontrol.utils.testing.NonSerializableObject">
+<em class="property">class </em><tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">NonSerializableObject</tt><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#NonSerializableObject"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.NonSerializableObject" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="jobcontrol.utils.testing.NonSerializableObject.foo">
+<tt class="descname">foo</tt><a class="headerlink" href="#jobcontrol.utils.testing.NonSerializableObject.foo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.utils.testing.NonSerializableObject.bar">
+<tt class="descname">bar</tt><a class="headerlink" href="#jobcontrol.utils.testing.NonSerializableObject.bar" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="jobcontrol.utils.testing.NonSerializableException">
+<em class="property">exception </em><tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">NonSerializableException</tt><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#NonSerializableException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.NonSerializableException" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.testing.job_returning_nonserializable">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_returning_nonserializable</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_returning_nonserializable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_returning_nonserializable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="jobcontrol.utils.testing.job_raising_nonserializable">
+<tt class="descclassname">jobcontrol.utils.testing.</tt><tt class="descname">job_raising_nonserializable</tt><big>(</big><big>)</big><a class="reference internal" href="../../_modules/jobcontrol/utils/testing.html#job_raising_nonserializable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.utils.testing.job_raising_nonserializable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 </div>
 

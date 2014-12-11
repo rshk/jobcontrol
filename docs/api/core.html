@@ -26,7 +26,7 @@
     <link rel="top" title="JobControl 0.1a documentation" href="../index.html" />
     <link rel="up" title="jobcontrol" href="index.html" />
     <link rel="next" title="jobcontrol.exceptions" href="exceptions.html" />
-    <link rel="prev" title="jobcontrol" href="index.html" /> 
+    <link rel="prev" title="jobcontrol.config" href="config.html" /> 
   </head>
   <body>
     <div class="related">
@@ -42,7 +42,7 @@
           <a href="exceptions.html" title="jobcontrol.exceptions"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="index.html" title="jobcontrol"
+          <a href="config.html" title="jobcontrol.config"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">JobControl 0.1a documentation</a> &raquo;</li>
           <li><a href="index.html" accesskey="U">jobcontrol</a> &raquo;</li> 
@@ -66,7 +66,22 @@ and have them in a more nicely accessible place.</p>
 <dl class="class">
 <dt id="jobcontrol.core.JobControl">
 <em class="property">class </em><tt class="descclassname">jobcontrol.core.</tt><tt class="descname">JobControl</tt><big>(</big><em>storage</em>, <em>config</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl" title="Permalink to this definition">¶</a></dt>
-<dd><p>The main JobControl class</p>
+<dd><p>The main JobControl class.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>storage</strong> &#8211; A valid storage for the builds state.
+Must be an instance of a <a class="reference internal" href="interfaces.html#jobcontrol.interfaces.StorageBase" title="jobcontrol.interfaces.StorageBase"><tt class="xref py py-class docutils literal"><span class="pre">jobcontrol.interfaces.StorageBase</span></tt></a>
+subclass (or a compatible one).</li>
+<li><strong>config</strong> &#8211; A <a class="reference internal" href="config.html#jobcontrol.config.JobControlConfig" title="jobcontrol.config.JobControlConfig"><tt class="xref py py-class docutils literal"><span class="pre">jobcontrol.config.JobControlConfig</span></tt></a> instance, or a dict
+which will be passed to that class constructor.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 <dl class="classmethod">
 <dt id="jobcontrol.core.JobControl.from_config_file">
 <em class="property">classmethod </em><tt class="descname">from_config_file</tt><big>(</big><em>config_file</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.from_config_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.from_config_file" title="Permalink to this definition">¶</a></dt>
@@ -76,7 +91,10 @@ Will also initialize storage taking values from the configuration.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>config_file</strong> &#8211; Path to configuration file or open file descriptor</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>config_file</strong> &#8211; Path to configuration file, or an open file descriptor
+(or file-like object).</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#jobcontrol.core.JobControl" title="jobcontrol.core.JobControl"><tt class="xref py py-class docutils literal"><span class="pre">JobControl</span></tt></a> instance</td>
 </tr>
 </tbody>
 </table>
@@ -90,8 +108,9 @@ Will also initialize storage taking values from the configuration.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>config</strong> &#8211; Either a <a class="reference internal" href="job_conf.html#jobcontrol.job_conf.JobControlConfigMgr" title="jobcontrol.job_conf.JobControlConfigMgr"><tt class="xref py py-class docutils literal"><span class="pre">jobcontrol.job_conf.JobControlConfigMgr</span></tt></a>
-instance, or a dict to be passed as argument to constructor.</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>config</strong> &#8211; Either a <a class="reference internal" href="config.html#jobcontrol.config.JobControlConfig" title="jobcontrol.config.JobControlConfig"><tt class="xref py py-class docutils literal"><span class="pre">jobcontrol.config.JobControlConfig</span></tt></a>
+instance, or a dict to be passed as argument to that
+class constructor.</td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#jobcontrol.core.JobControl" title="jobcontrol.core.JobControl"><tt class="xref py py-class docutils literal"><span class="pre">JobControl</span></tt></a> instance</td>
 </tr>
@@ -111,6 +130,9 @@ instance, or a dict to be passed as argument to constructor.</td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#jobcontrol.core.JobInfo" title="jobcontrol.core.JobInfo"><tt class="xref py py-class docutils literal"><span class="pre">JobInfo</span></tt></a> class instance associated with the
 requested job.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference internal" href="exceptions.html#jobcontrol.exceptions.NotFound" title="jobcontrol.exceptions.NotFound"><tt class="xref py py-exc docutils literal"><span class="pre">jobcontrol.exceptions.NotFound</span></tt></a> if a job with that id
+was not found in the configuration.</td>
 </tr>
 </tbody>
 </table>
@@ -139,7 +161,12 @@ with the job.</td>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#jobcontrol.core.BuildInfo" title="jobcontrol.core.BuildInfo"><tt class="xref py py-class docutils literal"><span class="pre">BuildInfo</span></tt></a> instance.</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>build_id</strong> &#8211; The build id</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#jobcontrol.core.BuildInfo" title="jobcontrol.core.BuildInfo"><tt class="xref py py-class docutils literal"><span class="pre">BuildInfo</span></tt></a> instance associated with the build.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference internal" href="exceptions.html#jobcontrol.exceptions.NotFound" title="jobcontrol.exceptions.NotFound"><tt class="xref py py-exc docutils literal"><span class="pre">jobcontrol.exceptions.NotFound</span></tt></a> if a build with that id
+was not found in the configuration.</td>
 </tr>
 </tbody>
 </table>
@@ -148,20 +175,37 @@ with the job.</td>
 <dl class="method">
 <dt id="jobcontrol.core.JobControl.create_build">
 <tt class="descname">create_build</tt><big>(</big><em>job_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.create_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.create_build" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create a build from a job configuration.</p>
-<p>Currently, we require that all the dependencies have already
+<dd><p>Create a build, from a job configuration.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Currently, we require that all the dependencies have already
 been built; in the future, it will be possible to build them
 automatically.</p>
-<p>Also, current implementation doesn&#8217;t allow for customizations
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Also, current implementation doesn&#8217;t allow for customizations
 to either the job configuration nor the build one (pinning,
 dep/revdep building, ...).</p>
+</div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>job_id</strong> &#8211; Id of the job for which to start a build</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>job_id</strong> &#8211; Id of the job for which to start a build</p>
+</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#jobcontrol.core.BuildInfo" title="jobcontrol.core.BuildInfo"><tt class="xref py py-class docutils literal"><span class="pre">BuildInfo</span></tt></a> instance.</td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a <a class="reference internal" href="#jobcontrol.core.BuildInfo" title="jobcontrol.core.BuildInfo"><tt class="xref py py-class docutils literal"><span class="pre">BuildInfo</span></tt></a> instance associated with the newly
+created build.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference internal" href="exceptions.html#jobcontrol.exceptions.NotFound" title="jobcontrol.exceptions.NotFound"><tt class="xref py py-exc docutils literal"><span class="pre">jobcontrol.exceptions.NotFound</span></tt></a> if the specified
+job was not found.</li>
+<li><a class="reference internal" href="exceptions.html#jobcontrol.exceptions.MissingDependencies" title="jobcontrol.exceptions.MissingDependencies"><tt class="xref py py-exc docutils literal"><span class="pre">jobcontrol.exceptions.MissingDependencies</span></tt></a> if any
+required dependency has no successful build.</li>
+</ul>
+</td>
 </tr>
 </tbody>
 </table>
@@ -170,7 +214,18 @@ dep/revdep building, ...).</p>
 <dl class="method">
 <dt id="jobcontrol.core.JobControl.build_job">
 <tt class="descname">build_job</tt><big>(</big><em>job_id</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.build_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.build_job" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create and run a new build for the specified job</p>
+<dd><p>Create and run a new build for the specified job.</p>
+<p>This is simply a shortcut that runs <a class="reference internal" href="#jobcontrol.core.JobControl.create_build" title="jobcontrol.core.JobControl.create_build"><tt class="xref py py-meth docutils literal"><span class="pre">create_build()</span></tt></a>
+then <a class="reference internal" href="#jobcontrol.core.JobControl.run_build" title="jobcontrol.core.JobControl.run_build"><tt class="xref py py-meth docutils literal"><span class="pre">run_build()</span></tt></a>. (Mostly for compatibility reasons).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#jobcontrol.core.BuildInfo" title="jobcontrol.core.BuildInfo"><tt class="xref py py-class docutils literal"><span class="pre">BuildInfo</span></tt></a> instance associated with the newly
+created build.</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -219,6 +274,20 @@ operation.</li>
 </tr>
 </tbody>
 </table>
+</dd></dl>
+
+<dl class="method">
+<dt id="jobcontrol.core.JobControl.get_celery_app">
+<tt class="descname">get_celery_app</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobControl.get_celery_app"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobControl.get_celery_app" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the Celery application, configured with values
+from the current configuration.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">this is a bit hackish, as we are just <em>updating</em>
+configuration values in the global object with ones
+from the jobcontrol configuration, not replacing
+all the configuration at once.</p>
+</div>
 </dd></dl>
 
 </dd></dl>
@@ -394,6 +463,11 @@ a build, etc.)</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="jobcontrol.core.JobInfo.create_build">
+<tt class="descname">create_build</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.create_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.create_build" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
 <dt id="jobcontrol.core.JobInfo.get_latest_successful_build">
 <tt class="descname">get_latest_successful_build</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.get_latest_successful_build"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.get_latest_successful_build" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get latest successful build for this job, if any.
@@ -438,6 +512,13 @@ for displaying on user interfaces.</p>
 build for this job.</p>
 </dd></dl>
 
+<dl class="method">
+<dt id="jobcontrol.core.JobInfo.can_be_built">
+<tt class="descname">can_be_built</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/jobcontrol/core.html#JobInfo.can_be_built"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.JobInfo.can_be_built" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks whether a job can be built, i.e.: whether all the
+dependencies have at least one successful build.</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="class">
@@ -459,6 +540,16 @@ of builds from the database at once).</li>
 </tr>
 </tbody>
 </table>
+<dl class="attribute">
+<dt id="jobcontrol.core.BuildInfo.app">
+<tt class="descname">app</tt><a class="headerlink" href="#jobcontrol.core.BuildInfo.app" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="jobcontrol.core.BuildInfo.build_id">
+<tt class="descname">build_id</tt><a class="headerlink" href="#jobcontrol.core.BuildInfo.build_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 <dl class="attribute">
 <dt id="jobcontrol.core.BuildInfo.id">
 <tt class="descname">id</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.id" title="Permalink to this definition">¶</a></dt>
@@ -485,8 +576,7 @@ of builds from the database at once).</li>
 <li><tt class="docutils literal"><span class="pre">'finished'</span></tt></li>
 <li><tt class="docutils literal"><span class="pre">'success'</span></tt></li>
 <li><tt class="docutils literal"><span class="pre">'skipped'</span></tt></li>
-<li><tt class="docutils literal"><span class="pre">'job_config'</span></tt></li>
-<li><tt class="docutils literal"><span class="pre">'build_config'</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">'config'</span></tt></li>
 <li><tt class="docutils literal"><span class="pre">'retval'</span></tt></li>
 <li><tt class="docutils literal"><span class="pre">'exception'</span></tt></li>
 <li><tt class="docutils literal"><span class="pre">'exception_tb'</span></tt></li>
@@ -494,16 +584,9 @@ of builds from the database at once).</li>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="jobcontrol.core.BuildInfo.job_config">
-<tt class="descname">job_config</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.job_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.job_config" title="Permalink to this definition">¶</a></dt>
-<dd><p>Property to access the job configuration.</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="jobcontrol.core.BuildInfo.build_config">
-<tt class="descname">build_config</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.build_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.build_config" title="Permalink to this definition">¶</a></dt>
-<dd><p>Property to access the build configuration.</p>
-</dd></dl>
+<dt id="jobcontrol.core.BuildInfo.config">
+<tt class="descname">config</tt><a class="reference internal" href="../_modules/jobcontrol/core.html#BuildInfo.config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.core.BuildInfo.config" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="attribute">
 <dt id="jobcontrol.core.BuildInfo.descriptive_status">
@@ -575,8 +658,8 @@ method of the storage.</p>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
-  <p class="topless"><a href="index.html"
-                        title="previous chapter">jobcontrol</a></p>
+  <p class="topless"><a href="config.html"
+                        title="previous chapter">jobcontrol.config</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="exceptions.html"
                         title="next chapter">jobcontrol.exceptions</a></p>
@@ -615,7 +698,7 @@ method of the storage.</p>
           <a href="exceptions.html" title="jobcontrol.exceptions"
              >next</a> |</li>
         <li class="right" >
-          <a href="index.html" title="jobcontrol"
+          <a href="config.html" title="jobcontrol.config"
              >previous</a> |</li>
         <li><a href="../index.html">JobControl 0.1a documentation</a> &raquo;</li>
           <li><a href="index.html" >jobcontrol</a> &raquo;</li> 

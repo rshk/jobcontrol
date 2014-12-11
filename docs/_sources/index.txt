@@ -6,7 +6,11 @@
 Welcome to JobControl's documentation!
 ======================================
 
-Application usage:
+User guide:
+
+- Just click the buttons ;)
+
+Sysadmin guide:
 
 .. toctree::
    :maxdepth: 2
@@ -14,6 +18,13 @@ Application usage:
    configuration
    cli
    deploy
+
+Developer guide:
+
+.. toctree::
+   :maxdepth: 2
+
+   job-creation-guide
 
 Internals documentation:
 

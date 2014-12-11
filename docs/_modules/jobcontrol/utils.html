@@ -47,12 +47,14 @@
           <div class="body">
             
   <h1>Source code for jobcontrol.utils</h1><div class="highlight"><pre>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">MutableMapping</span>
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">from</span> <span class="nn">urlparse</span> <span class="kn">import</span> <span class="n">urlparse</span>
+<span class="kn">import</span> <span class="nn">io</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">linecache</span>
 <span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
 <span class="kn">import</span> <span class="nn">sys</span>
 
 <span class="n">_missing</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
@@ -271,23 +273,91 @@
 <div class="viewcode-block" id="TracebackInfo.format"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.TracebackInfo.format">[docs]</a>    <span class="k">def</span> <span class="nf">format</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Format traceback for printing&quot;&quot;&quot;</span>
 
-        <span class="n">lst</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">filename</span><span class="p">,</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">line</span><span class="p">,</span> <span class="n">locs</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">:</span>
-            <span class="n">item</span> <span class="o">=</span> <span class="s">&#39;  File &quot;{0}&quot;, line {1}, in {2}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="n">filename</span><span class="p">,</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">line</span><span class="p">:</span>
-                <span class="n">item</span> <span class="o">=</span> <span class="n">item</span> <span class="o">+</span> <span class="s">&#39;    {0}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
-            <span class="n">lst</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">locs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()):</span>
-                <span class="n">lst</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;        {0} = {1}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">lst</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">u&#39;Traceback (most recent call last):</span><span class="se">\n\n</span><span class="s">&#39;</span><span class="p">)</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">u&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_format_frame</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
 </div>
+<div class="viewcode-block" id="TracebackInfo.format_color"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.TracebackInfo.format_color">[docs]</a>    <span class="k">def</span> <span class="nf">format_color</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Format traceback for printing on 256-color terminal&quot;&quot;&quot;</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">u&#39;Traceback (most recent call last):</span><span class="se">\n\n</span><span class="s">&#39;</span><span class="p">)</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">u&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_format_frame_color</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+</div>
+    <span class="k">def</span> <span class="nf">_format_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame</span><span class="p">):</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+            <span class="s">u&#39;  File &quot;{0}&quot;, line {1}, in {2}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">frame</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="n">frame</span><span class="o">.</span><span class="n">lineno</span><span class="p">,</span> <span class="n">frame</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">frame</span><span class="o">.</span><span class="n">context</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">frame</span><span class="o">.</span><span class="n">context</span><span class="p">:</span>
+                <span class="n">fmtstring</span> <span class="o">=</span> <span class="s">u&#39;{0:4d}: {1}</span><span class="se">\n</span><span class="s">&#39;</span>
+                <span class="k">if</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">frame</span><span class="o">.</span><span class="n">lineno</span><span class="p">:</span>
+                    <span class="n">fmtstring</span> <span class="o">=</span> <span class="s">u&#39;    &gt; &#39;</span> <span class="o">+</span> <span class="n">fmtstring</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">fmtstring</span> <span class="o">=</span> <span class="s">u&#39;      &#39;</span> <span class="o">+</span> <span class="n">fmtstring</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">fmtstring</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">locs</span><span class="p">):</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">u&#39;</span><span class="se">\n</span><span class="s">      Local variables:</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">locs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()):</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">u&#39;        {0} = {1}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_format_frame_color</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frame</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">pygments</span> <span class="kn">import</span> <span class="n">highlight</span>
+        <span class="kn">from</span> <span class="nn">pygments.lexers</span> <span class="kn">import</span> <span class="n">get_lexer_by_name</span>
+        <span class="kn">from</span> <span class="nn">pygments.formatters</span> <span class="kn">import</span> <span class="n">Terminal256Formatter</span>
+
+        <span class="n">_code_lexer</span> <span class="o">=</span> <span class="n">get_lexer_by_name</span><span class="p">(</span><span class="s">&#39;python&#39;</span><span class="p">)</span>
+        <span class="n">_code_formatter</span> <span class="o">=</span> <span class="n">Terminal256Formatter</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s">&#39;monokai&#39;</span><span class="p">)</span>
+        <span class="n">_highlight</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">code</span><span class="p">:</span> <span class="n">highlight</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">_code_lexer</span><span class="p">,</span> <span class="n">_code_formatter</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+            <span class="s">u&#39;  </span><span class="se">\033</span><span class="s">[1m&#39;</span>
+            <span class="s">u&#39;File </span><span class="se">\033</span><span class="s">[38;5;184m&quot;{0}&quot;</span><span class="se">\033</span><span class="s">[39m, &#39;</span>
+            <span class="s">u&#39;line </span><span class="se">\033</span><span class="s">[38;5;70m{1}</span><span class="se">\033</span><span class="s">[39m, &#39;</span>
+            <span class="s">u&#39;in </span><span class="se">\033</span><span class="s">[38;5;39m{2}</span><span class="se">\033</span><span class="s">[0m</span><span class="se">\n\n</span><span class="s">&#39;</span>
+            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="n">frame</span><span class="o">.</span><span class="n">lineno</span><span class="p">,</span> <span class="n">frame</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">frame</span><span class="o">.</span><span class="n">context</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">frame</span><span class="o">.</span><span class="n">context</span><span class="p">:</span>
+                <span class="n">fmtstring</span> <span class="o">=</span> <span class="s">u&#39;{0:4d}: {1}</span><span class="se">\n</span><span class="s">&#39;</span>
+                <span class="k">if</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">frame</span><span class="o">.</span><span class="n">lineno</span><span class="p">:</span>
+                    <span class="n">fmtstring</span> <span class="o">=</span> <span class="p">(</span><span class="s">u&#39;    </span><span class="se">\033</span><span class="s">[48;5;250m</span><span class="se">\033</span><span class="s">[38;5;232m&#39;</span>
+                                 <span class="s">u&#39;{0:4d}</span><span class="se">\033</span><span class="s">[0m {1}</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">fmtstring</span> <span class="o">=</span> <span class="p">(</span><span class="s">u&#39;    </span><span class="se">\033</span><span class="s">[48;5;237m</span><span class="se">\033</span><span class="s">[38;5;250m&#39;</span>
+                                 <span class="s">u&#39;{0:4d}</span><span class="se">\033</span><span class="s">[0m {1}</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+
+                <span class="n">color_line</span> <span class="o">=</span> <span class="n">_highlight</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">fmtstring</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">color_line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()))</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">locs</span><span class="p">):</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">u&#39;</span><span class="se">\n</span><span class="s">    </span><span class="se">\033</span><span class="s">[1mLocal variables:</span><span class="se">\033</span><span class="s">[0m</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">locs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()):</span>
+                <span class="n">code_line</span> <span class="o">=</span> <span class="n">_highlight</span><span class="p">(</span><span class="s">u&#39;{0} = {1}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">u&#39;      {0}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">code_line</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">_extract_tb</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">tb</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">sys</span><span class="p">,</span> <span class="s">&#39;tracebacklimit&#39;</span><span class="p">):</span>
                 <span class="n">limit</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">tracebacklimit</span>
-        <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">frames</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">n</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">while</span> <span class="n">tb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">limit</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="n">limit</span><span class="p">):</span>
             <span class="n">f</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_frame</span>
@@ -297,34 +367,26 @@
             <span class="n">name</span> <span class="o">=</span> <span class="n">co</span><span class="o">.</span><span class="n">co_name</span>
             <span class="n">linecache</span><span class="o">.</span><span class="n">checkcache</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
             <span class="n">line</span> <span class="o">=</span> <span class="n">linecache</span><span class="o">.</span><span class="n">getline</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">f_globals</span><span class="p">)</span>
-            <span class="n">locs</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_dump_locals</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">f_locals</span><span class="p">)</span>
+            <span class="n">locs</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">f_locals</span>  <span class="c"># Will be converted to repr() by FrameInfo</span>
             <span class="k">if</span> <span class="n">line</span><span class="p">:</span>
                 <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">line</span> <span class="o">=</span> <span class="bp">None</span>
-            <span class="nb">list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">FrameInfo</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">line</span><span class="p">,</span> <span class="n">locs</span><span class="p">))</span>
+            <span class="n">frames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">FrameInfo</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">lineno</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">line</span><span class="p">,</span> <span class="n">locs</span><span class="p">))</span>
             <span class="n">tb</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">tb_next</span>
             <span class="n">n</span> <span class="o">=</span> <span class="n">n</span><span class="o">+</span><span class="mi">1</span>
-        <span class="k">return</span> <span class="nb">list</span>
+        <span class="k">return</span> <span class="n">frames</span>
 
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">_dump_locals</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">locs</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">dict</span><span class="p">(((</span><span class="n">k</span><span class="p">,</span> <span class="n">trim_string</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">maxlen</span><span class="o">=</span><span class="mi">1024</span><span class="p">))</span>
-                     <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">locs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()))</span>
+    <span class="c"># @classmethod</span>
+    <span class="c"># def _dump_locals(cls, locs):</span>
+    <span class="c">#     return dict(((k, trim_string(repr(v), maxlen=1024))</span>
+    <span class="c">#                  for k, v in locs.iteritems()))</span>
 
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns a printable representation of the traceback information,</span>
-<span class="sd">        as a binary string.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns a printable representation of the traceback information,</span>
-<span class="sd">        as a unicode string.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="s">u&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">unicode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="p">()</span>
 
 </div>
 <div class="viewcode-block" id="ProgressReport"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.ProgressReport">[docs]</a><span class="k">class</span> <span class="nc">ProgressReport</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -443,7 +505,160 @@
             <span class="n">obj</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ProgressReport</span><span class="o">.</span><span class="n">from_table</span><span class="p">(</span>
                 <span class="n">sub_tables</span><span class="p">[</span><span class="n">pref</span><span class="p">],</span> <span class="n">base_name</span><span class="o">=</span><span class="n">pref</span><span class="p">))</span>
 
-        <span class="k">return</span> <span class="n">obj</span></div></div>
+        <span class="k">return</span> <span class="n">obj</span>
+
+</div></div>
+<div class="viewcode-block" id="NotSerializableRepr"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.NotSerializableRepr">[docs]</a><span class="k">class</span> <span class="nc">NotSerializableRepr</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">exception</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">obj</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exception</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="n">exception</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s">&#39;NotSerializableRepr({0}, exception={1})&#39;</span>
+                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exception</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">unicode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__repr__</span><span class="p">())</span>
+
+</div>
+<div class="viewcode-block" id="ExceptionPlaceholder"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.ExceptionPlaceholder">[docs]</a><span class="k">class</span> <span class="nc">ExceptionPlaceholder</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">orig</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_repr</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="n">orig</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_str</span> <span class="o">=</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">orig</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&#39;Not serializable exception: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_repr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">u&#39;Not serializable exception: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_str</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="LogRecord"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.LogRecord">[docs]</a><span class="k">class</span> <span class="nc">LogRecord</span><span class="p">(</span><span class="n">MutableMapping</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper around logging messages.</span>
+
+<span class="sd">    - Guarantees that the contained object can be pickled</span>
+<span class="sd">    - Improves things like &quot;created&quot; -&gt; now automatically a datetime object</span>
+<span class="sd">    - Stores exception / TracebackInfo in separate attributes</span>
+<span class="sd">    - Uses better field names</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;args&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;created&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;filename&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;function&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;level_name&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;lineno&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;module&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;msecs&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;message&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;msg&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;pathname&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;process&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;process_name&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;relative_created&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;thread&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;thread_name&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+
+            <span class="c"># Custom</span>
+            <span class="s">&#39;build_id&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;exception&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;exception_tb&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="LogRecord.from_record"><a class="viewcode-back" href="../../api/utils/index.html#jobcontrol.utils.LogRecord.from_record">[docs]</a>    <span class="k">def</span> <span class="nf">from_record</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">cls</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="s">&#39;message&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">getMessage</span><span class="p">()</span>
+
+        <span class="n">obj</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+            <span class="s">&#39;args&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">args</span><span class="p">,</span>
+            <span class="s">&#39;created&#39;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">created</span><span class="p">),</span>
+            <span class="s">&#39;filename&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span>
+            <span class="s">&#39;function&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">funcName</span><span class="p">,</span>
+            <span class="s">&#39;level_name&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">levelname</span><span class="p">,</span>
+            <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">levelno</span><span class="p">,</span>
+            <span class="s">&#39;lineno&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">lineno</span><span class="p">,</span>
+            <span class="s">&#39;module&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">module</span><span class="p">,</span>
+            <span class="s">&#39;msecs&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">msecs</span><span class="p">,</span>
+            <span class="s">&#39;message&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+            <span class="s">&#39;msg&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">msg</span><span class="p">,</span>
+            <span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s">&#39;pathname&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">pathname</span><span class="p">,</span>
+            <span class="s">&#39;process&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">process</span><span class="p">,</span>
+            <span class="s">&#39;process_name&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">processName</span><span class="p">,</span>
+            <span class="s">&#39;relative_created&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">relativeCreated</span><span class="p">,</span>
+            <span class="s">&#39;thread&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">thread</span><span class="p">,</span>
+            <span class="s">&#39;thread_name&#39;</span><span class="p">:</span> <span class="n">record</span><span class="o">.</span><span class="n">threadName</span><span class="p">,</span>
+            <span class="s">&#39;exception&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s">&#39;exception_tb&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+        <span class="p">})</span>
+
+        <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">exc_info</span><span class="p">:</span>
+            <span class="n">et</span><span class="p">,</span> <span class="n">ex</span><span class="p">,</span> <span class="n">tb</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">exc_info</span>
+            <span class="n">obj</span><span class="p">[</span><span class="s">&#39;exception&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ex</span>
+            <span class="n">obj</span><span class="p">[</span><span class="s">&#39;exception_tb&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">TracebackInfo</span><span class="o">.</span><span class="n">from_tb</span><span class="p">(</span><span class="n">tb</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">obj</span>
+</div>
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="n">aliases</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;levelno&#39;</span><span class="p">:</span> <span class="s">&#39;level&#39;</span><span class="p">,</span>
+            <span class="s">&#39;funcName&#39;</span><span class="p">:</span> <span class="s">&#39;function&#39;</span><span class="p">,</span>
+            <span class="s">&#39;levelname&#39;</span><span class="p">:</span> <span class="s">&#39;level_name&#39;</span><span class="p">,</span>
+            <span class="s">&#39;processName&#39;</span><span class="p">:</span> <span class="s">&#39;process_name&#39;</span><span class="p">,</span>
+            <span class="s">&#39;relativeCreated&#39;</span><span class="p">:</span> <span class="s">&#39;relative_created&#39;</span><span class="p">,</span>
+            <span class="s">&#39;threadName&#39;</span><span class="p">:</span> <span class="s">&#39;thread_name&#39;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="n">name</span> <span class="o">=</span> <span class="n">aliases</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&#39;exception&#39;</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">ExceptionPlaceholder</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">__delitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Emulate the standard LogRecord, wich uses attributes&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span>
+
+    <span class="k">def</span> <span class="nf">__setstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span> <span class="o">=</span> <span class="n">state</span></div>
 </pre></div>
 
           </div>

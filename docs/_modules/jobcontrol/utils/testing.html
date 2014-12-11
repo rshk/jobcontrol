@@ -52,6 +52,8 @@
 <span class="kn">import</span> <span class="nn">random</span>
 <span class="kn">import</span> <span class="nn">time</span>
 
+<span class="kn">from</span> <span class="nn">jobcontrol.exceptions</span> <span class="kn">import</span> <span class="n">SkipBuild</span>
+
 
 <div class="viewcode-block" id="job_simple_echo"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_simple_echo">[docs]</a><span class="k">def</span> <span class="nf">job_simple_echo</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
@@ -92,63 +94,110 @@
                    <span class="n">_random_paragraph</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">)))</span>
 
 
-<div class="viewcode-block" id="testing_job"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.testing_job">[docs]</a><span class="k">def</span> <span class="nf">testing_job</span><span class="p">(</span><span class="n">steps</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">sleep</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">retval</span><span class="o">=</span><span class="s">&#39;DONE&#39;</span><span class="p">,</span> <span class="n">fail</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+<div class="viewcode-block" id="testing_job"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.testing_job">[docs]</a><span class="k">def</span> <span class="nf">testing_job</span><span class="p">(</span><span class="n">progress_steps</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">retval</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">fail</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">skip</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                <span class="n">log_messages</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">step_duration</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Job to be used for testing purposes.</span>
+<span class="sd">    Job used for testing purposes.</span>
 
-<span class="sd">    Provides facilities for simulating various execution scenarios,</span>
-<span class="sd">    such as logging, failures, progress, ..</span>
+<span class="sd">    :param progress_steps:</span>
+<span class="sd">        A list of tuples: ``(&lt;group_name&gt;, &lt;steps&gt;)``, where &quot;group_name&quot;</span>
+<span class="sd">        is a tuple of name &quot;levels&quot;, &quot;steps&quot; an integer representing how</span>
+<span class="sd">        many steps should that level have.</span>
 
-<span class="sd">    :param steps: How many &quot;steps&quot; this job is composed of</span>
-<span class="sd">    :param sleep: How many seconds to sleep between each &quot;step&quot;</span>
-<span class="sd">    :param retval: What to return</span>
+<span class="sd">        Progress reports will be sent in randomized order.</span>
+
+<span class="sd">    :param retval:</span>
+<span class="sd">        The return value for the job.</span>
+
 <span class="sd">    :param fail:</span>
-<span class="sd">        - if ``False``, the build will succeed</span>
-<span class="sd">        - if ``True``, the build will fail</span>
-<span class="sd">        - if an integer, the step at wich the build will fail</span>
-<span class="sd">        - if a float (0 &lt;= x &lt;= 1), the chance of the job failing</span>
+<span class="sd">        Whether this job should fail.</span>
+
+<span class="sd">    :param skip:</span>
+<span class="sd">        Whether this job should be skipped.</span>
+
+<span class="sd">    :param log_messages:</span>
+<span class="sd">        A list of tuples: ``(level, message)``</span>
+
+<span class="sd">    :param step_duration:</span>
+<span class="sd">        The time to sleep between steps, in milliseconds.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">current_app</span><span class="p">,</span> <span class="n">execution_context</span>
+    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">execution_context</span>
 
-    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;jobcontrol.utils.testing_job&#39;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">update_progress</span><span class="p">(</span><span class="o">*</span><span class="n">a</span><span class="p">):</span>
-        <span class="n">current_app</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">update_build_progress</span><span class="p">(</span>
-            <span class="n">execution_context</span><span class="o">.</span><span class="n">build_id</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">)</span>
+    <span class="n">log_messages</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">log_messages</span> <span class="ow">or</span> <span class="p">[])</span>
+    <span class="k">if</span> <span class="n">progress_steps</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">progress_steps</span> <span class="o">=</span> <span class="p">[(</span><span class="bp">None</span><span class="p">,</span> <span class="mi">10</span><span class="p">)]</span>
 
-    <span class="n">update_progress</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="n">_log_random</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+    <span class="n">totals</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">counters</span> <span class="o">=</span> <span class="p">{}</span>
 
-        <span class="n">update_progress</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">steps</span><span class="p">)</span>
+    <span class="n">progress_report_items</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">steps</span> <span class="ow">in</span> <span class="n">progress_steps</span><span class="p">:</span>
 
-        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">sleep</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="c"># Safe YAML doesn&#39;t have tuples, but names must be tuples</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fail</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
-            <span class="c"># Float: chance of failing</span>
-            <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="n">fail</span> <span class="o">/</span> <span class="n">steps</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Simulating failure {0:.0f}%&#39;</span>
-                                   <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fail</span> <span class="o">*</span> <span class="mi">100</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">name</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Name must be a tuple or None&quot;</span><span class="p">)</span>
 
-        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fail</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">long</span><span class="p">))</span> <span class="ow">and</span> <span class="n">fail</span> <span class="o">==</span> <span class="n">i</span><span class="p">:</span>
-            <span class="c"># Int: where to fail</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Simulating failure at step {0}&#39;</span>
-                               <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fail</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
+            <span class="n">progress_report_items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">totals</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">steps</span>
+        <span class="n">counters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
 
-    <span class="n">_log_random</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+    <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">progress_report_items</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">fail</span> <span class="ow">is</span> <span class="bp">True</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Simulating failure at end&#39;</span><span class="p">)</span>
+    <span class="n">sleep_time</span> <span class="o">=</span> <span class="n">step_duration</span> <span class="o">*</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="mi">1000</span>
 
-    <span class="k">return</span> <span class="s">&quot;DONE&quot;</span>
+    <span class="k">def</span> <span class="nf">report_progress</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">cur</span><span class="p">,</span> <span class="n">tot</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">app</span> <span class="o">=</span> <span class="n">execution_context</span><span class="o">.</span><span class="n">current_app</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">report_progress</span><span class="p">(</span>
+            <span class="n">group_name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">current</span><span class="o">=</span><span class="n">cur</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">tot</span><span class="p">,</span>
+            <span class="n">status_line</span><span class="o">=</span><span class="n">status</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_should_fail</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">progress_report_items</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">progress_report_items</span><span class="p">:</span>
+        <span class="n">counters</span><span class="p">[</span><span class="n">item</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">report_progress</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">counters</span><span class="p">[</span><span class="n">item</span><span class="p">],</span> <span class="n">totals</span><span class="p">[</span><span class="n">item</span><span class="p">],</span>
+                        <span class="s">&#39;Doing action {0} [{1}/{2}]&#39;</span>
+                        <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">counters</span><span class="p">[</span><span class="n">item</span><span class="p">],</span> <span class="n">totals</span><span class="p">[</span><span class="n">item</span><span class="p">]))</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">log_messages</span><span class="p">):</span>
+            <span class="n">lev</span><span class="p">,</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">log_messages</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">lev</span><span class="p">,</span> <span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">fail</span> <span class="ow">and</span> <span class="n">_should_fail</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s">&#39;This is a simulated exception in the middle of the loop&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">skip</span> <span class="ow">and</span> <span class="n">_should_fail</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">SkipBuild</span><span class="p">(</span>
+                <span class="s">&#39;This is a simulated skip in the middle of the loop&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">sleep_time</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">skip</span><span class="p">:</span>
+        <span class="c"># Make sure the job gets skipped</span>
+        <span class="k">raise</span> <span class="n">SkipBuild</span><span class="p">(</span><span class="s">&#39;This build should be skipped!&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">fail</span><span class="p">:</span>
+        <span class="c"># Make sure the job fails</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;This is a simulated exception&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">retval</span>
 
 </div>
 <div class="viewcode-block" id="job_with_logging"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_with_logging">[docs]</a><span class="k">def</span> <span class="nf">job_with_logging</span><span class="p">():</span>
-    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;jobcontrol.utils.testing.job_with_logging&#39;</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;This is a debug message&#39;</span><span class="p">)</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;This is a info message&#39;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;This is an info message&#39;</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;This is a warning message&#39;</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&#39;This is an error message&#39;</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&#39;This is a critical message&#39;</span><span class="p">)</span>
@@ -182,38 +231,6 @@
     <span class="k">return</span> <span class="n">exec_count</span>
 
 </div>
-<div class="viewcode-block" id="job_dep_A"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_dep_A">[docs]</a><span class="k">def</span> <span class="nf">job_dep_A</span><span class="p">():</span>
-    <span class="k">return</span> <span class="s">&#39;A&#39;</span>
-
-</div>
-<div class="viewcode-block" id="job_dep_B"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_dep_B">[docs]</a><span class="k">def</span> <span class="nf">job_dep_B</span><span class="p">():</span>
-    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">current_job</span>
-    <span class="n">dependencies</span> <span class="o">=</span> <span class="n">current_job</span><span class="o">.</span><span class="n">dependencies</span>
-
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dependencies</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Expected 1 dependency, got {0}&quot;</span>
-                           <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dependencies</span><span class="p">)))</span>
-
-    <span class="n">latest_run</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dependencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">iter_runs</span><span class="p">())[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-    <span class="n">res</span> <span class="o">=</span> <span class="n">latest_run</span><span class="o">.</span><span class="n">get_result</span><span class="p">()</span>
-
-    <span class="k">return</span> <span class="n">res</span> <span class="o">+</span> <span class="s">&#39;B&#39;</span>
-
-</div>
-<div class="viewcode-block" id="job_dep_C"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_dep_C">[docs]</a><span class="k">def</span> <span class="nf">job_dep_C</span><span class="p">():</span>
-    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">current_job</span>
-    <span class="n">dependencies</span> <span class="o">=</span> <span class="n">current_job</span><span class="o">.</span><span class="n">dependencies</span>
-
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dependencies</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Expected 1 dependency, got {0}&quot;</span>
-                           <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dependencies</span><span class="p">)))</span>
-
-    <span class="n">latest_run</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dependencies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">iter_runs</span><span class="p">())[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-    <span class="n">res</span> <span class="o">=</span> <span class="n">latest_run</span><span class="o">.</span><span class="n">get_result</span><span class="p">()</span>
-
-    <span class="k">return</span> <span class="n">res</span> <span class="o">+</span> <span class="s">&#39;C&#39;</span>
-
-</div>
 <div class="viewcode-block" id="job_echo_config"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_echo_config">[docs]</a><span class="k">def</span> <span class="nf">job_echo_config</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Simple job, &quot;echoing&quot; back the current configuration.</span>
@@ -229,50 +246,6 @@
         <span class="s">&#39;job_config&#39;</span><span class="p">:</span> <span class="n">current_build</span><span class="p">[</span><span class="s">&#39;job_config&#39;</span><span class="p">],</span>
         <span class="s">&#39;build_config&#39;</span><span class="p">:</span> <span class="n">current_build</span><span class="p">[</span><span class="s">&#39;build_config&#39;</span><span class="p">],</span>
     <span class="p">}</span>
-
-</div>
-<div class="viewcode-block" id="job_with_progress"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_with_progress">[docs]</a><span class="k">def</span> <span class="nf">job_with_progress</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Job to be used for testing purposes.</span>
-
-<span class="sd">    The configuration is a list of tuples: ``(name, steps)``</span>
-<span class="sd">    Progress will be reported in a random order.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="kn">from</span> <span class="nn">jobcontrol.globals</span> <span class="kn">import</span> <span class="n">execution_context</span>
-    <span class="kn">import</span> <span class="nn">random</span>
-
-    <span class="n">totals</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="n">counters</span> <span class="o">=</span> <span class="p">{}</span>
-
-    <span class="n">progress_report_items</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">steps</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
-
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-            <span class="c"># Safe YAML doesn&#39;t have tuples</span>
-            <span class="n">name</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">name</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Name must be a tuple or None&quot;</span><span class="p">)</span>
-
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
-            <span class="n">progress_report_items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-        <span class="n">totals</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">steps</span>
-        <span class="n">counters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-
-    <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">progress_report_items</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">report_progress</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">cur</span><span class="p">,</span> <span class="n">tot</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="n">app</span> <span class="o">=</span> <span class="n">execution_context</span><span class="o">.</span><span class="n">current_app</span>
-        <span class="n">app</span><span class="o">.</span><span class="n">report_progress</span><span class="p">(</span>
-            <span class="n">group_name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">current</span><span class="o">=</span><span class="n">cur</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">tot</span><span class="p">,</span>
-            <span class="n">status_line</span><span class="o">=</span><span class="n">status</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">progress_report_items</span><span class="p">:</span>
-        <span class="n">counters</span><span class="p">[</span><span class="n">item</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
-        <span class="n">report_progress</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">counters</span><span class="p">[</span><span class="n">item</span><span class="p">],</span> <span class="n">totals</span><span class="p">[</span><span class="n">item</span><span class="p">],</span>
-                        <span class="s">&#39;Doing action {0} [{1}/{2}]&#39;</span>
-                        <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">counters</span><span class="p">[</span><span class="n">item</span><span class="p">],</span> <span class="n">totals</span><span class="p">[</span><span class="n">item</span><span class="p">]))</span>
 
 </div>
 <div class="viewcode-block" id="RecordingLogHandler"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.RecordingLogHandler">[docs]</a><span class="k">class</span> <span class="nc">RecordingLogHandler</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">Handler</span><span class="p">):</span>
@@ -297,7 +270,29 @@
             <span class="k">print</span><span class="p">(</span><span class="n">formatter</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg</span><span class="p">))</span>
 </div>
 <div class="viewcode-block" id="RecordingLogHandler.clear_messages"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.RecordingLogHandler.clear_messages">[docs]</a>    <span class="k">def</span> <span class="nf">clear_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_messages</span> <span class="o">=</span> <span class="p">[]</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_messages</span> <span class="o">=</span> <span class="p">[]</span>
+
+</div></div>
+<div class="viewcode-block" id="NonSerializableObject"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.NonSerializableObject">[docs]</a><span class="k">class</span> <span class="nc">NonSerializableObject</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;foo&#39;</span><span class="p">,</span> <span class="s">&#39;bar&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">foo</span> <span class="o">=</span> <span class="s">&#39;foo&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bar</span> <span class="o">=</span> <span class="s">&#39;bar&#39;</span>
+
+</div>
+<div class="viewcode-block" id="NonSerializableException"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.NonSerializableException">[docs]</a><span class="k">class</span> <span class="nc">NonSerializableException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">NonSerializableException</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nso</span> <span class="o">=</span> <span class="n">NonSerializableObject</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="job_returning_nonserializable"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_returning_nonserializable">[docs]</a><span class="k">def</span> <span class="nf">job_returning_nonserializable</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">NonSerializableObject</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="job_raising_nonserializable"><a class="viewcode-back" href="../../../api/utils/testing.html#jobcontrol.utils.testing.job_raising_nonserializable">[docs]</a><span class="k">def</span> <span class="nf">job_raising_nonserializable</span><span class="p">():</span>
+    <span class="k">raise</span> <span class="n">NonSerializableException</span><span class="p">()</span></div>
 </pre></div>
 
           </div>
