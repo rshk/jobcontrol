@@ -185,20 +185,38 @@
         <span class="n">jobs</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;dependencies&#39;</span><span class="p">,</span> <span class="p">[]):</span>
-                <span class="n">jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+                <span class="n">jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">jobs</span>
 
 </div></div>
 <div class="viewcode-block" id="BuildConfig"><a class="viewcode-back" href="../../api/config.html#jobcontrol.config.BuildConfig">[docs]</a><span class="k">class</span> <span class="nc">BuildConfig</span><span class="p">(</span><span class="n">MutableMapping</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Object holding a build configuration, including:</span>
+<span class="sd">    Dict-like object used to hold a build configuration.</span>
 
-<span class="sd">    - function</span>
-<span class="sd">    - arguments (args)</span>
-<span class="sd">    - keyword arguments (kwargs)</span>
-<span class="sd">    - dependencies</span>
-<span class="sd">    - pinned builds (pinned_builds)</span>
-<span class="sd">    - title, notes, ..</span>
+<span class="sd">    Provides some validation on the passed-in configuration</span>
+<span class="sd">    values, plus default values for missing items.</span>
+
+<span class="sd">    Supported keys are:</span>
+
+<span class="sd">    - ``function``: a string representing the function to be called,</span>
+<span class="sd">      in the format: ``&quot;module:function&quot;``.</span>
+<span class="sd">    - ``args``: a tuple of positional arguments to be passed to</span>
+<span class="sd">      the function.</span>
+<span class="sd">    - ``kwargs``: a dictionary holding keyword arguments to be passed</span>
+<span class="sd">      to the function.</span>
+<span class="sd">    - ``dependencies``: a list of &quot;dependency&quot; job ids.</span>
+<span class="sd">    - ``pinned_builds``: a dictionary mapping dependency job ids to</span>
+<span class="sd">      the &quot;selected&quot; dependency build. This way we can ensure consistency</span>
+<span class="sd">    - ``title``, ``notes``: descriptive fields, shown on the interfaces</span>
+<span class="sd">    - ``protected``: boolean flag indicating whether this job should be</span>
+<span class="sd">      &quot;protected&quot;, i.e. extra care should be taken before running it.</span>
+<span class="sd">    - ``cleanup_function``: a function to be called in order to delete</span>
+<span class="sd">      the output result for this job. It will be passed the ``BuildInfo``</span>
+<span class="sd">      object as only argument.</span>
+<span class="sd">    - ``repr_function``: function to be used to represent the return value</span>
+<span class="sd">      of this build. It will be passed the ``BuildInfo`` object as only</span>
+<span class="sd">      argument; return values can be retrieved from the ``build.retval``</span>
+<span class="sd">      argument, configuration from ``build.app.config``.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
@@ -227,20 +245,43 @@
         <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&#39;protected&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
 
+        <span class="c"># These are optional</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;cleanup_function&#39;</span><span class="p">,</span> <span class="s">&#39;repr_function&#39;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&#39;function&#39;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Function must be a string&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Function must be a string, got {0} instead&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&#39;args&#39;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
             <span class="n">value</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&#39;kwargs&#39;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;kwargs must be a dict&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;kwargs must be a dict, got {0} instead&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&#39;dependencies&#39;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="n">value</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;title&#39;</span><span class="p">,</span> <span class="s">&#39;notes&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;{0} must be a string, got {1} instead&#39;</span>
+                                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="nb">unicode</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&#39;protected&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;{0} must be a boolean, got {1} instead&#39;</span>
+                                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;cleanup_function&#39;</span><span class="p">,</span> <span class="s">&#39;repr_function&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;{0} must be a string, got {1} instead&#39;</span>
+                                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
 

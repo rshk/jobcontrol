@@ -24,7 +24,7 @@
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="top" title="JobControl 0.1a documentation" href="../index.html" />
-    <link rel="up" title="jobcontrol" href="index.html" />
+    <link rel="up" title="Internals documentation" href="index.html" />
     <link rel="next" title="jobcontrol.core" href="core.html" />
     <link rel="prev" title="jobcontrol.cli" href="cli.html" /> 
   </head>
@@ -45,7 +45,7 @@
           <a href="cli.html" title="jobcontrol.cli"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">JobControl 0.1a documentation</a> &raquo;</li>
-          <li><a href="index.html" accesskey="U">jobcontrol</a> &raquo;</li> 
+          <li><a href="index.html" accesskey="U">Internals documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -145,14 +145,30 @@ passed to the <tt class="xref py py-meth docutils literal"><span class="pre">fro
 <dl class="class">
 <dt id="jobcontrol.config.BuildConfig">
 <em class="property">class </em><tt class="descclassname">jobcontrol.config.</tt><tt class="descname">BuildConfig</tt><big>(</big><em>initial=None</em><big>)</big><a class="reference internal" href="../_modules/jobcontrol/config.html#BuildConfig"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jobcontrol.config.BuildConfig" title="Permalink to this definition">¶</a></dt>
-<dd><p>Object holding a build configuration, including:</p>
+<dd><p>Dict-like object used to hold a build configuration.</p>
+<p>Provides some validation on the passed-in configuration
+values, plus default values for missing items.</p>
+<p>Supported keys are:</p>
 <ul class="simple">
-<li>function</li>
-<li>arguments (args)</li>
-<li>keyword arguments (kwargs)</li>
-<li>dependencies</li>
-<li>pinned builds (pinned_builds)</li>
-<li>title, notes, ..</li>
+<li><tt class="docutils literal"><span class="pre">function</span></tt>: a string representing the function to be called,
+in the format: <tt class="docutils literal"><span class="pre">&quot;module:function&quot;</span></tt>.</li>
+<li><tt class="docutils literal"><span class="pre">args</span></tt>: a tuple of positional arguments to be passed to
+the function.</li>
+<li><tt class="docutils literal"><span class="pre">kwargs</span></tt>: a dictionary holding keyword arguments to be passed
+to the function.</li>
+<li><tt class="docutils literal"><span class="pre">dependencies</span></tt>: a list of &#8220;dependency&#8221; job ids.</li>
+<li><tt class="docutils literal"><span class="pre">pinned_builds</span></tt>: a dictionary mapping dependency job ids to
+the &#8220;selected&#8221; dependency build. This way we can ensure consistency</li>
+<li><tt class="docutils literal"><span class="pre">title</span></tt>, <tt class="docutils literal"><span class="pre">notes</span></tt>: descriptive fields, shown on the interfaces</li>
+<li><tt class="docutils literal"><span class="pre">protected</span></tt>: boolean flag indicating whether this job should be
+&#8220;protected&#8221;, i.e. extra care should be taken before running it.</li>
+<li><tt class="docutils literal"><span class="pre">cleanup_function</span></tt>: a function to be called in order to delete
+the output result for this job. It will be passed the <tt class="docutils literal"><span class="pre">BuildInfo</span></tt>
+object as only argument.</li>
+<li><tt class="docutils literal"><span class="pre">repr_function</span></tt>: function to be used to represent the return value
+of this build. It will be passed the <tt class="docutils literal"><span class="pre">BuildInfo</span></tt> object as only
+argument; return values can be retrieved from the <tt class="docutils literal"><span class="pre">build.retval</span></tt>
+argument, configuration from <tt class="docutils literal"><span class="pre">build.app.config</span></tt>.</li>
 </ul>
 </dd></dl>
 
@@ -214,7 +230,7 @@ passed to the <tt class="xref py py-meth docutils literal"><span class="pre">fro
           <a href="cli.html" title="jobcontrol.cli"
              >previous</a> |</li>
         <li><a href="../index.html">JobControl 0.1a documentation</a> &raquo;</li>
-          <li><a href="index.html" >jobcontrol</a> &raquo;</li> 
+          <li><a href="index.html" >Internals documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

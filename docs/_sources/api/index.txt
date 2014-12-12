@@ -1,5 +1,5 @@
-jobcontrol
-##########
+Internals documentation
+#######################
 
 .. toctree::
    :maxdepth: 3

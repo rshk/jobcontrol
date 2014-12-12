@@ -614,7 +614,15 @@
 
 </div></div>
 <div class="viewcode-block" id="JobInfo"><a class="viewcode-back" href="../../api/core.html#jobcontrol.core.JobInfo">[docs]</a><span class="k">class</span> <span class="nc">JobInfo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;High-level interface to jobs&quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    High-level interface to jobs.</span>
+
+<span class="sd">    Provides high-level methods for, eg, creating a build out of this</span>
+<span class="sd">    job or iterating builds.</span>
+
+<span class="sd">    Configuration is stored in the ``config`` attribute (a BuildConfig</span>
+<span class="sd">    instance).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
