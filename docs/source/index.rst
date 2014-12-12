@@ -6,31 +6,12 @@
 Welcome to JobControl's documentation!
 ======================================
 
-User guide:
-
-- Just click the buttons ;)
-
-Sysadmin guide:
-
 .. toctree::
    :maxdepth: 2
 
-   configuration
-   cli
-   deploy
-
-Developer guide:
-
-.. toctree::
-   :maxdepth: 2
-
-   job-creation-guide
-
-Internals documentation:
-
-.. toctree::
-   :maxdepth: 2
-
+   user
+   sysadmin
+   dev
    api/index
 
 
