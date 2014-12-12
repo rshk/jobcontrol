@@ -3,7 +3,7 @@ from textwrap import dedent
 import pytest
 
 from jobcontrol.core import JobControl
-from jobcontrol.config import JobControlConfig
+from jobcontrol.config import JobControlConfig, BuildConfig
 from jobcontrol.exceptions import NotFound
 
 
@@ -42,10 +42,11 @@ def test_job_configuration(storage):
         jc.get_job('non-existent-job')
 
     # Check the JobInfo object
-    assert job1.id == job1['id'] == 'example-job-1'
-    assert job1['function'] == 'jobcontrol.utils.testing:testing_job'
-    assert job1['args'] == (1, 2, 3)
-    assert job1['kwargs'] == {'one': 'foo'}
-    assert job1['dependencies'] == []
-    assert job1['title'] is None
-    assert job1['notes'] is None
+    assert job1.id == 'example-job-1'
+    assert isinstance(job1.config, BuildConfig)
+    assert job1.config['function'] == 'jobcontrol.utils.testing:testing_job'
+    assert job1.config['args'] == (1, 2, 3)
+    assert job1.config['kwargs'] == {'one': 'foo'}
+    assert job1.config['dependencies'] == []
+    assert job1.config['title'] is None
+    assert job1.config['notes'] is None

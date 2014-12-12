@@ -12,7 +12,7 @@ must be a dict. Supported keys for the "main" dict are:
   but are never shown on administration pages, ...
 """
 
-from collections import MutableMapping
+from collections import Mapping, MutableMapping
 
 import yaml
 
@@ -185,8 +185,9 @@ class BuildConfig(MutableMapping):
     def __init__(self, initial=None):
         self._config = {}
         if initial is not None:
-            if not isinstance(initial, dict):
-                raise TypeError('initial must be a dict')
+            if not isinstance(initial, (dict, Mapping)):
+                raise TypeError('initial must be a dict, got {0} instead'
+                                .format(type(initial).__name__))
             self.update(initial)
 
     def __getitem__(self, name):
