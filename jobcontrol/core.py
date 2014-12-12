@@ -565,7 +565,15 @@ class JobControlLogHandler(logging.Handler):
 
 
 class JobInfo(object):
-    """High-level interface to jobs"""
+    """
+    High-level interface to jobs.
+
+    Provides high-level methods for, eg, creating a build out of this
+    job or iterating builds.
+
+    Configuration is stored in the ``config`` attribute (a BuildConfig
+    instance).
+    """
 
     def __init__(self, app, job_id, config):
         self.app = app
@@ -581,34 +589,27 @@ class JobInfo(object):
 
     @property
     def config(self):
+        """Read-only property to access job configuration"""
         return self._config
-
-    def __getitem__(self, name):
-        # WARNING: This method is deprecated
-        return self._config[name]
-
-    def get_deps(self):
-        """
-        Iterate over jobs this job depends upon.
-
-        :yields: :py:class:`JobInfo` instances
-        """
-        for dep_id in self.app.config.get_job_deps(self.id):
-            dep = self.app.config.get_job(dep_id)
-            yield JobInfo(self.app, dep['id'], config=dep)
 
     def get_status(self):
         """
         Return a label describing the current status of the job.
 
+        This is mainly used when reporting the status in the interfaces.
+
         :returns:
-          - ``'not_built'`` the job has no builds
           - ``'running'`` the job has running builds
+          - ``'not_built'`` the job has no builds
           - ``'success'`` the job has at least a successful build
           - ``'failed'`` the job only has failed builds
           - ``'outdated'`` the job has at least a successful build,
-            but older than one dependency build
+            but older than one of the dependency builds
         """
+
+        # todo: "running" must be a separate state, as we are still interested
+        #       on whether there is at least one successful build..
+
         if self.has_running_builds():
             return 'running'
 
@@ -622,6 +623,16 @@ class JobInfo(object):
             return 'success'
 
         return 'failed'
+
+    def get_deps(self):
+        """
+        Iterate over dependency jobs.
+
+        :yields: :py:class:`JobInfo` instances
+        """
+        for dep_id in self.app.config.get_job_deps(self.id):
+            dep = self.app.config.get_job(dep_id)
+            yield JobInfo(self.app, dep['id'], config=dep)
 
     def get_revdeps(self):
         """

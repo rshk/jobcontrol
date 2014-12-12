@@ -117,6 +117,8 @@ class JobControlConfig(object):
         return self._secret
 
     def get_storage(self):
+        if self.storage is None:
+            return None
         return get_storage_from_url(self.storage)
 
     def get_job_config(self, job_id):
@@ -129,7 +131,8 @@ class JobControlConfig(object):
     def get_job_deps(self, job_id):
         job = self.get_job_config(job_id)
         if job is None:
-            return None
+            # For coherence with get_job_revdeps()
+            return []
         return job.get('dependencies', [])
 
     def get_job_revdeps(self, job_id):
@@ -138,6 +141,15 @@ class JobControlConfig(object):
             if job_id in job.get('dependencies', []):
                 jobs.append(job['id'])
         return jobs
+
+    def __eq__(self, other):
+        """Comparison, used mostly for testing"""
+        if type(other) is not type(self):
+            return False
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class BuildConfig(MutableMapping):
@@ -173,7 +185,9 @@ class BuildConfig(MutableMapping):
     def __init__(self, initial=None):
         self._config = {}
         if initial is not None:
-            self._config.update(initial)
+            if not isinstance(initial, dict):
+                raise TypeError('initial must be a dict')
+            self.update(initial)
 
     def __getitem__(self, name):
         if name in ('function', 'cleanup_function'):
@@ -187,6 +201,9 @@ class BuildConfig(MutableMapping):
 
         if name == 'dependencies':
             return list(self._config.get(name) or [])
+
+        if name == 'pinned_builds':
+            return self._config.get(name, {})
 
         # Other "common" fields which should always have a default value
         if name in ('title', 'notes'):
@@ -207,15 +224,28 @@ class BuildConfig(MutableMapping):
             raise TypeError('Function must be a string, got {0} instead'
                             .format(type(value).__name__))
 
-        if name == 'args' and not isinstance(value, tuple):
-            value = tuple(value)
+        if name == 'args':
+            if isinstance(value, list):
+                value = tuple(value)
+            if not isinstance(value, tuple):
+                raise TypeError('args must be a tuple, got {0} instead'
+                                .format(type(value).__name__))
 
         if name == 'kwargs' and not isinstance(value, dict):
             raise TypeError('kwargs must be a dict, got {0} instead'
                             .format(type(value).__name__))
 
-        if name == 'dependencies' and not isinstance(value, list):
-            value = list(value)
+        if name == 'dependencies':
+            if isinstance(value, tuple):
+                value = list(value)
+            if not isinstance(value, list):
+                raise TypeError('{0} must be a list, got {1} instead'
+                                .format(name, type(value).__name__))
+
+        if name == 'pinned_builds':
+            if not isinstance(value, dict):
+                raise TypeError('{0} must be a dict, got {1} instead'
+                                .format(name, type(value).__name__))
 
         if name in ('title', 'notes'):
             if not isinstance(value, basestring):
@@ -250,6 +280,15 @@ class BuildConfig(MutableMapping):
 
     def __setstate__(self, state):
         self._config = state
+
+    def __eq__(self, other):
+        """Comparison, used mostly for testing"""
+        if type(other) is not type(self):
+            return False
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class Retval(object):
