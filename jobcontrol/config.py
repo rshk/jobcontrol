@@ -142,14 +142,32 @@ class JobControlConfig(object):
 
 class BuildConfig(MutableMapping):
     """
-    Object holding a build configuration, including:
+    Dict-like object used to hold a build configuration.
 
-    - function
-    - arguments (args)
-    - keyword arguments (kwargs)
-    - dependencies
-    - pinned builds (pinned_builds)
-    - title, notes, ..
+    Provides some validation on the passed-in configuration
+    values, plus default values for missing items.
+
+    Supported keys are:
+
+    - ``function``: a string representing the function to be called,
+      in the format: ``"module:function"``.
+    - ``args``: a tuple of positional arguments to be passed to
+      the function.
+    - ``kwargs``: a dictionary holding keyword arguments to be passed
+      to the function.
+    - ``dependencies``: a list of "dependency" job ids.
+    - ``pinned_builds``: a dictionary mapping dependency job ids to
+      the "selected" dependency build. This way we can ensure consistency
+    - ``title``, ``notes``: descriptive fields, shown on the interfaces
+    - ``protected``: boolean flag indicating whether this job should be
+      "protected", i.e. extra care should be taken before running it.
+    - ``cleanup_function``: a function to be called in order to delete
+      the output result for this job. It will be passed the ``BuildInfo``
+      object as only argument.
+    - ``repr_function``: function to be used to represent the return value
+      of this build. It will be passed the ``BuildInfo`` object as only
+      argument; return values can be retrieved from the ``build.retval``
+      argument, configuration from ``build.app.config``.
     """
 
     def __init__(self, initial=None):
@@ -178,20 +196,43 @@ class BuildConfig(MutableMapping):
         if name == 'protected':
             return self._config.get(name, False)
 
+        # These are optional
+        if name in ('cleanup_function', 'repr_function'):
+            return self._config.get(name, None)
+
         return self._config[name]
 
     def __setitem__(self, name, value):
         if name == 'function' and not isinstance(value, str):
-            raise TypeError('Function must be a string')
+            raise TypeError('Function must be a string, got {0} instead'
+                            .format(type(value).__name__))
 
         if name == 'args' and not isinstance(value, tuple):
             value = tuple(value)
 
         if name == 'kwargs' and not isinstance(value, dict):
-            raise TypeError('kwargs must be a dict')
+            raise TypeError('kwargs must be a dict, got {0} instead'
+                            .format(type(value).__name__))
 
         if name == 'dependencies' and not isinstance(value, list):
             value = list(value)
+
+        if name in ('title', 'notes'):
+            if not isinstance(value, basestring):
+                raise TypeError('{0} must be a string, got {1} instead'
+                                .format(name, type(value).__name__))
+            if isinstance(value, str):
+                value = unicode(value, encoding='utf-8')
+
+        if name == 'protected':
+            if not isinstance(value, bool):
+                raise TypeError('{0} must be a boolean, got {1} instead'
+                                .format(name, type(value).__name__))
+
+        if name in ('cleanup_function', 'repr_function'):
+            if not isinstance(value, str):
+                raise TypeError('{0} must be a string, got {1} instead'
+                                .format(name, type(value).__name__))
 
         self._config[name] = value
 
