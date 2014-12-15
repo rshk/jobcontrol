@@ -583,6 +583,14 @@ class JobInfo(object):
     def __repr__(self):
         return '<Job {0!r}>'.format(self.id)
 
+    def __eq__(self, other):
+        if type(self) is not type(other):
+            return False
+        return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     @property
     def id(self):
         return self._job_id
@@ -692,7 +700,7 @@ class JobInfo(object):
         """
         Get documentation for this job.
         """
-        return self._get_job_docs()
+        return self._get_job_docs()  # todo: doesn't belong here!
 
     def get_conf_as_yaml(self):
         """
@@ -914,6 +922,18 @@ class BuildInfo(object):
         return '<Build {0} (job={1}, status={2})>'.format(
             self.build_id, self.job_id, self.descriptive_status)
 
+    def __eq__(self, other):
+        if type(self) is not type(other):
+            return False
+        if self.app != other.app:
+            return False
+        if self.build_id != other.build_id:
+            return False
+        return True
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     @property
     def id(self):
         """The build id"""
@@ -996,9 +1016,12 @@ class BuildInfo(object):
         """Delete all information related to this build from database"""
         self.app.storage.delete_build(self.build_id)
 
-    def run(self):
+    def run(self, refresh=True):
         """Calls run_build() on the main app for this build"""
-        return self.app.run_build(self)
+
+        self.app.run_build(self)
+        if refresh:
+            self.refresh()
 
     def iter_log_messages(self, **kw):
         """
