@@ -126,7 +126,7 @@ class JobControl(object):
             with the job.
         """
 
-        for job in self.config.iter_jobs():
+        for job in self.config.jobs:
             yield JobInfo(self, job['id'], config=job)
 
     def get_build(self, build_id):

@@ -85,57 +85,6 @@ def uninstall():
 
 
 @cli_main_grp.command()
-@click.option('--function', help="Function to be called", required=True)
-@click.option('--args', help="Arguments, as a Python tuple")
-@click.option('--kwargs', help="Keyword arguments, as a Python dict")
-@click.option('--dependencies', help="Comma-separated list of job ids")
-def create_job(function, args, kwargs, dependencies):
-    args = ast.literal_eval(args) if args else ()
-    kwargs = ast.literal_eval(kwargs) if kwargs else {}
-
-    if dependencies:
-        dependencies = [int(x) for x in dependencies.split(',')]
-    else:
-        dependencies = []
-
-    retval = jc.storage.create_job(function, args=args, kwargs=kwargs,
-                                   dependencies=dependencies)
-
-    if output_fmt == 'human':
-        click.echo('Job id: {0}'.format(retval))
-
-    elif output_fmt == 'json':
-        click.echo(json_dumps({'id': retval}))
-
-    else:
-        raise AssertionError('Invalid output format')
-
-
-@cli_main_grp.command()
-@click.argument('job_id', type=click.INT)
-@click.option('--function', help="Function to be called")
-@click.option('--args', help="Arguments, as a Python tuple")
-@click.option('--kwargs', help="Keyword arguments, as a Python dict")
-@click.option('--dependencies', help="Comma-separated list of job ids")
-def update_job(job_id, function, args, kwargs, dependencies):
-    _kwargs = {}
-
-    if function is not None:
-        _kwargs['function'] = function
-
-    if args is not None:
-        _kwargs['args'] = ast.literal_eval(args)
-
-    if kwargs is not None:
-        _kwargs['kwargs'] = ast.literal_eval(kwargs)
-
-    if dependencies is not None:
-        _kwargs['dependencies'] = [int(x) for x in dependencies.split(',')]
-
-    jc.storage.update_job(job_id, **_kwargs)
-
-
-@cli_main_grp.command()
 @click.argument('job_id')
 def show_job(job_id):
     job = jc.get_job(job_id)
@@ -145,16 +94,16 @@ def show_job(job_id):
 
     if output_fmt == 'human':
         click.echo('Job id: {0}'.format(job.id))
-        click.echo('Title: {0}'.format(job['title']))
-        click.echo('Function: {0}'.format(job['function']))
-        click.echo('Args:\n    {0!r}'.format(job['args']))
-        click.echo('Kwargs:\n    {0!r}'.format(job['kwargs']))
+        click.echo('Title: {0}'.format(job.config['title']))
+        click.echo('Function: {0}'.format(job.config['function']))
+        click.echo('Args:\n    {0!r}'.format(job.config['args']))
+        click.echo('Kwargs:\n    {0!r}'.format(job.config['kwargs']))
         click.echo('Dependencies:')
         for dep in job.get_deps():
-            click.echo('    - {0} - {1!r}'.format(dep.id, dep['title']))
+            click.echo('    - {0} - {1!r}'.format(dep.id, dep.config['title']))
         click.echo('Reverse dependencies:')
         for dep in job.get_revdeps():
-            click.echo('    - {0} - {1!r}'.format(dep.id, dep['title']))
+            click.echo('    - {0} - {1!r}'.format(dep.id, dep.config['title']))
 
         click.echo('')  # Blank line
         click.echo('Status: {0}'.format(job.get_status()))
@@ -167,21 +116,9 @@ def show_job(job_id):
         else:
             click.echo('    No successful builds')
 
-        # table = PrettyTable(['Key', 'Value'])
-        # table.align.update({'Key': 'r', 'Value': 'l'})
-        # table.add_row(("Job id:", job['id']))
-        # table.add_row(("Created:", _fmt_date(job['ctime'])))
-        # table.add_row(("Updated:", _fmt_date(job['mtime'])))
-        # table.add_row(("Function:", job['function']))
-        # table.add_row(("args:", job['args']))
-        # table.add_row(("kwargs:", job['kwargs']))
-        # table.add_row(("Deps:", job['dependencies']))
-        # table.add_row(("Rev. deps:", job['reverse_dependencies']))
-        # click.echo(table)
-
     elif output_fmt == 'json':
+        # todo: dump some information in json
         raise NotImplementedError
-        # click.echo(json_dumps(job))
 
     else:
         raise AssertionError('Invalid output format')
@@ -192,13 +129,13 @@ def list_jobs():
     jobs = list(jc.iter_jobs())
 
     if output_fmt == 'human':
-        table = PrettyTable(
-            ['Id', 'Title', 'Function'])
+        table = PrettyTable(['Id', 'Title'])
+        table.align = 'l'
         for item in jobs:
             table.add_row([
-                item['id'],
-                item['title'],
-                item['function'],
+                item.config['id'],
+                item.config['title'],
+                # item.config['function'],
             ])
         click.echo(table)
 
@@ -211,41 +148,50 @@ def list_jobs():
 
 
 @cli_main_grp.command()
-@click.argument('job_id', type=click.INT)
-@click.option('--started', type=click.BOOL)
-@click.option('--finished', type=click.BOOL)
-@click.option('--success', type=click.BOOL)
-@click.option('--skipped', type=click.BOOL)
-@click.option('--order', type=click.Choice(('asc', 'desc')), default='asc')
+@click.argument('job_id', type=click.STRING)
+@click.option('--started/--no-started', default=None)
+@click.option('--finished/--no-finished', default=None)
+@click.option('--success/--no-success', default=None)
+@click.option('--skipped/--no-skipped', default=None)
+@click.option('--order', type=click.Choice(('asc', 'desc')), default='desc')
 @click.option('--limit', type=click.INT, default=100)
 def list_builds(job_id, started, finished, success, skipped, order, limit):
-    builds = jc.storage.get_job_builds(
-        job_id, started=started, finished=finished, success=success,
-        skipped=skipped, order=order, limit=limit)
+    from jobcontrol.web.template_filters import humanize_timedelta
+
+    job = jc.get_job(job_id)
+    builds = job.get_builds(started=started, finished=finished,
+                            success=success, skipped=skipped, order=order,
+                            limit=limit)
+
+    def _fmt_date(dt):
+        if dt is None:
+            return 'N/A'
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+    def _date_delta(dt1, dt2):
+        if dt1 is None or dt2 is None:
+            return
+        return dt1 - dt2
 
     if output_fmt == 'human':
         table = PrettyTable(
-            ['Job id', 'Build id', 'Start time', 'End time', 'Started',
-             'Finished', 'Success', 'Skipped', 'Progress', 'Return value',
-             'Exception'])
+            ['Build id', 'Status', 'Start time', 'End time', 'Duration',
+             'Progress'])
 
         for item in builds:
+            _progress_info = item.get_progress_info()
+
             table.add_row([
-                item['job_id'],
-                item['id'],
-
-                item['start_time'],
-                item['end_time'],
-
-                _fmt_bool(item['started']),
-                _fmt_bool(item['finished']),
-                _fmt_bool(item['success']),
-                _fmt_bool(item['skipped'], inv=True),
-
-                _fmt_progress(item['progress_current'],
-                              item['progress_total']),
-                item['retval'],
-                item['exception'],
+                item.id,
+                item.descriptive_status,
+                _fmt_date(item['start_time']),
+                _fmt_date(item['end_time']),
+                humanize_timedelta(
+                    _date_delta(item['end_time'], item['start_time'])),
+                '{0}/{1} ({2:.0f}%)'.format(
+                    _progress_info.current,
+                    _progress_info.total,
+                    _progress_info.percent * 100),
             ])
         click.echo(table)
 
