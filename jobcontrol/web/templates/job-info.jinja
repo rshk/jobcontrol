@@ -76,18 +76,12 @@
   <table class="table table-bordered table-hover table-striped">
     <thead>
       <tr>
-        {# <th>Job id</th> #}
         <th>Build id</th>
         <th>Status</th>
         <th>Start time</th>
         <th>End time</th>
         <th>Duration</th>
-        {# <th>Started</th> #}
-        {# <th>Finished</th> #}
-        {# <th>Success</th> #}
-        {# <th>Skipped</th> #}
         <th>Progress</th>
-        {# <th>Return value / exception</th> #}
       </tr>
     </thead>
     <tbody>
@@ -106,13 +100,6 @@
 	{% endif %}
 
 	<tr class="{{ row_class }}">
-          {# <td style="width: 60px;"> #}
-          {#   <a href="href="{{ url_for('webui.job_info', job_id=job.id) }}""> #}
-          {#     <div class="label label-primary label-round"> #}
-          {#    {{ build['job_id'] }} #}
-          {#     </div> #}
-          {#   </a> #}
-          {# </td> #}
 
           <td style="width: 60px;">
             <a href="{{ url_for('webui.build_info', build_id=build.id) }}">

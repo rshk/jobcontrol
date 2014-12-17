@@ -1,3 +1,19 @@
+# ------------------------------------------------------------
+# TESTS for jobcontrol.core
+# ------------------------------------------------------------
+
+# todo:
+# -----
+# - test loading configuration *from file*
+# - test skipped build
+# - test build run by id
+# - test build fail due to missing dependencies
+# - test automatic depdendency build (to be implemented)
+# - test build deletion [+ cleanup] (to be implemented)
+# - test validation of build state inconsistencies
+#   eg. trying to start a running / finished job, ...
+
+
 import pickle
 
 import pytest
@@ -87,6 +103,15 @@ def test_core_config_jobs(storage):
     assert job_baz.has_running_builds() is False
     assert job_baz.is_outdated() is None  # no builds..
     assert job_baz.can_be_built() is False  # "foo" and "bar" have no builds
+
+    # Exception on non-existing job
+
+    with pytest.raises(NotFound):
+        jc.get_job('does-not-exist')
+
+    # Iterate jobs
+
+    assert list(jc.iter_jobs()) == [job_foo, job_bar, job_baz]
 
 
 # ------------------------------------------------------------

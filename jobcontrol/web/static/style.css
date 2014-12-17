@@ -302,18 +302,32 @@ body {
     font-size: 90%;
 }
 
-.media-list-striped .media {
+.media-list-striped {
+    margin-top: 5px;
+}
+.media-list-striped > .media {
     padding: 10px;
     margin: 0;
     border-bottom: solid 1px #ddd;
+    border-left: solid 1px #ddd;
+    border-right: solid 1px #ddd;
 }
-.media-list-striped .media:first-child {
+.media-list-striped > .media:first-child {
     border-top: solid 1px #ddd;
 }
-.media-list-striped .media:nth-child(even) {
+.media-list-striped > .media:nth-child(even) {
     background: #f8f8f8;
 }
-.media-list-striped .media:nth-child(odd) {
+.media-list-striped > .media:nth-child(odd) {
+    background: #f0f0f0;
+}
+
+.media-list-striped > .media:nth-child(odd)
+.media-list-striped > .media:nth-child(odd) {
+    background: #f8f8f8;
+}
+.media-list-striped > .media:nth-child(odd)
+.media-list-striped > .media:nth-child(even) {
     background: #f0f0f0;
 }
 

@@ -6,13 +6,6 @@
 
   <div class="container-fluid">
 
-    {# <div class="btn-group pull-right"> #}
-    {#   <a href="{{ url_for('webui.job_create') }}" class="btn btn-success btn-lg"> #}
-    {#	<i class="fa fa-plus-square"></i> #}
-    {#	Create job #}
-    {#   </a> #}
-    {# </div> #}
-
     <h1>All Jobs</h1>
 
     <div class="media-list media-list-striped">
@@ -63,7 +56,7 @@
 
 		<h2 class="media-heading">
                   <a href="{{ url_for('webui.job_info', job_id=job.id) }}">
-                    {{ job.title or 'Untitled' }}
+                    {{ job.config.title or 'Untitled' }}
                   </a>
                   {% if latest_build %}
                     <small>Latest built <abbr title="{{ latest_build.end_time }}">
@@ -103,7 +96,67 @@
             </form>
           </div>
 
-	</div>
+{% macro job_list_build_item(build) %}
+
+  {% if build.finished %}
+    {% if build.skipped %}
+      {% set row_class = 'warning' %}
+    {% elif build.success %}
+      {% set row_class = 'success' %}
+    {% else %}
+      {% set row_class = 'danger' %}
+    {% endif %}
+  {% else %}
+    {% set row_class = 'default' %}
+  {% endif %}
+
+  <div class="media">
+    <div class="media-left">
+      <div class="label label-{{ row_class }} label-round">
+	{{ build.id }}
+      </div>
+    </div>
+    <div class="media-body">
+      <h3>
+        <a href="{{ url_for('webui.build_info', build_id=build.id) }}">
+          Build #{{build.id}}
+          <small>
+            {{ build.descriptive_status }}
+            &bullet;
+            {% if build.start_time %}
+              Started <abbr title="{{ build.start_time }}">
+                {{ build.start_time|humanize_timestamp }}
+              </abbr>
+              /
+              {% if build.end_time %}
+                Finished <abbr title="{{ build.end_time }}">
+                  {{ build.end_time|humanize_timestamp }}
+                </abbr>
+              {% else %}
+                Not finished
+              {% endif %}
+            {% else %}
+              Not started
+            {% endif %}
+
+          </small>
+        </a>
+      </h3>
+    </div>
+  </div>
+
+{% endmacro %}
+
+        <div class="media-list media-list-striped">
+          {% for build in job.iter_builds(finished=False) %}
+            {{ job_list_build_item(build) }}
+          {% endfor %}
+          {% for build in job.iter_builds(success=True, limit=1) %}
+            {{ job_list_build_item(build) }}
+          {% endfor %}
+        </div>
+
+	</div><!-- .media -->
       {% endfor %}
     </div>
   </div>

@@ -600,6 +600,10 @@ class JobInfo(object):
         """Read-only property to access job configuration"""
         return self._config
 
+    @property
+    def title(self):  # For compatibility
+        return self.config.get('title')
+
     def get_status(self):
         """
         Return a label describing the current status of the job.
@@ -781,7 +785,7 @@ class JobInfo(object):
         }
 
         try:
-            func = import_object(self['function'])
+            func = import_object(self.config['function'])
 
         except Exception as e:
             docs['function_doc'] = escape(u"Error: {0!r}".format(e))
@@ -794,23 +798,23 @@ class JobInfo(object):
 
         try:
             docs['function_module'], docs['function_name'] = \
-                self['function'].split(':')
+                self.config['function'].split(':')
         except:
             docs['function_module'] = '???'
-            docs['function_name'] = self['function']
+            docs['function_name'] = self.config['function']
 
         return docs
 
     def _get_call_code(self):
         try:
-            module, func = self['function'].split(':')
+            module, func = self.config['function'].split(':')
         except:
-            return '# Invalid function: {0}'.format(self['function'])
+            return '# Invalid function: {0}'.format(self.config['function'])
 
         call_args = []
-        for arg in self['args']:
+        for arg in self.config['args']:
             call_args.append(repr(arg))
-        for key, val in sorted(self['kwargs'].iteritems()):
+        for key, val in sorted(self.config['kwargs'].iteritems()):
             call_args.append("{0}={1!r}".format(key, val))
 
         if len(call_args):

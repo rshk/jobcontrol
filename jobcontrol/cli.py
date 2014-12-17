@@ -235,12 +235,12 @@ def web(host, port, debug):
 
     from jobcontrol.web.app import app
 
-    if 'webapp' in jc.config:
-        app.config.update(jc.config['webapp'])
+    app.config.update(jc.config.webapp)
 
     server_port = port or app.config.get('PORT') or 5000
 
     # todo: figure out a better way to pass context..
+    # we could use an "application" context -- the flask way..?
     app.config['JOBCONTROL'] = jc
 
     app.run(port=server_port, debug=debug, host=host)
