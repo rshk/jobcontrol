@@ -242,3 +242,17 @@ def job_returning_nonserializable():
 
 def job_raising_nonserializable():
     raise NonSerializableException()
+
+
+def job_creating_temp_file():
+    import os
+    import tempfile
+    fd, name = tempfile.mkstemp(text=True)
+    with os.fdopen(fd, 'w') as fp:
+        fp.write('Hello, world!\n')
+    return name
+
+
+def cleanup_temp_file(build):
+    import os
+    os.unlink(build.retval)

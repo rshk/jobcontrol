@@ -977,6 +977,26 @@ class BuildInfo(object):
         return self.info['config']
 
     @property
+    def retval(self):
+        return self.info['retval']
+
+    @property
+    def started(self):
+        return self.info['started']
+
+    @property
+    def finished(self):
+        return self.info['finished']
+
+    @property
+    def success(self):
+        return self.info['success']
+
+    @property
+    def skipped(self):
+        return self.info['skipped']
+
+    @property
     def descriptive_status(self):
         """
         Return a label describing the current status of the build.
@@ -1016,9 +1036,18 @@ class BuildInfo(object):
         """Get a :py:class:`JobInfo` associated with this build's job"""
         return JobInfo(self.app, self.job_id)
 
-    def delete(self):
-        """Delete all information related to this build from database"""
+    def delete(self, cleanup=True):
+        """
+        Delete all information related to this build from database
+        """
+
         self.app.storage.delete_build(self.build_id)
+
+        if cleanup:
+            cleanup_function = self.config.get('cleanup_function')
+            if cleanup_function:
+                func = self.app._get_runner_function(cleanup_function)
+                func(self)
 
     def run(self, refresh=True):
         """Calls run_build() on the main app for this build"""
