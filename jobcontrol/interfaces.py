@@ -84,7 +84,7 @@ import warnings
 # from celery.contrib import rdb
 
 from jobcontrol.exceptions import SerializationError
-from jobcontrol.utils import ExceptionPlaceholder, TracebackInfo, LogRecord
+from jobcontrol.utils import ExceptionPlaceholder, LogRecord
 
 
 class StorageBase(object):

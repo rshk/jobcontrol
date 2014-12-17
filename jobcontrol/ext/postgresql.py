@@ -4,15 +4,12 @@ PostgreSQL-backed Job control class.
 
 from datetime import datetime, timedelta
 from urlparse import urlparse, parse_qs
-import logging
-import traceback
 
 import psycopg2
 import psycopg2.extras
 
 from jobcontrol.interfaces import StorageBase
 from jobcontrol.exceptions import NotFound
-from jobcontrol.utils import NotSerializableRepr
 
 
 class PostgreSQLStorage(StorageBase):

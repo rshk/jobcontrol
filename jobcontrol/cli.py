@@ -1,16 +1,11 @@
-import ast
-
 import click
-from flask.config import Config
 import logging
 from nicelog.formatters import ColorLineFormatter
 from prettytable import PrettyTable
 import sys
 
 from jobcontrol.core import JobControl
-from jobcontrol.utils import (
-    get_storage_from_url, get_storage_from_config, short_repr,
-    json_dumps)
+from jobcontrol.utils import json_dumps
 
 
 logger = logging.getLogger('')
