@@ -41,6 +41,9 @@ test: check
 setup_tests:
 	pip install pytest pytest-pep8 pytest-cov
 
+clean_coverage_report:
+	rm -f .coverage .coverage.*
+
 docs:
 	$(MAKE) -C docs html
 
