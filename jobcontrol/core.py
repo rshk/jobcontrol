@@ -455,8 +455,7 @@ class JobControl(object):
 
         from jobcontrol.async.tasks import app as celery_app
         celery_app.conf['JOBCONTROL'] = self
-        if 'celery' in self.config:
-            celery_app.conf.update(self.config['celery'])
+        celery_app.conf.update(self.config.celery)
         return celery_app
 
 
