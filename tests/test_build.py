@@ -169,7 +169,8 @@ def test_job_status_reporting(storage):
     assert job_1.has_builds() is False  # **Completed** builds..
     assert job_1.has_running_builds() is True
 
-    assert job_1.get_status() == 'running'
+    # Note: "running" is not anymore reported as a state
+    assert job_1.get_status() == 'not_built'
 
     jc.storage.finish_build(build_1_1.id, success=False)
     build_1_1.refresh()
