@@ -95,64 +95,90 @@ The project can be found on PyPI here: https://pypi.python.org/pypi/jobcontrol
 Project documentation
 =====================
 
-Documentation is hosted on GitHub pages: *(coming soon!)*
-http://rshk.github.io/jobcontrol/
+Documentation is hosted on GitHub pages:
+
+http://rshk.github.io/jobcontrol/docs/
+
+A mirror copy is hosted on ReadTheDocs (compiled automatically
+from the Git repository; uses RTD theme; supports multiple versions):
+
+http://jobcontrol.rtfd.org/
 
 
 Concepts
 ========
 
-- Each job is defined as a Python function to be run, with arguments
-  and keywords.
-- Each job can depend on other jobs; the dependency sistem ensures
-  all dependencies are built before running a given job, and that
-  depending jobs are rebuilt when a "higher-level" one is built.
+**Jobs** are simple definitions of tasks to be executed, in terms of
+a Python function, with arguments and keywords.
 
-Example::
+They also allow defining **dependencies** (and seamingless passing of
+return values from dependencies as call arguments), cleanup functions,
+and other nice stuff.
 
-    ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐
-    │         │   │         │   │         │   │         │
-    │  Job A  │ → │  Job B  │ → │  Job C  │ → │  Job D  │
-    │         │   │         │   │         │   │         │
-    └─────────┘   └─────────┘   └─────────┘   └─────────┘
+The library itself is responsible of keeping track of job execution
+("**build**") status: start/end times, return value, whether it raised
+an exception, all the log messages produced during execution, the
+progress report of the execution, ...
 
-When running the task ``C``, a build of ``B`` will be required; this
-in turn requires a build of ``A``. If ``build_deps=True`` was
-specified, a build of ``C`` and ``B`` will be triggered. Otherwise,
-the build will terminate with a "dependencies not met" error.
-
-After a successful build of ``C``, ``D`` is not outdated.  If
-``build_depending=True`` was specified, a build of ``D`` will be
-triggered.
-
-Other example: ``Job #2`` depends on ``Job #2``:
+It also features a web UI (and web APIs are planned) to have an overview
+of the builds status / launch new builds / ...
 
 
-**Job #1**
+..
+   Concepts
+   ========
 
-+-------+-------+------+-------+
-| Build | Succ? | Time | Skip? |
-+=======+=======+======+=======+
-|     1 | TRUE  |    1 | FALSE |
-+-------+-------+------+-------+
-|     2 | FALSE |    3 | FALSE |
-+-------+-------+------+-------+
-|     3 | TRUE  |    4 | TRUE  |
-+-------+-------+------+-------+
-|     4 | TRUE  |    5 | FALSE |
-+-------+-------+------+-------+
+   - Each job is defined as a Python function to be run, with arguments
+     and keywords.
+   - Each job can depend on other jobs; the dependency sistem ensures
+     all dependencies are built before running a given job, and that
+     depending jobs are rebuilt when a "higher-level" one is built.
+
+   Example::
+
+       ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐
+       │         │   │         │   │         │   │         │
+       │  Job A  │ → │  Job B  │ → │  Job C  │ → │  Job D  │
+       │         │   │         │   │         │   │         │
+       └─────────┘   └─────────┘   └─────────┘   └─────────┘
+
+   When running the task ``C``, a build of ``B`` will be required; this
+   in turn requires a build of ``A``. If ``build_deps=True`` was
+   specified, a build of ``C`` and ``B`` will be triggered. Otherwise,
+   the build will terminate with a "dependencies not met" error.
+
+   After a successful build of ``C``, ``D`` is not outdated.  If
+   ``build_depending=True`` was specified, a build of ``D`` will be
+   triggered.
+
+   Other example: ``Job #2`` depends on ``Job #2``:
 
 
-**Job #2**
+   **Job #1**
 
-+-------+-------+------+-------+
-| Build | Succ? | Time | Skip? |
-+=======+=======+======+=======+
-|     1 | TRUE  |    2 | FALSE |
-+-------+-------+------+-------+
-|       No rebuild needed.     |
-+-------+-------+------+-------+
-|       No rebuild needed.     |
-+-------+-------+------+-------+
-|     2 | TRUE  |    6 | FALSE |
-+-------+-------+------+-------+
+   +-------+-------+------+-------+
+   | Build | Succ? | Time | Skip? |
+   +=======+=======+======+=======+
+   |     1 | TRUE  |    1 | FALSE |
+   +-------+-------+------+-------+
+   |     2 | FALSE |    3 | FALSE |
+   +-------+-------+------+-------+
+   |     3 | TRUE  |    4 | TRUE  |
+   +-------+-------+------+-------+
+   |     4 | TRUE  |    5 | FALSE |
+   +-------+-------+------+-------+
+
+
+   **Job #2**
+
+   +-------+-------+------+-------+
+   | Build | Succ? | Time | Skip? |
+   +=======+=======+======+=======+
+   |     1 | TRUE  |    2 | FALSE |
+   +-------+-------+------+-------+
+   |       No rebuild needed.     |
+   +-------+-------+------+-------+
+   |       No rebuild needed.     |
+   +-------+-------+------+-------+
+   |     2 | TRUE  |    6 | FALSE |
+   +-------+-------+------+-------+
