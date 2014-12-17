@@ -32,8 +32,20 @@ def index():
 
 @html_views.route('/job/', methods=['GET'])
 def jobs_list():
-    return render_template('jobs-list.jinja',
-                           jobs=list(get_jc().iter_jobs()))
+    filter_tags = []
+    if 'tag' in request.args:
+        filter_tags = request.args.getlist('tag')
+
+    jobs = get_jc().iter_jobs()
+    if filter_tags:
+        jobs = (x for x in jobs
+                if all(t in x.config.get('tags', [])
+                       for t in filter_tags))
+
+    return render_template(
+        'jobs-list.jinja',
+        jobs=list(jobs),
+        filter_tags=filter_tags)
 
 
 @html_views.route('/job/<string:job_id>', methods=['GET'])

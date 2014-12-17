@@ -6,7 +6,11 @@
 
   <div class="container-fluid">
 
-    <h1>All Jobs</h1>
+    {% if filter_tags %}
+      <h1>Jobs tagged: {{ filter_tags|join(", ") }}</h1>
+    {% else %}
+      <h1>All Jobs</h1>
+    {% endif %}
 
     <div class="media-list media-list-striped">
       {% for job in jobs %}
@@ -18,12 +22,12 @@
           {% set badge_status=job_status %}
           {% set icon='' %}
 
-          {% if job_status == 'running' %}
-            {% set badge_class='primary' %}
-            {% set badge_status='Running' %}
-            {% set icon='cog fa-spin' %}
+          {# {% if job_status == 'running' %} #}
+          {#   {% set badge_class='primary' %} #}
+          {#   {% set badge_status='Running' %} #}
+          {#   {% set icon='cog fa-spin' %} #}
 
-          {% elif job_status == 'not_built' %}
+          {% if job_status == 'not_built' %}
             {% set badge_class='default' %}
             {% set badge_status='No builds' %}
             {% set icon='question' %}
@@ -67,6 +71,17 @@
 		</h2>
 		<div><strong>Job id:</strong> {{ job.id }}</div>
 
+                <div>
+                  {% for tag in job.config.get('tags', []) %}
+                    <a href="{{ url_for('.jobs_list') }}?tag={{ tag|e }}">
+                      <span class="label label-default">
+                        <span class="fa fa-tag"></span>
+                        {{ tag|e }}
+                      </span>
+                    </a> &nbsp;
+                  {% endfor %}
+                </div>
+
 		{% set job_docs = job.get_docs() %}
 		<div style="font-size: 120%;margin-bottom: 1em;">
                   <em>{{ job_docs.function_module -}}</em>{{ '' -}}
@@ -89,9 +104,9 @@
 
           <div class="media-right">
             <form action="{{ url_for('webui.job_run_submit', job_id=job.id) }}" method="POST">
-	      {{ macros.form_csrf_token() }}
+              {{ macros.form_csrf_token() }}
               <button class="btn {% if job.can_be_built() %}btn-primary{% else %}btn-default{% endif %} btn-lg">
-	        <span class="fa fa-cog"></span> Run
+                <span class="fa fa-cog"></span> Run
               </button>
             </form>
           </div>
