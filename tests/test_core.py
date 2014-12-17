@@ -198,6 +198,35 @@ def test_build_with_failure(storage):
     # todo: check the TracebackInfo object
 
 
+def test_build_with_skip(storage):
+    config = JobControlConfig.from_string("""
+    jobs:
+        - id: job-to-skip
+          function: jobcontrol.utils.testing:testing_job
+          kwargs:
+              retval: "Foo Retval"
+              skip: True
+    """)
+    jc = JobControl(storage=storage, config=config)
+
+    job = jc.get_job('job-to-skip')
+    build = job.create_build()
+    build.run()
+
+    assert build['started']
+    assert build['finished']
+    assert build['skipped']
+
+    assert job.has_builds()
+    assert not job.has_successful_builds()  # Skipped builds are ignored
+    assert not job.has_running_builds()
+    assert list(job.iter_builds()) == [build]
+    assert list(job.iter_builds(skipped=False)) == []
+
+    assert build['exception'] is None
+    assert build['exception_tb'] is None
+
+
 def test_nonserializable_objects():
     """
     Test the "NonSerializableObject" used in
