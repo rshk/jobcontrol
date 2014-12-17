@@ -17,7 +17,7 @@ import warnings
 from flask import escape
 
 from jobcontrol.exceptions import MissingDependencies, SkipBuild, NotFound
-from jobcontrol.globals import _execution_ctx_stack
+from jobcontrol.globals import _execution_ctx_stack, execution_context
 from jobcontrol.config import JobControlConfig, BuildConfig, Retval
 from jobcontrol.utils import import_object, cached_property, TracebackInfo
 from jobcontrol.utils.depgraph import resolve_deps
@@ -335,7 +335,9 @@ class JobControl(object):
         if isinstance(args, Retval):
             # Get return value for the *pinned* build of that
             # job for the currently running build.
-            pass
+            current_build = execution_context.current_build
+            dep_build = current_build.get_dependency_build(args.job_id)
+            return dep_build['retval']
 
         return args
 
@@ -1034,7 +1036,30 @@ class BuildInfo(object):
         """
         return self.app.storage.iter_log_messages(build_id=self.build_id, **kw)
 
+    def get_dependency_build(self, job_id):
+        if job_id not in self.config['dependencies']:
+            raise ValueError('Job {0} is not a dependency of this build'
+                             .format(repr(job_id)))
+
+        # Get the pinned build, if any
+        if job_id in self.config['pinned_builds']:
+            return self.app.get_build(self.config['pinned_builds'][job_id])
+
+        # Get the latest successful build of the job
+        job = self.app.get_job(job_id)
+        return job.get_latest_successful_build()
+
 
 # We need just *one* handler -> create here
 _log_handler = JobControlLogHandler()
 _log_handler.setLevel(logging.DEBUG)
+
+
+
+
+
+
+
+
+
+
