@@ -1053,13 +1053,3 @@ class BuildInfo(object):
 # We need just *one* handler -> create here
 _log_handler = JobControlLogHandler()
 _log_handler.setLevel(logging.DEBUG)
-
-
-
-
-
-
-
-
-
-
