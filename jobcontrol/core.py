@@ -610,7 +610,6 @@ class JobInfo(object):
         This is mainly used when reporting the status in the interfaces.
 
         :returns:
-          - ``'running'`` the job has running builds
           - ``'not_built'`` the job has no builds
           - ``'success'`` the job has at least a successful build
           - ``'failed'`` the job only has failed builds
@@ -621,8 +620,8 @@ class JobInfo(object):
         # todo: "running" must be a separate state, as we are still interested
         #       on whether there is at least one successful build..
 
-        if self.has_running_builds():
-            return 'running'
+        # if self.has_running_builds():
+        #     return 'running'
 
         if not self.has_builds():
             return 'not_built'
@@ -710,7 +709,7 @@ class JobInfo(object):
         Return the job configuration as serialized YAML, mostly
         for displaying on user interfaces.
         """
-        from jobcontrol.job_conf import dump
+        from jobcontrol.config import _yaml_dump as dump
         return dump(self.config)
 
     def has_builds(self):

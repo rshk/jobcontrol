@@ -104,7 +104,7 @@ def job_depgraph(job_id, fmt):
         job = jc.get_job(node)
         node.attr['URL'] = url_for('.job_info', job_id=node, _external=True)
         node.attr['target'] = '_top'
-        node.attr['tooltip'] = job['title']
+        node.attr['tooltip'] = job.title
 
         node.attr['fontcolor'] = '#ffffff'
         node.attr['style'] = 'filled'

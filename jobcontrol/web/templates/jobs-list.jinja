@@ -125,38 +125,48 @@
     {% set row_class = 'default' %}
   {% endif %}
 
+  {% set progress_info = build.get_progress_info() %}
+
   <div class="media">
     <div class="media-left">
+      {# todo: use a "status badge" instead, in order to show the spinning cog? #}
       <div class="label label-{{ row_class }} label-round">
 	{{ build.id }}
       </div>
-    </div>
-    <div class="media-body">
-      <h3>
-        <a href="{{ url_for('webui.build_info', build_id=build.id) }}">
-          Build #{{build.id}}
-          <small>
-            {{ build.descriptive_status }}
-            &bullet;
-            {% if build.start_time %}
-              Started <abbr title="{{ build.start_time }}">
-                {{ build.start_time|humanize_timestamp }}
-              </abbr>
-              /
-              {% if build.end_time %}
-                Finished <abbr title="{{ build.end_time }}">
-                  {{ build.end_time|humanize_timestamp }}
-                </abbr>
-              {% else %}
-                Not finished
-              {% endif %}
-            {% else %}
-              Not started
-            {% endif %}
+    </div><!-- .media-left -->
 
-          </small>
-        </a>
-      </h3>
+    <div class="media-body" style="width: 100%">
+          <h3 style="margin:2px 0;">
+            <a href="{{ url_for('webui.build_info', build_id=build.id) }}">
+              Build #{{build.id}}
+              <small>
+                {{ build.descriptive_status }}
+                &bullet;
+                {% if build.start_time %}
+                  Started <abbr title="{{ build.start_time }}">
+                  {{ build.start_time|humanize_timestamp }}
+                  </abbr> /
+                  {% if build.end_time %}
+                    Finished <abbr title="{{ build.end_time }}">
+                    {{ build.end_time|humanize_timestamp }}
+                    </abbr>
+                  {% else %}
+                    Not finished
+                  {% endif %}
+                {% else %}
+                  Not started
+                {% endif %}
+
+              </small>
+            </a>
+          </h3>
+
+          {{ macros.progress_bar(
+              cur=progress_info.current,
+              total=progress_info.total,
+              color=progress_info.color_css_rgb,
+              size='small') }}
+
     </div>
   </div>
 

@@ -138,26 +138,6 @@
             {% endif %}
           </td>
 
-          {# <td class="align-cm {% if build.started %}success{% else %}warning{% endif %}"> #}
-          {#   {{ build.started|yesno }} #}
-          {# </td> #}
-
-          {# <td class="align-cm {% if build.finished %}success{% else %}warning{% endif %}"> #}
-          {#   {{ build.finished|yesno }} #}
-          {# </td> #}
-
-          {# {% if build.finished %} #}
-          {#   <td class="align-cm {% if build.success %}success{% else %}danger{% endif %}"> #}
-          {#     {{ build.success|yesno }} #}
-          {#   </td> #}
-          {#   <td class="align-cm {% if build.skipped %}warning{% else %}success{% endif %}"> #}
-          {#     {{ build.skipped|yesno }} #}
-          {#   </td> #}
-          {# {% else %} #}
-          {#   <td></td> #}
-          {#   <td></td> #}
-          {# {% endif %} #}
-
           <td class="align-cm">
             {% set progress_info = build.get_progress_info() %}
             {{ macros.progress_bar(
@@ -167,16 +147,7 @@
                 size='small') }}
 
           </td>
-          {# <td class="align-lm"> #}
-          {#   {% if build.retval %} #}
-          {#     <code>{{ build.retval|pprint|escape }}</code> #}
-          {#   {% endif %} #}
 
-          {#   {% if build.exception %} #}
-          {#     <strong>Exception:</strong> #}
-          {#     {{ build.exception|pprint|escape }} #}
-          {#   {% endif %} #}
-          {# </td> #}
 	</tr>
       {% endfor %}
     </tbody>

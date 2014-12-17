@@ -190,6 +190,9 @@ class BuildConfig(MutableMapping):
                                 .format(type(initial).__name__))
             self.update(initial)
 
+    def __repr__(self):
+        return '{0}({1})'.format(self.__class__.__name__, repr(self._config))
+
     def __getitem__(self, name):
         if name in ('function', 'cleanup_function'):
             return self._config.get(name)
