@@ -173,10 +173,10 @@
 {% endmacro %}
 
         <div class="media-list media-list-striped">
-          {% for build in job.iter_builds(finished=False) %}
+          {% for build in job.iter_builds(finished=False, order='desc') %}
             {{ job_list_build_item(build) }}
           {% endfor %}
-          {% for build in job.iter_builds(success=True, limit=1) %}
+          {% for build in job.iter_builds(success=True, order='desc', limit=1) %}
             {{ job_list_build_item(build) }}
           {% endfor %}
         </div>
