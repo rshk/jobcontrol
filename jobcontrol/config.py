@@ -27,6 +27,7 @@ class JobControlConfig(object):
         self._celery = {}
         self._jobs = []
         self._secret = {}
+        self._yaml_config = None
 
         if initial is not None:
             self._update(initial)
@@ -58,7 +59,9 @@ class JobControlConfig(object):
 
         conf = cls.preprocess_config(s)
         conf_obj = _yaml_load(conf)
-        return cls(conf_obj)
+        obj = cls(conf_obj)
+        obj._yaml_config = conf
+        return obj
 
     @staticmethod
     def preprocess_config(s):

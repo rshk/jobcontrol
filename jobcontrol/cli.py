@@ -275,5 +275,10 @@ def async_build_job(job_id, broker):
     build_job.delay(job_id)
 
 
+@cli_main_grp.command()
+def dump_config():
+    print(jc.config._yaml_config)
+
+
 def main():
     cli_main_grp(obj={})
