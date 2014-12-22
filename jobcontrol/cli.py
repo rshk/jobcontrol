@@ -243,21 +243,35 @@ def web(host, port, debug):
 
 @cli_main_grp.command()
 @click.option('--broker', metavar='URL', help='Broker URL')
-def worker(broker):
-    """Run the Celery worker"""
+@click.argument('celery_args', nargs=-1)
+def worker(broker, celery_args):
+    """
+    Start the Celery worker.
 
-    # from jobcontrol.async.tasks import app as celery_app
-    import jobcontrol.core  # should set up logging..  # noqa  # nope... :(
+    Extra arguments can be passed to the celery worker like this:
 
+        jobcontrol-cli worker [OPTIONS] -- [CELERY_ARGS]
+
+    Example:
+
+        jobcontrol-cli worker --config-file=... -- -c 10
+
+    List available arguments with:
+
+        jobcontrol-cli worker --config-file=... -- --help
+    """
+
+    import jobcontrol.core  # This is needed to setup logging  # noqa
+
+    # Will update celery configuration from main config file
     celery_app = jc.get_celery_app()
-
-    # celery_app.conf.JOBCONTROL = jc
 
     if broker:
         celery_app.conf.BROKER_URL = broker
 
-    # todo: allow passing arguments
-    celery_app.worker_main(argv=['jobcontrol-cli'])
+    args = ['jobcontrol-celery-worker']
+    args.extend(celery_args)
+    celery_app.worker_main(argv=args)
 
 
 @cli_main_grp.command()
