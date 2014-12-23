@@ -18,11 +18,13 @@ app.secret_key = "This is no secret"
 
 @app.before_request
 def csrf_protect():
-    if request.method == 'POST':
-        # token = session.pop('_csrf_token', None)
-        token = session.get('_csrf_token')
-        if not token or token != request.form.get('_csrf_token'):
-            abort(403)
+    # todo: re-enable this only on *web* views, not on the API
+    pass
+    # if request.method == 'POST':
+    #     # token = session.pop('_csrf_token', None)
+    #     token = session.get('_csrf_token')
+    #     if not token or token != request.form.get('_csrf_token'):
+    #         abort(403)
 
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token

@@ -1,17 +1,7 @@
 from __future__ import division
 
-# from collections import defaultdict
-# import ast
-# import colorsys
-
 from flask import (Blueprint, render_template, redirect, url_for,
                    flash, request)
-
-# from jobcontrol.utils import import_object
-
-
-class FormError(Exception):
-    pass
 
 
 html_views = Blueprint('webui', __name__)
